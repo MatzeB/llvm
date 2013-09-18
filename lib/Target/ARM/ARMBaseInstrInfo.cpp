@@ -4360,9 +4360,6 @@ ARMBaseInstrInfo::setExecutionDomain(MachineInstr *MI, unsigned Domain) const {
       NewMIB.addImm(1);
       AddDefaultPred(NewMIB);
 
-      if (SrcLane == DstLane)
-        NewMIB.addReg(SrcReg, RegState::Implicit);
-
       MI->setDesc(get(ARM::VEXTd32));
       MIB.addReg(DDst, RegState::Define);
 
@@ -4379,14 +4376,19 @@ ARMBaseInstrInfo::setExecutionDomain(MachineInstr *MI, unsigned Domain) const {
       MIB.addImm(1);
       AddDefaultPred(MIB);
 
-      if (SrcLane != DstLane)
-        MIB.addReg(SrcReg, RegState::Implicit);
+      MachineRegisterInfo &MRI = MI->getParent()->getParent()->getRegInfo();
+      if (!MRI.tracksSubRegLiveness()) {
+        if (SrcLane == DstLane)
+          NewMIB.addReg(SrcReg, RegState::Implicit);
+        else
+          MIB.addReg(SrcReg, RegState::Implicit);
 
-      // As before, the original destination is no longer represented, add it
-      // implicitly.
-      MIB.addReg(DstReg, RegState::Define | RegState::Implicit);
-      if (ImplicitSReg != 0)
-        MIB.addReg(ImplicitSReg, RegState::Implicit);
+        // As before, the original destination is no longer represented, add it
+        // implicitly.
+        MIB.addReg(DstReg, RegState::Define | RegState::Implicit);
+        if (ImplicitSReg != 0)
+          MIB.addReg(ImplicitSReg, RegState::Implicit);
+      }
       break;
     }
   }
