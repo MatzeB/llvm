@@ -485,6 +485,8 @@ public:
 
   bool enableEarlyIfConversion() const override;
 
+  bool enableSubRegLiveness() const override { return true; }
+
   /// Return the instruction itineraries based on the subtarget selection.
   const InstrItineraryData *getInstrItineraryData() const override {
     return &InstrItins;

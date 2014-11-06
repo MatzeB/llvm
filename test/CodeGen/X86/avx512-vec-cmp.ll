@@ -100,12 +100,9 @@ define <2 x double> @test8(<2 x double> %a, <2 x double> %b) {
 define <8 x i32> @test9(<8 x i32> %x, <8 x i32> %y) nounwind {
 ; CHECK-LABEL: test9:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:      ## kill: YMM1<def> YMM1<kill> ZMM1<def>
-; CHECK-NEXT:      ## kill: YMM0<def> YMM0<kill> ZMM0<def>
-; CHECK-NEXT:    vpcmpeqd %zmm1, %zmm0, %k1
+; CHECK:         vpcmpeqd %zmm1, %zmm0, %k1
 ; CHECK-NEXT:    vpblendmd %zmm0, %zmm1, %zmm0 {%k1}
-; CHECK-NEXT:      ## kill: YMM0<def> YMM0<kill> ZMM0<kill>
-; CHECK-NEXT:    retq
+; CHECK:         retq
   %mask = icmp eq <8 x i32> %x, %y
   %max = select <8 x i1> %mask, <8 x i32> %x, <8 x i32> %y
   ret <8 x i32> %max
@@ -114,12 +111,9 @@ define <8 x i32> @test9(<8 x i32> %x, <8 x i32> %y) nounwind {
 define <8 x float> @test10(<8 x float> %x, <8 x float> %y) nounwind {
 ; CHECK-LABEL: test10:
 ; CHECK:       ## BB#0:
-; CHECK-NEXT:      ## kill: YMM1<def> YMM1<kill> ZMM1<def>
-; CHECK-NEXT:      ## kill: YMM0<def> YMM0<kill> ZMM0<def>
-; CHECK-NEXT:    vcmpeqps %zmm1, %zmm0, %k1
+; CHECK:         vcmpeqps %zmm1, %zmm0, %k1
 ; CHECK-NEXT:    vblendmps %zmm0, %zmm1, %zmm0 {%k1}
-; CHECK-NEXT:      ## kill: YMM0<def> YMM0<kill> ZMM0<kill>
-; CHECK-NEXT:    retq
+; CHECK:         retq
   %mask = fcmp oeq <8 x float> %x, %y
   %max = select <8 x i1> %mask, <8 x float> %x, <8 x float> %y
   ret <8 x float> %max
@@ -143,8 +137,7 @@ define i16 @test12(<16 x i64> %a, <16 x i64> %b) nounwind {
 ; CHECK-NEXT:    vpcmpeqq %zmm3, %zmm1, %k1
 ; CHECK-NEXT:    kunpckbw %k0, %k1, %k0
 ; CHECK-NEXT:    kmovw %k0, %eax
-; CHECK-NEXT:      ## kill: AX<def> AX<kill> EAX<kill>
-; CHECK-NEXT:    retq
+; CHECK:         retq
   %res = icmp eq <16 x i64> %a, %b
   %res1 = bitcast <16 x i1> %res to i16
   ret i16 %res1
