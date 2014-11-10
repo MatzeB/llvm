@@ -579,8 +579,8 @@ define <8 x i8> @test_v8i8_v4i16(<4 x i16> %p) {
 
 ; CHECK-LABEL: test_f128_v2f64:
 define fp128 @test_f128_v2f64(<2 x double> %p) {
-; SOFT: vmov [[REG1:d[0-9]+]], r3, r2
 ; SOFT: vmov [[REG2:d[0-9]+]], r1, r0
+; SOFT: vmov [[REG1:d[0-9]+]], r3, r2
 ; SOFT: vadd.f64 d{{[0-9]+}}, [[REG1]]
 ; SOFT: vadd.f64 d{{[0-9]+}}, [[REG2]]
 ; HARD: vadd.f64 d{{[0-9]+}}, d1
@@ -595,8 +595,8 @@ define fp128 @test_f128_v2f64(<2 x double> %p) {
 
 ; CHECK-LABEL: test_f128_v2i64:
 define fp128 @test_f128_v2i64(<2 x i64> %p) {
-; SOFT: vmov [[REG1:d[0-9]+]], r3, r2
 ; SOFT: vmov [[REG2:d[0-9]+]], r1, r0
+; SOFT: vmov [[REG1:d[0-9]+]], r3, r2
 ; HARD: vadd.i64 q{{[0-9]+}}, q0
     %1 = add <2 x i64> %p, %p
     %2 = bitcast <2 x i64> %1 to fp128
@@ -653,8 +653,8 @@ define fp128 @test_f128_v16i8(<16 x i8> %p) {
 ; CHECK-LABEL: test_v2f64_f128:
 define <2 x double> @test_v2f64_f128(fp128 %p) {
 ; CHECK: vmov.32 [[REG1:d[0-9]+]][0], r0
-; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2:d[0-9]+]][0], r2
+; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2]][1], r3
     %1 = fadd fp128 %p, %p
     %2 = bitcast fp128 %1 to <2 x double>
@@ -748,8 +748,8 @@ define <2 x double> @test_v2f64_v16i8(<16 x i8> %p) {
 ; CHECK-LABEL: test_v2i64_f128:
 define <2 x i64> @test_v2i64_f128(fp128 %p) {
 ; CHECK: vmov.32 [[REG1:d[0-9]+]][0], r0
-; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2:d[0-9]+]][0], r2
+; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2]][1], r3
     %1 = fadd fp128 %p, %p
     %2 = bitcast fp128 %1 to <2 x i64>
@@ -828,8 +828,8 @@ define <2 x i64> @test_v2i64_v16i8(<16 x i8> %p) {
 ; CHECK-LABEL: test_v4f32_f128:
 define <4 x float> @test_v4f32_f128(fp128 %p) {
 ; CHECK: vmov.32 [[REG1:d[0-9]+]][0], r0
-; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2:d[0-9]+]][0], r2
+; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2]][1], r3
     %1 = fadd fp128 %p, %p
     %2 = bitcast fp128 %1 to <4 x float>
@@ -910,8 +910,8 @@ define <4 x float> @test_v4f32_v16i8(<16 x i8> %p) {
 ; CHECK-LABEL: test_v4i32_f128:
 define <4 x i32> @test_v4i32_f128(fp128 %p) {
 ; CHECK: vmov.32 [[REG1:d[0-9]+]][0], r0
-; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2:d[0-9]+]][0], r2
+; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2]][1], r3
     %1 = fadd fp128 %p, %p
     %2 = bitcast fp128 %1 to <4 x i32>
@@ -998,8 +998,8 @@ define <4 x i32> @test_v4i32_v16i8(<16 x i8> %p) {
 ; CHECK-LABEL: test_v8i16_f128:
 define <8 x i16> @test_v8i16_f128(fp128 %p) {
 ; CHECK: vmov.32 [[REG1:d[0-9]+]][0], r0
-; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2:d[0-9]+]][0], r2
+; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2]][1], r3
     %1 = fadd fp128 %p, %p
     %2 = bitcast fp128 %1 to <8 x i16>
@@ -1086,8 +1086,8 @@ define <8 x i16> @test_v8i16_v16i8(<16 x i8> %p) {
 ; CHECK-LABEL: test_v16i8_f128:
 define <16 x i8> @test_v16i8_f128(fp128 %p) {
 ; CHECK: vmov.32 [[REG1:d[0-9]+]][0], r0
-; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2:d[0-9]+]][0], r2
+; CHECK: vmov.32 [[REG1]][1], r1
 ; CHECK: vmov.32 [[REG2]][1], r3
     %1 = fadd fp128 %p, %p
     %2 = bitcast fp128 %1 to <16 x i8>

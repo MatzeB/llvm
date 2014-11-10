@@ -1,8 +1,8 @@
 ; RUN: llc < %s -mtriple=thumbv7-apple-ios | FileCheck %s
 
 define void @bar(<4 x i32>* %p, i32 %lane, <4 x i32> %phitmp) nounwind {
-; CHECK:  vst1.64 {d{{[0-9]+}}, d{{[0-9]+}}}, [r[[SOURCE:[0-9]+]]:128]
-; CHECK:  add.w r[[ADDR:[0-9]+]], r[[SOURCE]], {{r[0-9]+}}, lsl #2
+; CHECK:  add.w r[[ADDR:[0-9]+]], r[[SOURCE:[0-9]+]], {{r[0-9]+}}, lsl #2
+; CHECK:  vst1.64 {d{{[0-9]+}}, d{{[0-9]+}}}, [r[[SOURCE]]:128]
 ; CHECK:  vld1.32 {[[DREG:d[0-9]+]][], [[DREG2:d[0-9]+]][]}, [r[[ADDR]]:32]
 ; CHECK:  vst1.32 {[[DREG]], [[DREG2]]}, [r0]
   %val = extractelement <4 x i32> %phitmp, i32 %lane

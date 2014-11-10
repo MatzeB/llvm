@@ -248,6 +248,7 @@ define i64 @test10(i64* %ptr, i64 %val) {
 ; CHECK: mov     [[CARRY_LO:[a-z0-9]+]], #0
 ; CHECK: mov     [[CARRY_HI:[a-z0-9]+]], #0
 ; CHECK: mov     [[OUT_HI:[a-z0-9]+]], r2
+; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK-LE: cmp     [[REG1]], r1
 ; CHECK-BE: cmp     [[REG2]], r2
 ; CHECK: movwls  [[CARRY_LO]], #1
@@ -257,7 +258,6 @@ define i64 @test10(i64* %ptr, i64 %val) {
 ; CHECK: moveq   [[CARRY_HI]], [[CARRY_LO]]
 ; CHECK: cmp     [[CARRY_HI]], #0
 ; CHECK: movne   [[OUT_HI]], [[REG2]]
-; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK: movne   [[OUT_LO]], [[REG1]]
 ; CHECK: strexd {{[a-z0-9]+}}, [[REG3]], [[REG4]]
 ; CHECK: cmp
@@ -297,6 +297,7 @@ define i64 @test11(i64* %ptr, i64 %val) {
 ; CHECK: mov     [[CARRY_LO:[a-z0-9]+]], #0
 ; CHECK: mov     [[CARRY_HI:[a-z0-9]+]], #0
 ; CHECK: mov     [[OUT_HI:[a-z0-9]+]], r2
+; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK-LE: cmp     [[REG1]], r1
 ; CHECK-BE: cmp     [[REG2]], r2
 ; CHECK: movwls  [[CARRY_LO]], #1
@@ -306,7 +307,6 @@ define i64 @test11(i64* %ptr, i64 %val) {
 ; CHECK: moveq   [[CARRY_HI]], [[CARRY_LO]]
 ; CHECK: cmp     [[CARRY_HI]], #0
 ; CHECK: movne   [[OUT_HI]], [[REG2]]
-; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK: movne   [[OUT_LO]], [[REG1]]
 ; CHECK: strexd {{[a-z0-9]+}}, [[REG3]], [[REG4]]
 ; CHECK: cmp
@@ -346,6 +346,7 @@ define i64 @test12(i64* %ptr, i64 %val) {
 ; CHECK: mov     [[CARRY_LO:[a-z0-9]+]], #0
 ; CHECK: mov     [[CARRY_HI:[a-z0-9]+]], #0
 ; CHECK: mov     [[OUT_HI:[a-z0-9]+]], r2
+; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK-LE: cmp     [[REG1]], r1
 ; CHECK-BE: cmp     [[REG2]], r2
 ; CHECK: movwhi  [[CARRY_LO]], #1
@@ -355,7 +356,6 @@ define i64 @test12(i64* %ptr, i64 %val) {
 ; CHECK: moveq   [[CARRY_HI]], [[CARRY_LO]]
 ; CHECK: cmp     [[CARRY_HI]], #0
 ; CHECK: movne   [[OUT_HI]], [[REG2]]
-; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK: movne   [[OUT_LO]], [[REG1]]
 ; CHECK: strexd {{[a-z0-9]+}}, [[REG3]], [[REG4]]
 ; CHECK: cmp
@@ -395,6 +395,7 @@ define i64 @test13(i64* %ptr, i64 %val) {
 ; CHECK: mov     [[CARRY_LO:[a-z0-9]+]], #0
 ; CHECK: mov     [[CARRY_HI:[a-z0-9]+]], #0
 ; CHECK: mov     [[OUT_HI:[a-z0-9]+]], r2
+; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK-LE: cmp     [[REG1]], r1
 ; CHECK-BE: cmp     [[REG2]], r2
 ; CHECK: movwhi  [[CARRY_LO]], #1
@@ -404,7 +405,6 @@ define i64 @test13(i64* %ptr, i64 %val) {
 ; CHECK: moveq   [[CARRY_HI]], [[CARRY_LO]]
 ; CHECK: cmp     [[CARRY_HI]], #0
 ; CHECK: movne   [[OUT_HI]], [[REG2]]
-; CHECK: mov     [[OUT_LO:[a-z0-9]+]], r1
 ; CHECK: movne   [[OUT_LO]], [[REG1]]
 ; CHECK: strexd {{[a-z0-9]+}}, [[REG3]], [[REG4]]
 ; CHECK: cmp
