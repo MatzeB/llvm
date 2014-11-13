@@ -37,6 +37,10 @@ EnableAtomicTidy("arm-atomic-cfg-tidy", cl::Hidden,
                           " to make use of cmpxchg flow-based information"),
                  cl::init(true));
 
+static cl::opt<bool>
+WidenVMOVS("widen-vmovs", cl::Hidden, cl::init(true),
+           cl::desc("Widen ARM vmovs to vmovd when possible"));
+
 extern "C" void LLVMInitializeARMTarget() {
   // Register the target.
   RegisterTargetMachine<ARMLETargetMachine> X(TheARMLETarget);
@@ -360,6 +364,10 @@ void ARMPassConfig::addPreRegAlloc() {
 }
 
 void ARMPassConfig::addPreSched2() {
+  if (WidenVMOVS && !getARMSubtarget().isCortexA15()
+      && !getARMSubtarget().isFPOnlySP())
+    addPass(createARMWidenVMOVPass());
+
   if (getOptLevel() != CodeGenOpt::None) {
     addPass(createARMLoadStoreOptimizationPass());
 

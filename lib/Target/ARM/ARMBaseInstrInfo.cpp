@@ -49,10 +49,6 @@ static cl::opt<bool>
 EnableARM3Addr("enable-arm-3-addr-conv", cl::Hidden,
                cl::desc("Enable ARM 2-addr to 3-addr conv"));
 
-static cl::opt<bool>
-WidenVMOVS("widen-vmovs", cl::Hidden, cl::init(true),
-           cl::desc("Widen ARM vmovs to vmovd when possible"));
-
 static cl::opt<unsigned>
 SwiftPartialUpdateClearance("swift-partial-update-clearance",
      cl::Hidden, cl::init(12),
@@ -1272,71 +1268,7 @@ ARMBaseInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
     return true;
   }
 
-  // This hook gets to expand COPY instructions before they become
-  // copyPhysReg() calls.  Look for VMOVS instructions that can legally be
-  // widened to VMOVD.  We prefer the VMOVD when possible because it may be
-  // changed into a VORR that can go down the NEON pipeline.
-  if (!WidenVMOVS || !MI->isCopy() || Subtarget.isCortexA15() ||
-      Subtarget.isFPOnlySP())
-    return false;
-
-  // Look for a copy between even S-registers.  That is where we keep floats
-  // when using NEON v2f32 instructions for f32 arithmetic.
-  unsigned DstRegS = MI->getOperand(0).getReg();
-  unsigned SrcRegS = MI->getOperand(1).getReg();
-  if (!ARM::SPRRegClass.contains(DstRegS, SrcRegS))
-    return false;
-
-  const TargetRegisterInfo *TRI = &getRegisterInfo();
-  unsigned DstRegD = TRI->getMatchingSuperReg(DstRegS, ARM::ssub_0,
-                                              &ARM::DPRRegClass);
-  unsigned SrcRegD = TRI->getMatchingSuperReg(SrcRegS, ARM::ssub_0,
-                                              &ARM::DPRRegClass);
-  if (!DstRegD || !SrcRegD)
-    return false;
-
-  // We want to widen this into a DstRegD = VMOVD SrcRegD copy.  This is only
-  // legal if the COPY already defines the full DstRegD, and it isn't a
-  // sub-register insertion.
-  if (!MI->definesRegister(DstRegD, TRI) || MI->readsRegister(DstRegD, TRI))
-    return false;
-
-  // A dead copy shouldn't show up here, but reject it just in case.
-  if (MI->getOperand(0).isDead())
-    return false;
-
-  // All clear, widen the COPY.
-  DEBUG(dbgs() << "widening:    " << *MI);
-  MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
-
-  // Get rid of the old <imp-def> of DstRegD.  Leave it if it defines a Q-reg
-  // or some other super-register.
-  int ImpDefIdx = MI->findRegisterDefOperandIdx(DstRegD);
-  if (ImpDefIdx != -1)
-    MI->RemoveOperand(ImpDefIdx);
-
-  // Change the opcode and operands.
-  MI->setDesc(get(ARM::VMOVD));
-  MI->getOperand(0).setReg(DstRegD);
-  MI->getOperand(1).setReg(SrcRegD);
-  AddDefaultPred(MIB);
-
-  // We are now reading SrcRegD instead of SrcRegS.  This may upset the
-  // register scavenger and machine verifier, so we need to indicate that we
-  // are reading an undefined value from SrcRegD, but a proper value from
-  // SrcRegS.
-  MI->getOperand(1).setIsUndef();
-  MIB.addReg(SrcRegS, RegState::Implicit);
-
-  // SrcRegD may actually contain an unrelated value in the ssub_1
-  // sub-register.  Don't kill it.  Only kill the ssub_0 sub-register.
-  if (MI->getOperand(1).isKill()) {
-    MI->getOperand(1).setIsKill(false);
-    MI->addRegisterKilled(SrcRegS, TRI, true);
-  }
-
-  DEBUG(dbgs() << "replaced by: " << *MI);
-  return true;
+  return false;
 }
 
 /// Create a copy of a const pool value. Update CPI to the new index and return

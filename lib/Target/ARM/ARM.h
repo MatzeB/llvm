@@ -39,6 +39,7 @@ FunctionPass *createMLxExpansionPass();
 FunctionPass *createThumb2ITBlockPass();
 FunctionPass *createARMOptimizeBarriersPass();
 FunctionPass *createThumb2SizeReductionPass();
+FunctionPass *createARMWidenVMOVPass();
 
 void LowerARMMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                   ARMAsmPrinter &AP);

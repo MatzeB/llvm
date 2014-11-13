@@ -18,7 +18,7 @@ target triple = "armv7-none--gnueabihf"
 define float @test1(float %a, double %b, %struct.s %c) {
 entry:
 ; CHECK-LABEL: test1
-; CHECK: vmov.f32  s0, s4
+; CHECK: vmov.f64  d0, d2
 ; CHECK-NOT: vmov.f32        s0, s1
 
   %result = extractvalue %struct.s %c, 0
@@ -35,7 +35,7 @@ entry:
 define float @test2(float %a, double %b, %union.t %c) #0 {
 entry:
 ; CHECK-LABEL: test2
-; CHECK: vmov.f32  s0, s4
+; CHECK: vmov.f64  d0, d2
 ; CHECK-NOT: vmov.f32        s0, s1
 
   %result = extractvalue %union.t %c, 0, 0
