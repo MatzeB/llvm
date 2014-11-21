@@ -90,6 +90,7 @@ public:
   bool enablePostMachineScheduler() const override {
     return isCortexA53() || isCortexA57();
   }
+  bool enableSubRegLiveness() const override { return true; }
 
   bool hasZeroCycleRegMove() const { return HasZeroCycleRegMove; }
 
