@@ -1135,8 +1135,11 @@ bool ARMExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
       MIB.addReg(D0, SrcIsKill ? RegState::Kill : 0)
          .addReg(D1, SrcIsKill ? RegState::Kill : 0);
 
-      if (SrcIsKill)      // Add an implicit kill for the Q register.
-        MIB->addRegisterKilled(SrcReg, TRI, true);
+      // The source register may be undefined in the dsub_0 or dsub_1 lane,
+      // while the super register is not undefined, the subregisters might.
+      // Add an implicit super register read to calm the MachineVerifier in
+      // these cases.
+      MIB.addReg(SrcReg, RegState::Implicit | (SrcIsKill ? RegState::Kill : 0));
 
       TransferImpOps(MI, MIB, MIB);
       MIB.setMemRefs(MI.memoperands_begin(), MI.memoperands_end());
