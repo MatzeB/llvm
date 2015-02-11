@@ -203,6 +203,16 @@ void LiveIntervals::computeVirtRegInterval(LiveInterval &LI) {
   computeDeadValues(LI, nullptr);
 }
 
+void LiveIntervals::recomputeInterval(LiveInterval &LI,
+                                      SmallVectorImpl<MachineInstr*> &Dead) {
+  assert(LRCalc && "LRCalc not initialized.");
+  LI.clear();
+  LI.clearSubRanges();
+  LRCalc->reset(MF, getSlotIndexes(), DomTree, &getVNInfoAllocator());
+  LRCalc->calculate(LI);
+  computeDeadValues(LI, &Dead);
+}
+
 void LiveIntervals::computeVirtRegs() {
   for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);

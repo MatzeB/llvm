@@ -142,6 +142,9 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
       VirtRegIntervals[Reg] = nullptr;
     }
 
+    void recomputeInterval(LiveInterval &LI,
+                           SmallVectorImpl<MachineInstr*> &Dead);
+
     /// Given a register and an instruction, adds a live segment from that
     /// instruction to the end of its MBB.
     LiveInterval::Segment addSegmentToEndOfBlock(unsigned reg,

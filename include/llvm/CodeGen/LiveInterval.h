@@ -443,14 +443,6 @@ namespace llvm {
     /// there is no segment before @p Use, return nullptr.
     VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex Use);
 
-    /// join - Join two live ranges (this, and other) together.  This applies
-    /// mappings to the value numbers in the LHS/RHS ranges as specified.  If
-    /// the ranges are not joinable, this aborts.
-    void join(LiveRange &Other,
-              const int *ValNoAssignments,
-              const int *RHSValNoAssignments,
-              SmallVectorImpl<VNInfo *> &NewVNInfo);
-
     /// True iff this segment is a single segment that lies between the
     /// specified boundaries, exclusively. Vregs live across a backedge are not
     /// considered local. The boundaries are expected to lie within an extended
