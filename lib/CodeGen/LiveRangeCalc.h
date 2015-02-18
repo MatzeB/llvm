@@ -236,6 +236,9 @@ public:
   /// Every predecessor of a live-in block must have been given a value with
   /// setLiveOutValue, the value may be null for live-trough blocks.
   void calculateValues();
+
+  /// Construct main live range by merging the SubRanges of @p LI.
+  void computeMainRangeFromSubranges(LiveInterval &LI);
 };
 
 } // end namespace llvm

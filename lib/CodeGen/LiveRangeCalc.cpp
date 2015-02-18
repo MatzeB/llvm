@@ -14,6 +14,7 @@
 #include "LiveRangeCalc.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
 
@@ -120,7 +121,7 @@ void LiveRangeCalc::calculate(LiveInterval &LI) {
       extendToUses(S, Reg, S.LaneMask);
     }
     LI.clear();
-    LI.constructMainRangeFromSubranges(*Indexes, *Alloc);
+    computeMainRangeFromSubranges(LI);
   } else {
     resetLiveOutMap();
     extendToUses(LI, Reg, ~0u);
@@ -458,4 +459,60 @@ void LiveRangeCalc::updateSSA() {
       }
     }
   } while (Changes);
+}
+
+void LiveRangeCalc::computeMainRangeFromSubranges(LiveInterval &LI) {
+  // The basic observations on which this algorithm is based:
+  // - Each Def/ValNo in a subrange must have a corresponding def on the main
+  //   range.
+  // - If any of the subranges is live at a point the main liverange has to be
+  //   live too, conversily where no subrange is live the main range mustn't be
+  //   live either.
+  assert(LI.hasSubRanges() && "expected subranges to be present");
+  assert(LI.segments.empty() && LI.valnos.empty() &&
+         "expected empty main range");
+
+  // Shortcut: If we only have a single subrange, then we can simply copy that
+  // to the main range and are done.
+  auto I = LI.subrange_begin();
+  ++I;
+  if (I == LI.subrange_end()) {
+    LI.copyFrom(*LI.subrange_begin(), *Alloc);
+    return;
+  }
+
+  // Recreate all defpoints of the subregister ranges in the main liverange. We
+  // also search for subregister defs without read-undef that should be regarded
+  // as uses later.
+  SmallVector<SlotIndex, 4> AdditionalUses;
+  for (const LiveInterval::SubRange &SR : LI.subranges()) {
+    for (const VNInfo *VNI : SR.valnos) {
+      // We can ignore PHI defs, they will be recreated during SSA construction.
+      if (VNI->isPHIDef())
+        continue;
+      LI.createDeadDef(VNI->def, *Alloc);
+      // If another subregister crosses the def point, then this must be a
+      // subreg def without a read-undef marker.
+      for (LiveInterval::SubRange &SR2 : LI.subranges()) {
+        if (&SR2 == &SR)
+          continue;
+        LiveQueryResult LRQ = SR2.Query(VNI->def);
+        if (LRQ.valueIn() != nullptr && LRQ.valueIn() == LRQ.valueOut())
+          AdditionalUses.push_back(VNI->def);
+      }
+    }
+  }
+
+  // Consider all subrange live segment endpoints and the previously collected
+  // subreg-defs as uses and construct SSA form as necessary.
+  resetLiveOutMap();
+  LiveIn.clear();
+  for (const LiveInterval::SubRange &SR : LI.subranges()) {
+    for (const LiveRange::Segment &S : SR.segments)
+      extend(LI, S.end, 0);
+  }
+  for (const SlotIndex &I : AdditionalUses)
+    extend(LI, I, 0);
+
+  LI.verify();
 }
