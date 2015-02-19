@@ -225,19 +225,9 @@ namespace llvm {
 
     /// Constructs a new LiveRange object by copying segments and valnos from
     /// another LiveRange.
-    LiveRange(const LiveRange &Other, BumpPtrAllocator &Allocator)
+    LiveRange(const LiveRange &Other, VNInfo::Allocator &Allocator)
         : segmentSet(nullptr) {
-      assert(Other.segmentSet == nullptr &&
-             "Copying of LiveRanges with active SegmentSets is not supported");
-
-      // Duplicate valnos.
-      for (const VNInfo *VNI : Other.valnos) {
-        createValueCopy(VNI, Allocator);
-      }
-      // Now we can copy segments and remap their valnos.
-      for (const Segment &S : Other.segments) {
-        segments.push_back(Segment(S.start, S.end, valnos[S.valno->id]));
-      }
+      copyFrom(Other, Allocator);
     }
 
     ~LiveRange() { delete segmentSet; }
@@ -319,15 +309,9 @@ namespace llvm {
     /// add liveness for a dead def.
     VNInfo *createDeadDef(SlotIndex Def, VNInfo::Allocator &VNInfoAllocator);
 
-    /// Create a copy of the given value. The new value will be identical except
-    /// for the Value number.
-    VNInfo *createValueCopy(const VNInfo *orig,
-                            VNInfo::Allocator &VNInfoAllocator) {
-      VNInfo *VNI =
-        new (VNInfoAllocator) VNInfo((unsigned)valnos.size(), *orig);
-      valnos.push_back(VNI);
-      return VNI;
-    }
+    /// Copy range @p Other into this range. This is done by duplicating the
+    /// value numbers and recreating all segments with these numbers.
+    void copyFrom(const LiveRange &Other, VNInfo::Allocator &Allocator);
 
     /// RenumberValues - Renumber all values in order of appearance and remove
     /// unused values.

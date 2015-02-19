@@ -737,6 +737,19 @@ VNInfo *LiveRange::MergeValueNumberInto(VNInfo *V1, VNInfo *V2) {
   return V2;
 }
 
+void LiveRange::copyFrom(const LiveRange &Other, VNInfo::Allocator &Allocator) {
+  assert(valnos.empty() && segments.empty() && "this range must be empty");
+  assert(Other.segmentSet == nullptr &&
+         "Copying of LiveRanges with active SegmentSets is not supported");
+
+  // Duplicate valnos.
+  for (const VNInfo *VNI : Other.valnos)
+    getNextValue(VNI->def, Allocator);
+  // Now we can copy segments and remap their valnos.
+  for (const Segment &S : Other.segments)
+    segments.push_back(Segment(S.start, S.end, valnos[S.valno->id]));
+}
+
 void LiveRange::flushSegmentSet() {
   assert(segmentSet != nullptr && "segment set must have been created");
   assert(
