@@ -34,6 +34,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -283,7 +284,8 @@ void MachineOperand::print(raw_ostream &OS,
     OS << PrintReg(getReg(), TRI, getSubReg());
 
     if (isDef() || isKill() || isDead() || isImplicit() || isUndef() ||
-        isInternalRead() || isEarlyClobber() || isTied()) {
+        isInternalRead() || isEarlyClobber() || isTied() ||
+        getUndefLaneMask()) {
       OS << '<';
       bool NeedComma = false;
       if (isDef()) {
@@ -325,9 +327,15 @@ void MachineOperand::print(raw_ostream &OS,
       }
       if (isTied()) {
         if (NeedComma) OS << ',';
+        NeedComma = true;
         OS << "tied";
         if (TiedTo != 15)
           OS << unsigned(TiedTo - 1);
+      }
+      unsigned UndefLaneMask = getUndefLaneMask();
+      if (UndefLaneMask != 0) {
+        if (NeedComma) OS << ',';
+        OS << 'U' << format("%08X", UndefLaneMask);
       }
       OS << '>';
     }

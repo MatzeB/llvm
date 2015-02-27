@@ -352,10 +352,11 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   // IncomingReg register in the corresponding predecessor basic block.
   SmallPtrSet<MachineBasicBlock*, 8> MBBsInsertedInto;
   for (int i = NumSrcs - 1; i >= 0; --i) {
-    unsigned SrcReg = MPhi->getOperand(i*2+1).getReg();
-    unsigned SrcSubReg = MPhi->getOperand(i*2+1).getSubReg();
-    bool SrcUndef = MPhi->getOperand(i*2+1).isUndef() ||
-      isImplicitlyDefined(SrcReg, MRI);
+    const MachineOperand &MO = MPhi->getOperand(i*2+1);
+    unsigned SrcReg = MO.getReg();
+    unsigned SrcSubReg = MO.getSubReg();
+    unsigned UndefLaneMask = MO.getUndefLaneMask();
+    bool SrcUndef = MO.isUndef() || isImplicitlyDefined(SrcReg, MRI);
     assert(TargetRegisterInfo::isVirtualRegister(SrcReg) &&
            "Machine PHI Operands must all be virtual registers!");
 
@@ -392,7 +393,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
       } else {
         NewSrcInstr = BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
                             TII->get(TargetOpcode::COPY), IncomingReg)
-                        .addReg(SrcReg, 0, SrcSubReg);
+                        .addReg(SrcReg, 0, SrcSubReg, UndefLaneMask);
       }
     }
 

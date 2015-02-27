@@ -32,7 +32,10 @@ class ProcessImplicitDefs : public MachineFunctionPass {
 
   SmallSetVector<MachineInstr*, 16> WorkList;
 
-  void processImplicitDef(MachineInstr *MI);
+  void processImplicitDef(MachineInstr &MI);
+  void computeUndefLaneMask(MachineInstr &MI);
+  void processInstr(MachineInstr &MI);
+
   bool canTurnIntoImplicitDef(MachineInstr *MI);
 
 public:
@@ -74,9 +77,9 @@ bool ProcessImplicitDefs::canTurnIntoImplicitDef(MachineInstr *MI) {
   return true;
 }
 
-void ProcessImplicitDefs::processImplicitDef(MachineInstr *MI) {
-  DEBUG(dbgs() << "Processing " << *MI);
-  unsigned Reg = MI->getOperand(0).getReg();
+void ProcessImplicitDefs::processImplicitDef(MachineInstr &MI) {
+  DEBUG(dbgs() << "Processing " << MI);
+  unsigned Reg = MI.getOperand(0).getReg();
 
   if (TargetRegisterInfo::isVirtualRegister(Reg)) {
     // For virtual registers, mark all uses as <undef>, and convert users to
@@ -84,20 +87,22 @@ void ProcessImplicitDefs::processImplicitDef(MachineInstr *MI) {
     for (MachineOperand &MO : MRI->use_nodbg_operands(Reg)) {
       MO.setIsUndef();
       MachineInstr *UserMI = MO.getParent();
-      if (!canTurnIntoImplicitDef(UserMI))
-        continue;
-      DEBUG(dbgs() << "Converting to IMPLICIT_DEF: " << *UserMI);
-      UserMI->setDesc(TII->get(TargetOpcode::IMPLICIT_DEF));
-      WorkList.insert(UserMI);
+      if (canTurnIntoImplicitDef(UserMI)) {
+        DEBUG(dbgs() << "Converting to IMPLICIT_DEF: " << *UserMI);
+        UserMI->setDesc(TII->get(TargetOpcode::IMPLICIT_DEF));
+        WorkList.insert(UserMI);
+      } else if (UserMI->isInsertSubreg() || UserMI->isRegSequence()) {
+        WorkList.insert(UserMI);
+      }
     }
-    MI->eraseFromParent();
+    MI.eraseFromParent();
     return;
   }
 
   // This is a physreg implicit-def.
   // Look for the first instruction to use or define an alias.
   MachineBasicBlock::instr_iterator UserMI = MI;
-  MachineBasicBlock::instr_iterator UserE = MI->getParent()->instr_end();
+  MachineBasicBlock::instr_iterator UserE = MI.getParent()->instr_end();
   bool Found = false;
   for (++UserMI; UserMI != UserE; ++UserMI) {
     for (MIOperands MO(UserMI); MO.isValid(); ++MO) {
@@ -119,15 +124,70 @@ void ProcessImplicitDefs::processImplicitDef(MachineInstr *MI) {
   // If we found the using MI, we can erase the IMPLICIT_DEF.
   if (Found) {
     DEBUG(dbgs() << "Physreg user: " << *UserMI);
-    MI->eraseFromParent();
+    MI.eraseFromParent();
     return;
   }
 
   // Using instr wasn't found, it could be in another block.
   // Leave the physreg IMPLICIT_DEF, but trim any extra operands.
-  for (unsigned i = MI->getNumOperands() - 1; i; --i)
-    MI->RemoveOperand(i);
-  DEBUG(dbgs() << "Keeping physreg: " << *MI);
+  for (unsigned i = MI.getNumOperands() - 1; i; --i)
+    MI.RemoveOperand(i);
+  DEBUG(dbgs() << "Keeping physreg: " << MI);
+}
+
+void ProcessImplicitDefs::computeUndefLaneMask(MachineInstr &MI) {
+  unsigned Reg = MI.getOperand(0).getReg();
+  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
+         "Should have a virtual register destination.");
+
+  unsigned UndefLaneMask = MRI->getMaxLaneMaskForVReg(Reg);
+  if (MI.isInsertSubreg()) {
+    MachineOperand &MO = MI.getOperand(1);
+    if (!MO.isUndef())
+      return;
+    if (UndefLaneMask == 0)
+      return;
+
+    unsigned SubIdx = MI.getOperand(3).getImm();
+    unsigned WriteMask = TRI->getSubRegIndexLaneMask(SubIdx);
+    UndefLaneMask &= ~WriteMask;
+  } else if (MI.isRegSequence()) {
+    // Calculate a mask of undefined lanes.
+    for (unsigned i = 1, e = MI.getNumOperands(); i < e; i += 2) {
+      MachineOperand &UseMO = MI.getOperand(i);
+      if (UseMO.isUndef())
+        continue;
+      unsigned SubIdx = MI.getOperand(i+1).getImm();
+      unsigned WriteMask = TRI->getSubRegIndexLaneMask(SubIdx);
+      UndefLaneMask &= ~WriteMask;
+    }
+  } else if (MI.isCopy()) {
+    unsigned DestIdx = MI.getOperand(0).getSubReg();
+    MachineOperand &MO = MI.getOperand(1);
+    unsigned OpUndefLaneMask = MO.getUndefLaneMask();
+    UndefLaneMask = TRI->composeSubRegIndexLaneMask(DestIdx, OpUndefLaneMask);
+  }
+
+  // Propagate the undefined lanes to our users.
+  if (UndefLaneMask == 0)
+    return;
+  for (MachineOperand &MO : MRI->use_nodbg_operands(Reg)) {
+    MO.setUndefLaneMask(UndefLaneMask);
+    MachineInstr *UserMI = MO.getParent();
+    if (UserMI->isCopy() || UserMI->isInsertSubreg() || UserMI->isRegSequence()) {
+      WorkList.insert(UserMI);
+    }
+  }
+}
+
+void ProcessImplicitDefs::processInstr(MachineInstr &MI) {
+  if (MI.isImplicitDef()) {
+    processImplicitDef(MI);
+  } else {
+    assert((MI.isRegSequence() || MI.isInsertSubreg() || MI.isCopy()) &&
+           "Unexpected MI opcode");
+    computeUndefLaneMask(MI);
+  }
 }
 
 /// processImplicitDefs - Process IMPLICIT_DEF instructions and turn them into
@@ -161,7 +221,7 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &MF) {
     Changed = true;
 
     // Drain the WorkList to recursively process any new implicit defs.
-    do processImplicitDef(WorkList.pop_back_val());
+    do processInstr(*WorkList.pop_back_val());
     while (!WorkList.empty());
   }
   return Changed;

@@ -66,7 +66,7 @@ public:
   ///
   const
   MachineInstrBuilder &addReg(unsigned RegNo, unsigned flags = 0,
-                              unsigned SubReg = 0) const {
+                              unsigned SubReg = 0, unsigned UndefLaneMask = 0) const {
     assert((flags & 0x1) == 0 &&
            "Passing in 'true' to addReg is forbidden! Use enums instead.");
     MI->addOperand(*MF, MachineOperand::CreateReg(RegNo,
@@ -78,7 +78,8 @@ public:
                                                flags & RegState::EarlyClobber,
                                                SubReg,
                                                flags & RegState::Debug,
-                                               flags & RegState::InternalRead));
+                                               flags & RegState::InternalRead,
+                                               UndefLaneMask));
     return *this;
   }
 

@@ -164,6 +164,9 @@ private:
       // Register number is in SmallContents.RegNo.
       MachineOperand *Prev;   // Access list for register. See MRI.
       MachineOperand *Next;
+      /// Mask indicating which lanes of a register read are undefined.
+      /// The mask is relative to Reg independent of a set SubReg.
+      unsigned        UndefLaneMask;
     } Reg;
 
     /// OffsetedInfo - This struct contains the offset and an object identifier.
@@ -497,6 +500,11 @@ public:
     return Contents.MD;
   }
 
+  unsigned getUndefLaneMask(void) const {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    return Contents.Reg.UndefLaneMask;
+  }
+
   //===--------------------------------------------------------------------===//
   // Mutators for various operand types.
   //===--------------------------------------------------------------------===//
@@ -527,6 +535,11 @@ public:
   void setMBB(MachineBasicBlock *MBB) {
     assert(isMBB() && "Wrong MachineOperand accessor");
     Contents.MBB = MBB;
+  }
+
+  void setUndefLaneMask(unsigned UndefLaneMask) {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    Contents.Reg.UndefLaneMask = UndefLaneMask;
   }
 
   //===--------------------------------------------------------------------===//
@@ -589,7 +602,8 @@ public:
                                   bool isEarlyClobber = false,
                                   unsigned SubReg = 0,
                                   bool isDebug = false,
-                                  bool isInternalRead = false) {
+                                  bool isInternalRead = false,
+                                  unsigned UndefLaneMask = 0) {
     assert(!(isDead && !isDef) && "Dead flag on non-def");
     assert(!(isKill && isDef) && "Kill flag on def");
     MachineOperand Op(MachineOperand::MO_Register);
@@ -605,6 +619,7 @@ public:
     Op.SmallContents.RegNo = Reg;
     Op.Contents.Reg.Prev = nullptr;
     Op.Contents.Reg.Next = nullptr;
+    Op.Contents.Reg.UndefLaneMask = UndefLaneMask;
     Op.setSubReg(SubReg);
     return Op;
   }

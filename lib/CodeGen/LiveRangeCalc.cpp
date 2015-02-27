@@ -156,11 +156,16 @@ void LiveRangeCalc::extendToUses(LiveRange &LR, unsigned Reg, unsigned Mask) {
 
     if (!MO.readsReg())
       continue;
+
+    unsigned UndefMask = MO.getUndefLaneMask();
     unsigned SubReg = MO.getSubReg();
     if (SubReg != 0) {
-      unsigned SubRegMask = TRI.getSubRegIndexLaneMask(SubReg);
+      unsigned SubRegMask = TRI.getSubRegIndexLaneMask(SubReg) & ~UndefMask;
       // Ignore uses not covering the current subrange.
       if ((SubRegMask & Mask) == 0)
+        continue;
+    } else {
+      if ((Mask & UndefMask) == Mask)
         continue;
     }
 
