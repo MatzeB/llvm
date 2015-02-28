@@ -285,40 +285,40 @@ bool LiveRangeCalc::findReachingDefs(LiveRange &LR, MachineBasicBlock &UseMBB,
     }
 #endif
 
-    for (MachineBasicBlock::pred_iterator PI = MBB->pred_begin(),
-         PE = MBB->pred_end(); PI != PE; ++PI) {
-       MachineBasicBlock *Pred = *PI;
+    for (const MachineBasicBlock *Pred : MBB->predecessors()) {
+      // Is this a known live-out block?
+      VNInfo *VNI;
+      if (Seen.test(Pred->getNumber())) {
+        VNI = Map[Pred].first;
+        if (VNI == nullptr)
+          continue;
+      } else {
+        // Can we find a def inside the block?
+        SlotIndex Start, End;
+        std::tie(Start, End) = Indexes->getMBBRange(Pred);
 
-       // Is this a known live-out block?
-       if (Seen.test(Pred->getNumber())) {
-         if (VNInfo *VNI = Map[Pred].first) {
-           if (TheVNI && TheVNI != VNI)
-             UniqueVNI = false;
-           TheVNI = VNI;
-         }
-         continue;
-       }
+        // First time we see Pred.  Try to determine the live-out value, but
+        // set it as null if Pred is live-through with an unknown value.
+        VNI = LR.extendInBlock(Start, End);
+        setLiveOutValue(Pred, VNI);
+        // Nothing found -> Schedule predecessors.
+        if (VNI == nullptr) {
+          // No, we need a live-in value for Pred as well
+          if (Pred != &UseMBB)
+            WorkList.push_back(Pred->getNumber());
+          else
+            // Loopback to UseMBB, so value is really live through.
+            Use = SlotIndex();
+          continue;
+        }
+      }
 
-       SlotIndex Start, End;
-       std::tie(Start, End) = Indexes->getMBBRange(Pred);
-
-       // First time we see Pred.  Try to determine the live-out value, but set
-       // it as null if Pred is live-through with an unknown value.
-       VNInfo *VNI = LR.extendInBlock(Start, End);
-       setLiveOutValue(Pred, VNI);
-       if (VNI) {
-         if (TheVNI && TheVNI != VNI)
-           UniqueVNI = false;
-         TheVNI = VNI;
-         continue;
-       }
-
-       // No, we need a live-in value for Pred as well
-       if (Pred != &UseMBB)
-          WorkList.push_back(Pred->getNumber());
-       else
-          // Loopback to UseMBB, so value is really live through.
-         Use = SlotIndex();
+      if (VNI == TheVNI)
+        continue;
+      if (TheVNI == nullptr)
+        TheVNI = VNI;
+      else
+        UniqueVNI = false;
     }
   }
 

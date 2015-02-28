@@ -208,7 +208,7 @@ public:
   ///
   /// VNI may be null only if MBB is a live-through block also passed to
   /// addLiveInBlock().
-  void setLiveOutValue(MachineBasicBlock *MBB, VNInfo *VNI) {
+  void setLiveOutValue(const MachineBasicBlock *MBB, VNInfo *VNI) {
     Seen.set(MBB->getNumber());
     Map[MBB] = LiveOutPair(VNI, nullptr);
   }
