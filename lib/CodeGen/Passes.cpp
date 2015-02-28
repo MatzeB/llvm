@@ -735,14 +735,14 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
   // LiveVariables can be removed completely, and LiveIntervals can be directly
   // computed. (We still either need to regenerate kill flags after regalloc, or
   // preferably fix the scavenger to not depend on them).
-  addPass(&LiveVariablesID, false);
+  //addPass(&LiveVariablesID, false);
 
   // Edge splitting is smarter with machine loop info.
   addPass(&MachineLoopInfoID, false);
   addPass(&PHIEliminationID, false);
 
   // Eventually, we want to run LiveIntervals before PHI elimination.
-  if (EarlyLiveIntervals)
+  //if (EarlyLiveIntervals)
     addPass(&LiveIntervalsID, false);
 
   addPass(&TwoAddressInstructionPassID, false);

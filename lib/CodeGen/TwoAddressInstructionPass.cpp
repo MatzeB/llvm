@@ -149,9 +149,10 @@ public:
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
     AU.addRequired<AliasAnalysis>();
-    AU.addPreserved<LiveVariables>();
+    AU.addRequired<LiveIntervals>();
+    //AU.addPreserved<LiveVariables>();
     AU.addPreserved<SlotIndexes>();
-    AU.addPreserved<LiveIntervals>();
+    //AU.addPreserved<LiveIntervals>();
     AU.addPreservedID(MachineLoopInfoID);
     AU.addPreservedID(MachineDominatorsID);
     MachineFunctionPass::getAnalysisUsage(AU);
@@ -171,7 +172,13 @@ INITIALIZE_PASS_END(TwoAddressInstructionPass, "twoaddressinstruction",
 
 char &llvm::TwoAddressInstructionPassID = TwoAddressInstructionPass::ID;
 
-static bool isPlainlyKilled(MachineInstr *MI, unsigned Reg, LiveIntervals *LIS);
+static bool isPlainlyKilled(const MachineInstr *MI, unsigned Reg,
+                            const LiveIntervals *LIS);
+
+static bool isKilling(const LiveIntervals *LIS, const MachineOperand &MO) {
+  return MO.isKill() ||
+    (LIS && isPlainlyKilled(MO.getParent(), MO.getReg(), LIS));
+}
 
 /// sink3AddrInstruction - A two-address instruction has been converted to a
 /// three-address instruction to avoid clobbering a register. Try to sink it
@@ -275,7 +282,7 @@ sink3AddrInstruction(MachineInstr *MI, unsigned SavedReg,
       if (DefReg == MOReg)
         return false;
 
-      if (MO.isKill() || (LIS && isPlainlyKilled(OtherMI, MOReg, LIS))) {
+      if (isKilling(LIS, MO)) {
         if (OtherMI == KillMI && MOReg == SavedReg)
           // Save the operand that kills the register. We want to unset the kill
           // marker if we can sink MI past it.
@@ -357,8 +364,9 @@ static bool isCopyToReg(MachineInstr &MI, const TargetInstrInfo *TII,
 
 /// isPLainlyKilled - Test if the given register value, which is used by the
 // given instruction, is killed by the given instruction.
-static bool isPlainlyKilled(MachineInstr *MI, unsigned Reg,
-                            LiveIntervals *LIS) {
+static bool isPlainlyKilled(const MachineInstr *MI, unsigned Reg,
+                            const LiveIntervals *LIS) {
+  assert(LIS && !LIS->isNotInMIMap(MI));
   if (LIS && TargetRegisterInfo::isVirtualRegister(Reg) &&
       !LIS->isNotInMIMap(MI)) {
     // FIXME: Sometimes tryInstructionTransform() will add instructions and
@@ -367,7 +375,7 @@ static bool isPlainlyKilled(MachineInstr *MI, unsigned Reg,
     // If there is no interval available, we assume that this instruction is
     // one of those. A kill flag is manually inserted on the operand so the
     // check below will handle it.
-    LiveInterval &LI = LIS->getInterval(Reg);
+    const LiveInterval &LI = LIS->getInterval(Reg);
     // This is to match the kill flag version where undefs don't have kill
     // flags.
     if (!LI.hasAtLeastOneValue())
@@ -635,7 +643,7 @@ TwoAddressInstructionPass::convertInstTo3Addr(MachineBasicBlock::iterator &mi,
                                               unsigned Dist) {
   // FIXME: Why does convertToThreeAddress() need an iterator reference?
   MachineFunction::iterator MFI = MBB;
-  MachineInstr *NewMI = TII->convertToThreeAddress(MFI, mi, LV);
+  MachineInstr *NewMI = TII->convertToThreeAddress(MFI, mi, LV, LIS);
   assert(MBB == MFI && "convertToThreeAddress changed iterator reference");
   if (!NewMI)
     return false;
@@ -819,8 +827,7 @@ rescheduleMIBelowKill(MachineBasicBlock::iterator &mi,
       Defs.insert(MOReg);
     else {
       Uses.insert(MOReg);
-      if (MOReg != Reg && (MO.isKill() ||
-                           (LIS && isPlainlyKilled(MI, MOReg, LIS))))
+      if (MOReg != Reg && isKilling(LIS, MO))
         Kills.insert(MOReg);
     }
   }
@@ -870,8 +877,7 @@ rescheduleMIBelowKill(MachineBasicBlock::iterator &mi,
       } else {
         if (Defs.count(MOReg))
           return false;
-        bool isKill = MO.isKill() ||
-                      (LIS && isPlainlyKilled(OtherMI, MOReg, LIS));
+        bool isKill = isKilling(LIS, MO);
         if (MOReg != Reg &&
             ((isKill && Uses.count(MOReg)) || Kills.count(MOReg)))
           // Don't want to extend other live ranges and update kills.
@@ -1002,7 +1008,7 @@ rescheduleKillAboveMI(MachineBasicBlock::iterator &mi,
         continue;
       if (isDefTooClose(MOReg, DI->second, MI))
         return false;
-      bool isKill = MO.isKill() || (LIS && isPlainlyKilled(KillMI, MOReg, LIS));
+      bool isKill = isKilling(LIS, MO);
       if (MOReg == Reg && !isKill)
         return false;
       Uses.insert(MOReg);
@@ -1046,8 +1052,7 @@ rescheduleKillAboveMI(MachineBasicBlock::iterator &mi,
         if (Kills.count(MOReg))
           // Don't want to extend other live ranges and update kills.
           return false;
-        if (OtherMI != MI && MOReg == Reg &&
-            !(MO.isKill() || (LIS && isPlainlyKilled(OtherMI, MOReg, LIS))))
+        if (OtherMI != MI && MOReg == Reg && !isKilling(LIS, MO))
           // We can't schedule across a use of the register in question.
           return false;
       } else {
@@ -1400,6 +1405,7 @@ TwoAddressInstructionPass::processTiedPairs(MachineInstr *MI,
     // If this operand is folding a truncation, the truncation now moves to the
     // copy so that the register classes remain valid for the operands.
     MIB.addReg(RegB, 0, SubRegB);
+
     const TargetRegisterClass *RC = MRI->getRegClass(RegB);
     if (SubRegB) {
       if (TargetRegisterInfo::isVirtualRegister(RegA)) {
@@ -1422,6 +1428,7 @@ TwoAddressInstructionPass::processTiedPairs(MachineInstr *MI,
     DistanceMap[MI] = ++Dist;
 
     if (LIS) {
+      assert(PrevMI == MIB);
       LastCopyIdx = LIS->InsertMachineInstrInMaps(PrevMI).getRegSlot();
 
       if (TargetRegisterInfo::isVirtualRegister(RegA)) {
@@ -1433,7 +1440,7 @@ TwoAddressInstructionPass::processTiedPairs(MachineInstr *MI,
       }
     }
 
-    DEBUG(dbgs() << "\t\tprepend:\t" << *MIB);
+    DEBUG(dbgs() << "\t\tprepend:\t" << LastCopyIdx << ' ' << *MIB);
 
     MachineOperand &MO = MI->getOperand(SrcIdx);
     assert(MO.isReg() && MO.getReg() == RegB && MO.isUse() &&
@@ -1518,8 +1525,10 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &Func) {
   TII = MF->getSubtarget().getInstrInfo();
   TRI = MF->getSubtarget().getRegisterInfo();
   InstrItins = MF->getSubtarget().getInstrItineraryData();
-  LV = getAnalysisIfAvailable<LiveVariables>();
+  //LV = getAnalysisIfAvailable<LiveVariables>();
+  LV = nullptr;
   LIS = getAnalysisIfAvailable<LiveIntervals>();
+  assert(LIS != nullptr);
   AA = &getAnalysis<AliasAnalysis>();
   OptLevel = TM.getOptLevel();
 
@@ -1551,8 +1560,10 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &Func) {
 
       // Expand REG_SEQUENCE instructions. This will position mi at the first
       // expanded instruction.
-      if (mi->isRegSequence())
+      if (mi->isRegSequence()) {
         eliminateRegSequence(mi);
+        MadeChange = true;
+      }
 
       DistanceMap.insert(std::make_pair(mi, ++Dist));
 
@@ -1619,8 +1630,10 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &Func) {
     }
   }
 
+#if 0
   if (LIS)
     MF->verify(this, "After two-address instruction pass");
+#endif
 
   return MadeChange;
 }
@@ -1693,6 +1706,8 @@ eliminateRegSequence(MachineBasicBlock::iterator &MBBI) {
     // Update LiveVariables' kill info.
     if (LV && isKill && !TargetRegisterInfo::isPhysicalRegister(SrcReg))
       LV->replaceKillInstruction(SrcReg, MI, CopyMI);
+    if (LIS)
+      LIS->InsertMachineInstrInMaps(CopyMI);
 
     DEBUG(dbgs() << "Inserted: " << *CopyMI);
   }

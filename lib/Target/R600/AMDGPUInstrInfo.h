@@ -68,7 +68,8 @@ public:
   MachineInstr *
   convertToThreeAddress(MachineFunction::iterator &MFI,
                         MachineBasicBlock::iterator &MBBI,
-                        LiveVariables *LV) const override;
+                        LiveVariables *LV,
+                        LiveIntervalAnalysis *LIS) const override;
 
 
   bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const override;

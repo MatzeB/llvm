@@ -224,7 +224,8 @@ public:
   bool classifyLEAReg(MachineInstr *MI, const MachineOperand &Src,
                       unsigned LEAOpcode, bool AllowSP,
                       unsigned &NewSrc, bool &isKill,
-                      bool &isUndef, MachineOperand &ImplicitOp) const;
+                      bool &isUndef, MachineOperand &ImplicitOp,
+                      LiveIntervals *LIS) const;
 
   /// convertToThreeAddress - This method must be implemented by targets that
   /// set the M_CONVERTIBLE_TO_3_ADDR flag.  When this flag is set, the target
@@ -238,7 +239,8 @@ public:
   ///
   MachineInstr *convertToThreeAddress(MachineFunction::iterator &MFI,
                                       MachineBasicBlock::iterator &MBBI,
-                                      LiveVariables *LV) const override;
+                                      LiveVariables *LV,
+                                      LiveIntervals *LIS) const override;
 
   /// commuteInstruction - We have a few instructions that must be hacked on to
   /// commute them.
@@ -457,7 +459,8 @@ private:
   MachineInstr * convertToThreeAddressWithLEA(unsigned MIOpc,
                                               MachineFunction::iterator &MFI,
                                               MachineBasicBlock::iterator &MBBI,
-                                              LiveVariables *LV) const;
+                                              LiveVariables *LV,
+                                              LiveIntervals *LIS) const;
 
   /// isFrameOperand - Return true and the FrameIndex if the specified
   /// operand and follow operands form a reference to the stack frame.

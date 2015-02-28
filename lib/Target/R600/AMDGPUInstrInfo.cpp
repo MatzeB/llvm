@@ -82,7 +82,8 @@ bool AMDGPUInstrInfo::hasStoreFromStackSlot(const MachineInstr *MI,
 MachineInstr *
 AMDGPUInstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
                                       MachineBasicBlock::iterator &MBBI,
-                                      LiveVariables *LV) const {
+                                      LiveVariables *LV,
+                                      LiveIntervalAnalysis *LIS) const {
 // TODO: Implement this function
   return nullptr;
 }

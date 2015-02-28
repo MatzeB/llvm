@@ -25,6 +25,7 @@ namespace llvm {
 
 class InstrItineraryData;
 class LiveVariables;
+class LiveIntervals;
 class MCAsmInfo;
 class MachineMemOperand;
 class MachineRegisterInfo;
@@ -249,7 +250,8 @@ public:
   ///
   virtual MachineInstr *
   convertToThreeAddress(MachineFunction::iterator &MFI,
-                   MachineBasicBlock::iterator &MBBI, LiveVariables *LV) const {
+                   MachineBasicBlock::iterator &MBBI, LiveVariables *LV,
+                   LiveIntervals *LIS) const {
     return nullptr;
   }
 

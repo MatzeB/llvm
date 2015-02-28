@@ -18,6 +18,7 @@
 #include "X86Subtarget.h"
 #include "X86TargetMachine.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -2448,8 +2449,9 @@ inline static bool isTruncatedShiftCountForLEA(unsigned ShAmt) {
 
 bool X86InstrInfo::classifyLEAReg(MachineInstr *MI, const MachineOperand &Src,
                                   unsigned Opc, bool AllowSP,
-                                  unsigned &NewSrc, bool &isKill, bool &isUndef,
-                                  MachineOperand &ImplicitOp) const {
+                                  unsigned &NewSrc, bool &isKill,
+                                  bool &isUndef, MachineOperand &ImplicitOp,
+                                  LiveIntervals *LIS) const {
   MachineFunction &MF = *MI->getParent()->getParent();
   const TargetRegisterClass *RC;
   if (AllowSP) {
@@ -2503,10 +2505,13 @@ bool X86InstrInfo::classifyLEAReg(MachineInstr *MI, const MachineOperand &Src,
     // Virtual register of the wrong class, we have to create a temporary 64-bit
     // vreg to feed into the LEA.
     NewSrc = MF.getRegInfo().createVirtualRegister(RC);
-    BuildMI(*MI->getParent(), MI, MI->getDebugLoc(),
-            get(TargetOpcode::COPY))
-      .addReg(NewSrc, RegState::Define | RegState::Undef, X86::sub_32bit)
-        .addOperand(Src);
+    MachineInstr *Copy = BuildMI(*MI->getParent(), MI, MI->getDebugLoc(),
+                                 get(TargetOpcode::COPY))
+                         .addReg(NewSrc, RegState::Define | RegState::Undef,
+                                 X86::sub_32bit)
+                         .addOperand(Src);
+    if (LIS)
+      LIS->InsertMachineInstrInMaps(Copy);
 
     // Which is obviously going to be dead after we're done with it.
     isKill = true;
@@ -2524,7 +2529,8 @@ MachineInstr *
 X86InstrInfo::convertToThreeAddressWithLEA(unsigned MIOpc,
                                            MachineFunction::iterator &MFI,
                                            MachineBasicBlock::iterator &MBBI,
-                                           LiveVariables *LV) const {
+                                           LiveVariables *LV,
+                                           LiveIntervals *LIS) const {
   MachineInstr *MI = MBBI;
   unsigned Dest = MI->getOperand(0).getReg();
   unsigned Src = MI->getOperand(1).getReg();
@@ -2600,6 +2606,8 @@ X86InstrInfo::convertToThreeAddressWithLEA(unsigned MIOpc,
         .addReg(leaInReg2, RegState::Define, X86::sub_16bit)
         .addReg(Src2, getKillRegState(isKill2));
       addRegReg(MIB, leaInReg, true, leaInReg2, true);
+      if (LIS)
+        LIS->InsertMachineInstrInMaps(InsMI2);
     }
     if (LV && isKill2 && InsMI2)
       LV->replaceKillInstruction(Src2, MI, InsMI2);
@@ -2622,6 +2630,11 @@ X86InstrInfo::convertToThreeAddressWithLEA(unsigned MIOpc,
     if (isDead)
       LV->replaceKillInstruction(Dest, MI, ExtMI);
   }
+  if (LIS) {
+    LIS->InsertMachineInstrInMaps(InsMI);
+    LIS->InsertMachineInstrInMaps(NewMI);
+    LIS->InsertMachineInstrInMaps(ExtMI);
+  }
 
   return ExtMI;
 }
@@ -2639,7 +2652,8 @@ X86InstrInfo::convertToThreeAddressWithLEA(unsigned MIOpc,
 MachineInstr *
 X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
                                     MachineBasicBlock::iterator &MBBI,
-                                    LiveVariables *LV) const {
+                                    LiveVariables *LV,
+                                    LiveIntervals *LIS) const {
   MachineInstr *MI = MBBI;
 
   // The following opcodes also sets the condition code register(s). Only
@@ -2691,7 +2705,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     unsigned SrcReg;
     MachineOperand ImplicitOp = MachineOperand::CreateReg(0, false);
     if (!classifyLEAReg(MI, Src, Opc, /*AllowSP=*/ false,
-                        SrcReg, isKill, isUndef, ImplicitOp))
+                        SrcReg, isKill, isUndef, ImplicitOp, LIS))
       return nullptr;
 
     MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(), get(Opc))
@@ -2711,7 +2725,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     if (!isTruncatedShiftCountForLEA(ShAmt)) return nullptr;
 
     if (DisableLEA16)
-      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV) : nullptr;
+      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV, LIS) : nullptr;
     NewMI = BuildMI(MF, MI->getDebugLoc(), get(X86::LEA16r))
       .addOperand(Dest)
       .addReg(0).addImm(1 << ShAmt).addOperand(Src).addImm(0).addReg(0);
@@ -2726,7 +2740,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     unsigned SrcReg;
     MachineOperand ImplicitOp = MachineOperand::CreateReg(0, false);
     if (!classifyLEAReg(MI, Src, Opc, /*AllowSP=*/ false,
-                        SrcReg, isKill, isUndef, ImplicitOp))
+                        SrcReg, isKill, isUndef, ImplicitOp, LIS))
       return nullptr;
 
     MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(), get(Opc))
@@ -2740,7 +2754,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
   }
   case X86::INC16r:
     if (DisableLEA16)
-      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV)
+      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV, LIS)
                      : nullptr;
     assert(MI->getNumOperands() >= 2 && "Unknown inc instruction!");
     NewMI = addOffset(BuildMI(MF, MI->getDebugLoc(), get(X86::LEA16r))
@@ -2756,7 +2770,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     unsigned SrcReg;
     MachineOperand ImplicitOp = MachineOperand::CreateReg(0, false);
     if (!classifyLEAReg(MI, Src, Opc, /*AllowSP=*/ false,
-                        SrcReg, isKill, isUndef, ImplicitOp))
+                        SrcReg, isKill, isUndef, ImplicitOp, LIS))
       return nullptr;
 
     MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(), get(Opc))
@@ -2771,7 +2785,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
   }
   case X86::DEC16r:
     if (DisableLEA16)
-      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV)
+      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV, LIS)
                      : nullptr;
     assert(MI->getNumOperands() >= 2 && "Unknown dec instruction!");
     NewMI = addOffset(BuildMI(MF, MI->getDebugLoc(), get(X86::LEA16r))
@@ -2792,7 +2806,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     unsigned SrcReg;
     MachineOperand ImplicitOp = MachineOperand::CreateReg(0, false);
     if (!classifyLEAReg(MI, Src, Opc, /*AllowSP=*/ true,
-                        SrcReg, isKill, isUndef, ImplicitOp))
+                        SrcReg, isKill, isUndef, ImplicitOp, LIS))
       return nullptr;
 
     const MachineOperand &Src2 = MI->getOperand(2);
@@ -2800,7 +2814,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     unsigned SrcReg2;
     MachineOperand ImplicitOp2 = MachineOperand::CreateReg(0, false);
     if (!classifyLEAReg(MI, Src2, Opc, /*AllowSP=*/ false,
-                        SrcReg2, isKill2, isUndef2, ImplicitOp2))
+                        SrcReg2, isKill2, isUndef2, ImplicitOp2, LIS))
       return nullptr;
 
     MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(), get(Opc))
@@ -2823,7 +2837,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
   case X86::ADD16rr:
   case X86::ADD16rr_DB: {
     if (DisableLEA16)
-      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV)
+      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV, LIS)
                      : nullptr;
     assert(MI->getNumOperands() >= 3 && "Unknown add instruction!");
     unsigned Src2 = MI->getOperand(2).getReg();
@@ -2862,7 +2876,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
     unsigned SrcReg;
     MachineOperand ImplicitOp = MachineOperand::CreateReg(0, false);
     if (!classifyLEAReg(MI, Src, Opc, /*AllowSP=*/ true,
-                        SrcReg, isKill, isUndef, ImplicitOp))
+                        SrcReg, isKill, isUndef, ImplicitOp, LIS))
       return nullptr;
 
     MachineInstrBuilder MIB = BuildMI(MF, MI->getDebugLoc(), get(Opc))
@@ -2879,7 +2893,7 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
   case X86::ADD16ri_DB:
   case X86::ADD16ri8_DB:
     if (DisableLEA16)
-      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV)
+      return is64Bit ? convertToThreeAddressWithLEA(MIOpc, MFI, MBBI, LV, LIS)
                      : nullptr;
     assert(MI->getNumOperands() >= 3 && "Unknown add instruction!");
     NewMI = addOffset(BuildMI(MF, MI->getDebugLoc(), get(X86::LEA16r))
@@ -2898,6 +2912,8 @@ X86InstrInfo::convertToThreeAddress(MachineFunction::iterator &MFI,
   }
 
   MFI->insert(MBBI, NewMI);          // Insert the new inst
+  if (LIS)
+    LIS->InsertMachineInstrInMaps(NewMI);
   return NewMI;
 }
 

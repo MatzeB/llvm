@@ -142,7 +142,7 @@ FixupLEAPass::postRAConvertToLEA(MachineFunction::iterator &MFI,
       return nullptr;
     }
   }
-  return TII->convertToThreeAddress(MFI, MBBI, nullptr);
+  return TII->convertToThreeAddress(MFI, MBBI, nullptr, nullptr);
 }
 
 FunctionPass *llvm::createX86FixupLEAs() { return new FixupLEAPass(); }
