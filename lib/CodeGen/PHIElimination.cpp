@@ -239,12 +239,13 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   // after any remaining phi nodes) which copies the new incoming register
   // into the phi node destination.
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
-  if (isSourceDefinedByImplicitDef(MPhi, MRI))
+  MachineInstr *PHICopy;
+  if (isSourceDefinedByImplicitDef(MPhi, MRI)) {
     // If all sources of a PHI node are implicit_def, just emit an
     // implicit_def instead of a copy.
-    BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
-            TII->get(TargetOpcode::IMPLICIT_DEF), DestReg);
-  else {
+    PHICopy = BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
+                      TII->get(TargetOpcode::IMPLICIT_DEF), DestReg);
+  } else {
     // Can we reuse an earlier PHI node? This only happens for critical edges,
     // typically those created by tail duplication.
     unsigned &entry = LoweredPHIs[MPhi];
@@ -258,15 +259,13 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
       const TargetRegisterClass *RC = MF.getRegInfo().getRegClass(DestReg);
       entry = IncomingReg = MF.getRegInfo().createVirtualRegister(RC);
     }
-    BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
-            TII->get(TargetOpcode::COPY), DestReg)
-      .addReg(IncomingReg);
+    PHICopy = BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
+                      TII->get(TargetOpcode::COPY), DestReg)
+              .addReg(IncomingReg);
   }
 
   // Update live variable information if there is any.
   if (LV) {
-    MachineInstr *PHICopy = std::prev(AfterPHIsIt);
-
     if (IncomingReg) {
       LiveVariables::VarInfo &VI = LV->getVarInfo(IncomingReg);
 
