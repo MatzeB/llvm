@@ -743,6 +743,9 @@ void TargetPassConfig::addOptimizedRegAlloc(FunctionPass *RegAllocPass) {
     addPass(&LiveIntervalsID, false);
 
   addPass(&TwoAddressInstructionPassID, false);
+
+  addPass(createPreSpillPass());
+
   addPass(&RegisterCoalescerID);
 
   // PreRA instruction scheduling.

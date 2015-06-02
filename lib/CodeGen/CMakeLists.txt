@@ -83,6 +83,7 @@ add_llvm_library(LLVMCodeGen
   Passes.cpp
   PeepholeOptimizer.cpp
   PostRASchedulerList.cpp
+  PreSpill.cpp
   ProcessImplicitDefs.cpp
   PrologEpilogInserter.cpp
   PseudoSourceValue.cpp

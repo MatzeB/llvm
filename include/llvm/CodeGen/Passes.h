@@ -459,6 +459,10 @@ namespace llvm {
   /// DeadMachineInstructionElim - This pass removes dead machine instructions.
   extern char &DeadMachineInstructionElimID;
 
+  /// This pass lowers register pressure at every point to be below the target
+  /// limits.
+  FunctionPass *createPreSpillPass();
+
   /// FastRegisterAllocation Pass - This pass register allocates as fast as
   /// possible. It is best suited for debug code where live ranges are short.
   ///
