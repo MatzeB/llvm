@@ -402,7 +402,9 @@ public:
   const RegPressureTracker &getBotRPTracker() const { return BotRPTracker; }
 
   /// Get register pressure for the entire scheduling region before scheduling.
-  const IntervalPressure &getRegPressure() const { return RegPressure; }
+  ArrayRef<unsigned> getMaxSetPressure() const {
+    return RPTracker.getMaxSetPressure();
+  }
 
   const std::vector<PressureChange> &getRegionCriticalPSets() const {
     return RegionCriticalPSets;
@@ -455,7 +457,7 @@ protected:
   void updatePressureDiffs(ArrayRef<unsigned> LiveUses);
 
   void updateScheduledPressure(const SUnit *SU,
-                               const std::vector<unsigned> &NewMaxPressure);
+                               ArrayRef<unsigned> NewMaxPressure);
 };
 
 //===----------------------------------------------------------------------===//

@@ -55,18 +55,13 @@ void llvm::dumpRegSetPressure(ArrayRef<unsigned> SetPressure,
 }
 
 LLVM_DUMP_METHOD
-void RegisterPressure::dump(const TargetRegisterInfo *TRI) const {
-  dbgs() << "Max Pressure: ";
-  dumpRegSetPressure(MaxSetPressure, TRI);
-}
-
-LLVM_DUMP_METHOD
 void RegPressureTracker::dump() const {
   if (!isTopClosed() || !isBottomClosed()) {
     dbgs() << "Curr Pressure: ";
     dumpRegSetPressure(CurrSetPressure, TRI);
   }
-  P.dump(TRI);
+  dbgs() << "Max Pressure: ";
+  dumpRegSetPressure(MaxSetPressure, TRI);
   dbgs() << "Live In: ";
   for (unsigned i = 0, e = LiveInRegs.size(); i < e; ++i)
     dbgs() << PrintVRegOrUnit(LiveInRegs[i], TRI) << " ";
@@ -95,8 +90,8 @@ void RegPressureTracker::increaseRegPressure(ArrayRef<unsigned> RegUnits) {
     unsigned Weight = PSetI.getWeight();
     for (; PSetI.isValid(); ++PSetI) {
       CurrSetPressure[*PSetI] += Weight;
-      if (CurrSetPressure[*PSetI] > P.MaxSetPressure[*PSetI]) {
-        P.MaxSetPressure[*PSetI] = CurrSetPressure[*PSetI];
+      if (CurrSetPressure[*PSetI] > MaxSetPressure[*PSetI]) {
+        MaxSetPressure[*PSetI] = CurrSetPressure[*PSetI];
       }
     }
   }
@@ -111,13 +106,11 @@ void RegPressureTracker::decreaseRegPressure(ArrayRef<unsigned> RegUnits) {
 /// Clear the result so it can be used for another round of pressure tracking.
 void IntervalPressure::reset() {
   TopIdx = BottomIdx = SlotIndex();
-  MaxSetPressure.clear();
 }
 
 /// Clear the result so it can be used for another round of pressure tracking.
 void RegionPressure::reset() {
   TopPos = BottomPos = MachineBasicBlock::const_iterator();
-  MaxSetPressure.clear();
 }
 
 /// If the current top is not less than or equal to the next index, open it.
@@ -161,12 +154,13 @@ void RegPressureTracker::reset() {
 
   CurrSetPressure.clear();
   LiveThruPressure.clear();
-  P.MaxSetPressure.clear();
+  MaxSetPressure.clear();
 
   if (RequireIntervals)
     static_cast<IntervalPressure&>(P).reset();
   else
     static_cast<RegionPressure&>(P).reset();
+  MaxSetPressure.clear();
   LiveInRegs.clear();
   LiveOutRegs.clear();
 
@@ -202,7 +196,7 @@ void RegPressureTracker::init(const MachineFunction *mf,
   CurrPos = pos;
   CurrSetPressure.assign(TRI->getNumRegPressureSets(), 0);
 
-  P.MaxSetPressure = CurrSetPressure;
+  MaxSetPressure = CurrSetPressure;
 
   LiveRegs.PhysRegs.setUniverse(TRI->getNumRegs());
   LiveRegs.VirtRegs.setUniverse(MRI->getNumVirtRegs());
@@ -430,7 +424,7 @@ void RegPressureTracker::discoverLiveIn(unsigned Reg) {
 
   // At live in discovery, unconditionally increase the high water mark.
   LiveInRegs.push_back(Reg);
-  increaseSetPressure(P.MaxSetPressure, MRI->getPressureSets(Reg));
+  increaseSetPressure(MaxSetPressure, MRI->getPressureSets(Reg));
 }
 
 /// Add Reg to the live out set and increase max pressure.
@@ -441,7 +435,7 @@ void RegPressureTracker::discoverLiveOut(unsigned Reg) {
 
   // At live out discovery, unconditionally increase the high water mark.
   LiveOutRegs.push_back(Reg);
-  increaseSetPressure(P.MaxSetPressure, MRI->getPressureSets(Reg));
+  increaseSetPressure(MaxSetPressure, MRI->getPressureSets(Reg));
 }
 
 /// Recede across the previous instruction. If LiveUses is provided, record any
@@ -762,19 +756,19 @@ getMaxUpwardPressureDelta(const MachineInstr *MI, PressureDiff *PDiff,
   // FIXME: The snapshot heap space should persist. But I'm planning to
   // summarize the pressure effect so we don't need to snapshot at all.
   std::vector<unsigned> SavedPressure = CurrSetPressure;
-  std::vector<unsigned> SavedMaxPressure = P.MaxSetPressure;
+  std::vector<unsigned> SavedMaxPressure = MaxSetPressure;
 
   bumpUpwardPressure(MI);
 
   computeExcessPressureDelta(SavedPressure, CurrSetPressure, Delta, RCI,
                              LiveThruPressure);
-  computeMaxPressureDelta(SavedMaxPressure, P.MaxSetPressure, CriticalPSets,
+  computeMaxPressureDelta(SavedMaxPressure, MaxSetPressure, CriticalPSets,
                           MaxPressureLimit, Delta);
   assert(Delta.CriticalMax.getUnitInc() >= 0 &&
          Delta.CurrentMax.getUnitInc() >= 0 && "cannot decrease max pressure");
 
   // Restore the tracker's state.
-  P.MaxSetPressure.swap(SavedMaxPressure);
+  MaxSetPressure.swap(SavedMaxPressure);
   CurrSetPressure.swap(SavedPressure);
 
 #ifndef NDEBUG
@@ -837,7 +831,7 @@ getUpwardPressureDelta(const MachineInstr *MI, /*const*/ PressureDiff &PDiff,
       Limit += LiveThruPressure[PSetID];
 
     unsigned POld = CurrSetPressure[PSetID];
-    unsigned MOld = P.MaxSetPressure[PSetID];
+    unsigned MOld = MaxSetPressure[PSetID];
     unsigned MNew = MOld;
     // Ignore DeadDefs here because they aren't captured by PressureChange.
     unsigned PNew = POld + PDiffI->getUnitInc();
@@ -961,19 +955,19 @@ getMaxDownwardPressureDelta(const MachineInstr *MI, RegPressureDelta &Delta,
                             ArrayRef<unsigned> MaxPressureLimit) {
   // Snapshot Pressure.
   std::vector<unsigned> SavedPressure = CurrSetPressure;
-  std::vector<unsigned> SavedMaxPressure = P.MaxSetPressure;
+  std::vector<unsigned> SavedMaxPressure = MaxSetPressure;
 
   bumpDownwardPressure(MI);
 
   computeExcessPressureDelta(SavedPressure, CurrSetPressure, Delta, RCI,
                              LiveThruPressure);
-  computeMaxPressureDelta(SavedMaxPressure, P.MaxSetPressure, CriticalPSets,
+  computeMaxPressureDelta(SavedMaxPressure, MaxSetPressure, CriticalPSets,
                           MaxPressureLimit, Delta);
   assert(Delta.CriticalMax.getUnitInc() >= 0 &&
          Delta.CurrentMax.getUnitInc() >= 0 && "cannot decrease max pressure");
 
   // Restore the tracker's state.
-  P.MaxSetPressure.swap(SavedMaxPressure);
+  MaxSetPressure.swap(SavedMaxPressure);
   CurrSetPressure.swap(SavedPressure);
 }
 
@@ -984,12 +978,12 @@ getUpwardPressure(const MachineInstr *MI,
                   std::vector<unsigned> &MaxPressureResult) {
   // Snapshot pressure.
   PressureResult = CurrSetPressure;
-  MaxPressureResult = P.MaxSetPressure;
+  MaxPressureResult = MaxSetPressure;
 
   bumpUpwardPressure(MI);
 
   // Current pressure becomes the result. Restore current pressure.
-  P.MaxSetPressure.swap(MaxPressureResult);
+  MaxSetPressure.swap(MaxPressureResult);
   CurrSetPressure.swap(PressureResult);
 }
 
@@ -1000,11 +994,11 @@ getDownwardPressure(const MachineInstr *MI,
                     std::vector<unsigned> &MaxPressureResult) {
   // Snapshot pressure.
   PressureResult = CurrSetPressure;
-  MaxPressureResult = P.MaxSetPressure;
+  MaxPressureResult = MaxSetPressure;
 
   bumpDownwardPressure(MI);
 
   // Current pressure becomes the result. Restore current pressure.
-  P.MaxSetPressure.swap(MaxPressureResult);
+  MaxSetPressure.swap(MaxPressureResult);
   CurrSetPressure.swap(PressureResult);
 }

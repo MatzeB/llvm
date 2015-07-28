@@ -905,8 +905,7 @@ void ScheduleDAGMILive::initRegPressure() {
   // Cache the list of excess pressure sets in this region. This will also track
   // the max pressure in the scheduled code for these sets.
   RegionCriticalPSets.clear();
-  const std::vector<unsigned> &RegionPressure =
-    RPTracker.getPressure().MaxSetPressure;
+  ArrayRef<unsigned> RegionPressure = RPTracker.getMaxSetPressure();
   for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
     unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
     if (RegionPressure[i] > Limit) {
@@ -924,8 +923,7 @@ void ScheduleDAGMILive::initRegPressure() {
 }
 
 void ScheduleDAGMILive::
-updateScheduledPressure(const SUnit *SU,
-                        const std::vector<unsigned> &NewMaxPressure) {
+updateScheduledPressure(const SUnit *SU, ArrayRef<unsigned> NewMaxPressure) {
   const PressureDiff &PDiff = getPressureDiff(SU);
   unsigned CritIdx = 0, CritEnd = RegionCriticalPSets.size();
   for (PressureDiff::const_iterator I = PDiff.begin(), E = PDiff.end();
@@ -1203,7 +1201,7 @@ void ScheduleDAGMILive::scheduleMI(SUnit *SU, bool IsTopNode) {
       // Update top scheduled pressure.
       TopRPTracker.advance();
       assert(TopRPTracker.getPos() == CurrentTop && "out of sync");
-      updateScheduledPressure(SU, TopRPTracker.getPressure().MaxSetPressure);
+      updateScheduledPressure(SU, TopRPTracker.getMaxSetPressure());
     }
   }
   else {
@@ -1225,7 +1223,7 @@ void ScheduleDAGMILive::scheduleMI(SUnit *SU, bool IsTopNode) {
       SmallVector<unsigned, 8> LiveUses;
       BotRPTracker.recede(&LiveUses);
       assert(BotRPTracker.getPos() == CurrentBottom && "out of sync");
-      updateScheduledPressure(SU, BotRPTracker.getPressure().MaxSetPressure);
+      updateScheduledPressure(SU, BotRPTracker.getMaxSetPressure());
       updatePressureDiffs(LiveUses);
     }
   }
@@ -2599,7 +2597,7 @@ void GenericScheduler::tryCandidate(SchedCandidate &Cand,
         TryCand.SU->getInstr(),
         TryCand.RPDelta,
         DAG->getRegionCriticalPSets(),
-        DAG->getRegPressure().MaxSetPressure);
+        DAG->getMaxSetPressure());
     }
     else {
       if (VerifyScheduling) {
@@ -2608,7 +2606,7 @@ void GenericScheduler::tryCandidate(SchedCandidate &Cand,
           &DAG->getPressureDiff(TryCand.SU),
           TryCand.RPDelta,
           DAG->getRegionCriticalPSets(),
-          DAG->getRegPressure().MaxSetPressure);
+          DAG->getMaxSetPressure());
       }
       else {
         RPTracker.getUpwardPressureDelta(
@@ -2616,7 +2614,7 @@ void GenericScheduler::tryCandidate(SchedCandidate &Cand,
           DAG->getPressureDiff(TryCand.SU),
           TryCand.RPDelta,
           DAG->getRegionCriticalPSets(),
-          DAG->getRegPressure().MaxSetPressure);
+          DAG->getMaxSetPressure());
       }
     }
   }

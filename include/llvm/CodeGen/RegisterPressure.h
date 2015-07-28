@@ -28,10 +28,6 @@ class MachineInstr;
 
 /// Base class for register pressure results.
 struct RegisterPressure {
-  /// Map of max reg pressure indexed by pressure set ID, not class ID.
-  std::vector<unsigned> MaxSetPressure;
-
-  void dump(const TargetRegisterInfo *TRI) const;
 };
 
 /// RegisterPressure computed within a region of instructions delimited by
@@ -257,6 +253,8 @@ class RegPressureTracker {
 
   /// Pressure map indexed by pressure set ID, not class ID.
   std::vector<unsigned> CurrSetPressure;
+  /// Maximum region pressure map indexed by pressure set ID, not class ID.
+  std::vector<unsigned> MaxSetPressure;
 
   /// Set of live registers.
   LiveRegSet LiveRegs;
@@ -323,9 +321,16 @@ public:
     LiveThruPressure.assign(PressureSet.begin(), PressureSet.end());
   }
 
+  /// @name region pressure results
+  /// These properties are complete if either advance() or recede() has returned
+  /// true or if closeRegion() was explicitely invoked.
+  /// @{
   ArrayRef<unsigned> getLiveIn() const { return LiveInRegs; }
   ArrayRef<unsigned> getLiveOut() const { return LiveOutRegs; }
   ArrayRef<unsigned> getLiveThru() const { return LiveThruPressure; }
+  /// Get the maximum register set pressure for the traversed region.
+  ArrayRef<unsigned> getMaxSetPressure() const { return MaxSetPressure; }
+  /// @}
 
   /// Get the resulting register pressure over the traversed region.
   /// This result is complete if either advance() or recede() has returned true,
