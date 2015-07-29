@@ -103,45 +103,6 @@ void RegPressureTracker::decreaseRegPressure(ArrayRef<unsigned> RegUnits) {
     decreaseSetPressure(CurrSetPressure, MRI->getPressureSets(RegUnits[I]));
 }
 
-/// Clear the result so it can be used for another round of pressure tracking.
-void IntervalPressure::reset() {
-  TopIdx = BottomIdx = SlotIndex();
-}
-
-/// Clear the result so it can be used for another round of pressure tracking.
-void RegionPressure::reset() {
-  TopPos = BottomPos = MachineBasicBlock::const_iterator();
-}
-
-/// If the current top is not less than or equal to the next index, open it.
-/// We happen to need the SlotIndex for the next top for pressure update.
-void IntervalPressure::openTop(SlotIndex NextTop) {
-  if (TopIdx <= NextTop)
-    return;
-  TopIdx = SlotIndex();
-}
-
-/// If the current top is the previous instruction (before receding), open it.
-void RegionPressure::openTop(MachineBasicBlock::const_iterator PrevTop) {
-  if (TopPos != PrevTop)
-    return;
-  TopPos = MachineBasicBlock::const_iterator();
-}
-
-/// If the current bottom is not greater than the previous index, open it.
-void IntervalPressure::openBottom(SlotIndex PrevBottom) {
-  if (BottomIdx > PrevBottom)
-    return;
-  BottomIdx = SlotIndex();
-}
-
-/// If the current bottom is the previous instr (before advancing), open it.
-void RegionPressure::openBottom(MachineBasicBlock::const_iterator PrevBottom) {
-  if (BottomPos != PrevBottom)
-    return;
-  BottomPos = MachineBasicBlock::const_iterator();
-}
-
 const LiveRange *RegPressureTracker::getLiveRange(unsigned Reg) const {
   if (TargetRegisterInfo::isVirtualRegister(Reg))
     return &LIS->getInterval(Reg);
@@ -156,10 +117,13 @@ void RegPressureTracker::reset() {
   LiveThruPressure.clear();
   MaxSetPressure.clear();
 
-  if (RequireIntervals)
-    static_cast<IntervalPressure&>(P).reset();
-  else
-    static_cast<RegionPressure&>(P).reset();
+  if (RequireIntervals) {
+    Boundary.Indizes.TopIdx = SlotIndex();
+    Boundary.Indizes.BottomIdx = SlotIndex();
+  } else {
+    Boundary.Iters.TopPos = MachineBasicBlock::const_iterator();
+    Boundary.Iters.BottomPos = MachineBasicBlock::const_iterator();
+  }
   MaxSetPressure.clear();
   LiveInRegs.clear();
   LiveOutRegs.clear();
@@ -206,18 +170,14 @@ void RegPressureTracker::init(const MachineFunction *mf,
 
 /// Does this pressure result have a valid top position and live ins.
 bool RegPressureTracker::isTopClosed() const {
-  if (RequireIntervals)
-    return static_cast<IntervalPressure&>(P).TopIdx.isValid();
-  return (static_cast<RegionPressure&>(P).TopPos ==
-          MachineBasicBlock::const_iterator());
+  return RequireIntervals ? Boundary.Indizes.TopIdx.isValid()
+    : Boundary.Iters.TopPos == MachineBasicBlock::const_iterator();
 }
 
 /// Does this pressure result have a valid bottom position and live outs.
 bool RegPressureTracker::isBottomClosed() const {
-  if (RequireIntervals)
-    return static_cast<IntervalPressure&>(P).BottomIdx.isValid();
-  return (static_cast<RegionPressure&>(P).BottomPos ==
-          MachineBasicBlock::const_iterator());
+  return RequireIntervals ? Boundary.Indizes.BottomIdx.isValid()
+    : Boundary.Iters.BottomPos == MachineBasicBlock::const_iterator();
 }
 
 
@@ -233,9 +193,9 @@ SlotIndex RegPressureTracker::getCurrSlot() const {
 /// Set the boundary for the top of the region and summarize live ins.
 void RegPressureTracker::closeTop() {
   if (RequireIntervals)
-    static_cast<IntervalPressure&>(P).TopIdx = getCurrSlot();
+    Boundary.Indizes.TopIdx = getCurrSlot();
   else
-    static_cast<RegionPressure&>(P).TopPos = CurrPos;
+    Boundary.Iters.TopPos = CurrPos;
 
   assert(LiveInRegs.empty() && "inconsistent max pressure result");
   LiveInRegs.reserve(LiveRegs.PhysRegs.size() + LiveRegs.VirtRegs.size());
@@ -246,9 +206,9 @@ void RegPressureTracker::closeTop() {
 /// Set the boundary for the bottom of the region and summarize live outs.
 void RegPressureTracker::closeBottom() {
   if (RequireIntervals)
-    static_cast<IntervalPressure&>(P).BottomIdx = getCurrSlot();
+    Boundary.Indizes.BottomIdx = getCurrSlot();
   else
-    static_cast<RegionPressure&>(P).BottomPos = CurrPos;
+    Boundary.Iters.BottomPos = CurrPos;
 
   assert(LiveOutRegs.empty() && "inconsistent max pressure result");
   LiveOutRegs.reserve(LiveRegs.PhysRegs.size() + LiveRegs.VirtRegs.size());
@@ -454,8 +414,12 @@ bool RegPressureTracker::recede(SmallVectorImpl<unsigned> *LiveUses,
     closeBottom();
 
   // Open the top of the region using block iterators.
-  if (!RequireIntervals && isTopClosed())
-    static_cast<RegionPressure&>(P).openTop(CurrPos);
+  if (!RequireIntervals && isTopClosed()) {
+    // If the current top is the previous instruction (before receding),
+    // open it.
+    if (Boundary.Iters.TopPos == CurrPos)
+      Boundary.Iters.TopPos = MachineBasicBlock::const_iterator();
+  }
 
   // Find the previous instruction.
   do
@@ -472,8 +436,13 @@ bool RegPressureTracker::recede(SmallVectorImpl<unsigned> *LiveUses,
 
   // Open the top of the region using slot indexes.
   if (isTopClosed()) {
-    if (RequireIntervals)
-      static_cast<IntervalPressure&>(P).openTop(SlotIdx);
+    if (RequireIntervals) {
+      // If the current top is not less than or equal to the next index, open
+      // it. We happen to need the SlotIndex for the next top for pressure
+      // update.
+      if (Boundary.Indizes.TopIdx > SlotIdx)
+        Boundary.Indizes.TopIdx = SlotIndex();
+    }
     LiveInRegs.clear();
   }
 
@@ -560,10 +529,16 @@ bool RegPressureTracker::advance() {
 
   // Open the bottom of the region using slot indexes.
   if (isBottomClosed()) {
-    if (RequireIntervals)
-      static_cast<IntervalPressure&>(P).openBottom(SlotIdx);
-    else
-      static_cast<RegionPressure&>(P).openBottom(CurrPos);
+    if (RequireIntervals) {
+      // If the current bottom is not greater than the previous index, open it.
+      if (Boundary.Indizes.BottomIdx <= SlotIdx)
+        Boundary.Indizes.BottomIdx = SlotIndex();
+    } else {
+      // If the current bottom is the previous instr (before advancing), open
+      // it.
+      if (Boundary.Iters.BottomPos == CurrPos)
+        Boundary.Iters.BottomPos = MachineBasicBlock::const_iterator();
+    }
     LiveInRegs.clear();
   }
 

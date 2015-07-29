@@ -361,7 +361,6 @@ protected:
 
   /// Register pressure in this region computed by initRegPressure.
   bool ShouldTrackPressure;
-  IntervalPressure RegPressure;
   RegPressureTracker RPTracker;
 
   /// List of pressure sets that exceed the target's pressure limit before
@@ -370,11 +369,9 @@ protected:
   std::vector<PressureChange> RegionCriticalPSets;
 
   /// The top of the unscheduled zone.
-  IntervalPressure TopPressure;
   RegPressureTracker TopRPTracker;
 
   /// The bottom of the unscheduled zone.
-  IntervalPressure BotPressure;
   RegPressureTracker BotRPTracker;
 
 public:
@@ -382,8 +379,8 @@ public:
                     std::unique_ptr<MachineSchedStrategy> S)
       : ScheduleDAGMI(C, std::move(S), /*IsPostRA=*/false),
         RegClassInfo(C->RegClassInfo), DFSResult(nullptr),
-        ShouldTrackPressure(false), RPTracker(RegPressure),
-        TopRPTracker(TopPressure), BotRPTracker(BotPressure) {}
+        ShouldTrackPressure(false), RPTracker(true), TopRPTracker(true),
+        BotRPTracker(true) {}
 
   ~ScheduleDAGMILive() override;
 
@@ -394,11 +391,9 @@ public:
   bool isTrackingPressure() const { return ShouldTrackPressure; }
 
   /// Get current register pressure for the top scheduled instructions.
-  const IntervalPressure &getTopPressure() const { return TopPressure; }
   const RegPressureTracker &getTopRPTracker() const { return TopRPTracker; }
 
   /// Get current register pressure for the bottom scheduled instructions.
-  const IntervalPressure &getBotPressure() const { return BotPressure; }
   const RegPressureTracker &getBotRPTracker() const { return BotRPTracker; }
 
   /// Get register pressure for the entire scheduling region before scheduling.

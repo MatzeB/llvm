@@ -26,46 +26,6 @@ class LiveRange;
 class RegisterClassInfo;
 class MachineInstr;
 
-/// Base class for register pressure results.
-struct RegisterPressure {
-};
-
-/// RegisterPressure computed within a region of instructions delimited by
-/// TopIdx and BottomIdx.  During pressure computation, the maximum pressure per
-/// register pressure set is increased. Once pressure within a region is fully
-/// computed, the live-in and live-out sets are recorded.
-///
-/// This is preferable to RegionPressure when LiveIntervals are available,
-/// because delimiting regions by SlotIndex is more robust and convenient than
-/// holding block iterators. The block contents can change without invalidating
-/// the pressure result.
-struct IntervalPressure : RegisterPressure {
-  /// Record the boundary of the region being tracked.
-  SlotIndex TopIdx;
-  SlotIndex BottomIdx;
-
-  void reset();
-
-  void openTop(SlotIndex NextTop);
-
-  void openBottom(SlotIndex PrevBottom);
-};
-
-/// RegisterPressure computed within a region of instructions delimited by
-/// TopPos and BottomPos. This is a less precise version of IntervalPressure for
-/// use when LiveIntervals are unavailable.
-struct RegionPressure : RegisterPressure {
-  /// Record the boundary of the region being tracked.
-  MachineBasicBlock::const_iterator TopPos;
-  MachineBasicBlock::const_iterator BottomPos;
-
-  void reset();
-
-  void openTop(MachineBasicBlock::const_iterator PrevTop);
-
-  void openBottom(MachineBasicBlock::const_iterator PrevBottom);
-};
-
 /// Capture a change in pressure for a single pressure set. UnitInc may be
 /// expressed in terms of upward or downward pressure depending on the client
 /// and will be dynamically adjusted for current liveness.
@@ -236,11 +196,20 @@ class RegPressureTracker {
   /// We currently only allow pressure tracking within a block.
   const MachineBasicBlock *MBB;
 
-  /// Track the max pressure within the region traversed so far.
-  RegisterPressure &P;
+  /// Boundary of the region being tracked.
+  union Boundary {
+    struct {
+      SlotIndex TopIdx;
+      SlotIndex BottomIdx;
+    } Indizes;
+    struct {
+      MachineBasicBlock::const_iterator TopPos;
+      MachineBasicBlock::const_iterator BottomPos;
+    } Iters;
+    Boundary() {}
+  } Boundary;
 
-  /// Run in two modes dependending on whether constructed with IntervalPressure
-  /// or RegisterPressure. If requireIntervals is false, LIS are ignored.
+  /// Run in two modes dependending on whether live intervals are available.
   bool RequireIntervals;
 
   /// True if UntiedDefs will be populated.
@@ -269,13 +238,9 @@ class RegPressureTracker {
   std::vector<unsigned> LiveThruPressure;
 
 public:
-  RegPressureTracker(IntervalPressure &rp) :
-    MF(nullptr), TRI(nullptr), RCI(nullptr), LIS(nullptr), MBB(nullptr), P(rp),
-    RequireIntervals(true), TrackUntiedDefs(false) {}
-
-  RegPressureTracker(RegionPressure &rp) :
-    MF(nullptr), TRI(nullptr), RCI(nullptr), LIS(nullptr), MBB(nullptr), P(rp),
-    RequireIntervals(false), TrackUntiedDefs(false) {}
+  RegPressureTracker(bool RequireIntervals) :
+    MF(nullptr), TRI(nullptr), RCI(nullptr), LIS(nullptr), MBB(nullptr),
+    RequireIntervals(RequireIntervals), TrackUntiedDefs(false) {}
 
   void reset();
 
@@ -331,12 +296,6 @@ public:
   /// Get the maximum register set pressure for the traversed region.
   ArrayRef<unsigned> getMaxSetPressure() const { return MaxSetPressure; }
   /// @}
-
-  /// Get the resulting register pressure over the traversed region.
-  /// This result is complete if either advance() or recede() has returned true,
-  /// or if closeRegion() was explicitly invoked.
-  RegisterPressure &getPressure() { return P; }
-  const RegisterPressure &getPressure() const { return P; }
 
   /// Get the register set pressure at the current position, which may be less
   /// than the pressure across the traversed region.
