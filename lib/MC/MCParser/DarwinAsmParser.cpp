@@ -942,9 +942,22 @@ bool DarwinAsmParser::parseVersionMin(StringRef Directive, SMLoc Loc) {
   case MCVM_IOSVersionMin:     ExpectedOS = Triple::IOS;     break;
   case MCVM_OSXVersionMin:     ExpectedOS = Triple::MacOSX;  break;
   }
-  if (T.getOS() != ExpectedOS)
+  if (T.getOS() != ExpectedOS) {
     Warning(Loc, Directive + " should only be used for " +
             Triple::getOSTypeName(ExpectedOS) + " targets");
+  } else {
+    // Check if target triple version matches the one in the directive.
+    unsigned TripleMajor, TripleMinor, TripleMicro;
+    T.getOSVersion(TripleMajor, TripleMinor, TripleMicro);
+    if ((TripleMajor != 0 || TripleMinor != 0 || TripleMicro != 0) &&
+        (Major != TripleMajor || Minor != TripleMinor ||
+         (Update != 0 && TripleMicro != 0 && Update != TripleMicro))) {
+      Warning(Loc, Twine(Directive) + " " + Twine(Major) + "," + Twine(Minor) +
+              "," + Twine(Update) + " does not match target version " +
+              Twine(TripleMajor) + "," + Twine(TripleMinor) + "," +
+              Twine(TripleMicro));
+    }
+  }
 
   if (LastVersionMinDirective.isValid()) {
     Warning(Loc, "overriding previous version_min directive");
