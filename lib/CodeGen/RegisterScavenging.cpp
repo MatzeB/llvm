@@ -349,6 +349,79 @@ unsigned RegScavenger::findSurvivorReg(MachineBasicBlock::iterator StartMI,
   return Survivor;
 }
 
+/// Searches backwards for a register usable between \p From and \To.
+/// - If there exists a free register that is not part of \p LiveOut, then
+///   make_pair(Reg, MBB.end()) will be returned.
+/// - Otherwise we continue searching backwards for a register that is unused
+///   for the longest time. In this case make_pair(Reg, earliest use) is
+///   returned.
+static std::pair<unsigned, MachineBasicBlock::iterator>
+findSurvivorBackwards(const MachineRegisterInfo &MRI,
+    MachineBasicBlock::iterator From, MachineBasicBlock::iterator To,
+    const LiveRegUnits &LiveOut, const TargetRegisterClass &RC) {
+  bool FoundTo = false;
+  unsigned Survivor = 0;
+  MachineBasicBlock::iterator Pos;
+  MachineBasicBlock &MBB = *From->getParent();
+  unsigned InstrLimit = 25;
+  unsigned InstrCountDown = InstrLimit;
+  const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
+  LiveRegUnits Live(TRI);
+
+  for (MachineBasicBlock::iterator I = From;; --I) {
+    const MachineInstr &MI = *I;
+
+    Live.accumulateBackward(MI);
+
+    if (I == To) {
+      // See if there is a register that was not live so far.
+      for (unsigned Reg : RC) {
+        if (!MRI.isReserved(Reg) && Live.available(Reg) &&
+            LiveOut.available(Reg))
+          return std::make_pair(Reg, MBB.end());
+      }
+      // Otherwise we will continue up to InstrLimit instructions to find the
+      // register which is not defined/used for the longest time.
+      FoundTo = true;
+      Pos = To;
+    }
+    if (FoundTo) {
+      if (Survivor == 0 || !Live.available(Survivor)) {
+        unsigned AvailableReg = 0;
+        for (unsigned Reg : RC) {
+          if (!MRI.isReserved(Reg) && Live.available(Reg)) {
+            AvailableReg = Reg;
+            break;
+          }
+        }
+        if (AvailableReg == 0)
+          break;
+        Survivor = AvailableReg;
+      }
+      if (--InstrCountDown == 0 || I == MBB.begin())
+        break;
+
+      // Keep going if we find another vreg, as we need to scavenge that later
+      // anyway and we may be lucky by scavenge this one register for both.
+      bool FoundVReg = false;
+      for (const MachineOperand &MO : MI.operands()) {
+        if (MO.isReg() && TargetRegisterInfo::isVirtualRegister(MO.getReg())) {
+          FoundVReg = true;
+          break;
+        }
+      }
+      if (FoundVReg) {
+        // Keep searching when we find a vreg since the spilled register will
+        // be usefull for this other vreg as well later.
+        InstrCountDown = InstrLimit;
+        Pos = I;
+      }
+    }
+  }
+
+  return std::make_pair(Survivor, Pos);
+}
+
 static unsigned getFrameIndexOperandNum(MachineInstr &MI) {
   unsigned i = 0;
   while (!MI.getOperand(i).isFI()) {
@@ -468,4 +541,32 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
         "\n");
 
   return SReg;
+}
+
+unsigned RegScavenger::scavengeRegisterBackwards(const TargetRegisterClass &RC,
+                                                 MachineBasicBlock::iterator To,
+                                                 bool RestoreAfter, int SPAdj) {
+  const MachineBasicBlock &MBB = *To->getParent();
+
+  // Find the register whose use is furthest away.
+  std::pair<unsigned, MachineBasicBlock::iterator> P =
+      findSurvivorBackwards(*MRI, MBBI, To, LiveUnits, RC);
+  unsigned Reg = P.first;
+  MachineBasicBlock::iterator SpillBefore = P.second;
+  if (Reg == 0) {
+    llvm_unreachable("No register left to scavenge!");
+  } else if (MBB.end() == SpillBefore) {
+    DEBUG(dbgs() << "Scavenged free register: " << PrintReg(Reg, TRI) << '\n');
+  } else {
+    MachineBasicBlock::iterator ReloadAfter =
+      RestoreAfter ? std::next(MBBI) : MBBI;
+    MachineBasicBlock::iterator ReloadBefore = std::next(ReloadAfter);
+    DEBUG(dbgs() << "Reload before: " << *ReloadBefore << '\n');
+    ScavengedInfo &Scavenged = spill(Reg, RC, SPAdj, SpillBefore, ReloadBefore);
+    Scavenged.Restore = &*std::prev(SpillBefore);
+    LiveUnits.removeReg(Reg);
+    DEBUG(dbgs() << "Scavenged register with spill: " << PrintReg(Reg, TRI)
+          << " until " << *SpillBefore);
+  }
+  return Reg;
 }

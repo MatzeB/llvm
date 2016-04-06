@@ -497,12 +497,19 @@ int AArch64A57FPLoadBalancing::scavengeRegister(Chain *G, Color C,
   // of the chain? Simulate liveness backwards until the end of the chain.
   LiveRegUnits Units(*TRI);
   Units.addLiveOuts(MBB);
-  MachineBasicBlock::iterator I = MBB.end();
-  MachineBasicBlock::iterator ChainEnd = G->end();
-  while (I != ChainEnd) {
+  MachineBasicBlock::iterator I = MBB.end(), ChainEnd = G->end();
+  do {
     --I;
     Units.stepBackward(*I);
-  }
+  } while (I != ChainEnd);
+
+  // Check which register units are alive throughout the chain.
+  MachineBasicBlock::iterator ChainBegin = G->begin();
+  assert(ChainBegin != ChainEnd && "Chain should contain instructions");
+  do {
+    --I;
+    Units.accumulateBackward(*I);
+  } while (I != ChainBegin);
 
   // Check which register units are alive throughout the chain.
   MachineBasicBlock::iterator ChainBegin = G->begin();

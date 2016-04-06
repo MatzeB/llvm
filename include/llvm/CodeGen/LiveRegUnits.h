@@ -83,6 +83,10 @@ public:
   /// The regmask has the same format as the one in the RegMask machine operand.
   void addRegsInMask(const uint32_t *RegMask);
 
+  /// Adds register units not preserved by the regmask \p RegMask.
+  /// The regmask has the same format as the one in the RegMask machine operand.
+  void addRegsInMask(const uint32_t *RegMask);
+
   /// Returns true if no part of physical register \p Reg is live.
   bool available(unsigned Reg) const {
     for (MCRegUnitIterator Unit(Reg, TRI); Unit.isValid(); ++Unit) {
