@@ -2875,10 +2875,11 @@ bool AArch64TargetLowering::isEligibleForTailCallOptimization(
                                   CCAssignFnForCall(CallerCC, isVarArg)))
     return false;
   // The callee has to preserve all registers the caller needs to preserve.
+  const AArch64RegisterInfo *TRI = Subtarget->getRegisterInfo();
+  const uint32_t *CallerPreserved = TRI->getCallPreservedMask(MF, CallerCC);
   if (!CCMatch) {
-    const AArch64RegisterInfo *TRI = Subtarget->getRegisterInfo();
-    if (!TRI->regmaskSubsetEqual(TRI->getCallPreservedMask(MF, CallerCC),
-                                 TRI->getCallPreservedMask(MF, CalleeCC)))
+    const uint32_t *CalleePreserved = TRI->getCallPreservedMask(MF, CalleeCC);
+    if (!TRI->regmaskSubsetEqual(CallerPreserved, CalleePreserved))
       return false;
   }
 
@@ -2893,9 +2894,29 @@ bool AArch64TargetLowering::isEligibleForTailCallOptimization(
 
   const AArch64FunctionInfo *FuncInfo = MF.getInfo<AArch64FunctionInfo>();
 
-  // If the stack arguments for this call would fit into our own save area then
-  // the call can be made tail.
-  return CCInfo.getNextStackOffset() <= FuncInfo->getBytesInStackArgArea();
+  // If the stack arguments for this call do not fit into our own save area then
+  // the call cannot be made tail.
+  if (CCInfo.getNextStackOffset() > FuncInfo->getBytesInStackArgArea())
+    return false;
+
+  for (unsigned I = 0, E = ArgLocs.size(); I != E; ++I) {
+    const CCValAssign &ArgLoc = ArgLocs[I];
+    if (!ArgLoc.isRegLoc())
+      continue;
+    unsigned Reg = ArgLoc.getLocReg();
+    if (!MachineOperand::clobbersPhysReg(CallerPreserved, Reg)) {
+      // Check that we pass the value used for the caller.
+      SDValue Value = OutVals[I];
+      if (Value->getOpcode() != ISD::CopyFromReg)
+        return false;
+      unsigned ArgReg = cast<RegisterSDNode>(Value->getOperand(1))->getReg();
+      const MachineRegisterInfo &MRI = MF.getRegInfo();
+      if (MRI.getLiveInPhysReg(ArgReg) != Reg)
+        return false;
+    }
+  }
+
+  return true;
 }
 
 SDValue AArch64TargetLowering::addTokenForArgument(SDValue Chain,
