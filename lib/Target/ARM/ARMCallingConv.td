@@ -23,8 +23,8 @@ def CC_ARM_APCS : CallingConv<[
     
   CCIfType<[i1, i8, i16], CCPromoteToType<i32>>,
 
-  // A SwiftSelf is passed in R9.
-  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R9]>>>,
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
 
   // A SwiftError is passed in R6.
   CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
@@ -160,8 +160,8 @@ def CC_ARM_AAPCS : CallingConv<[
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
-  // A SwiftSelf is passed in R9.
-  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R9]>>>,
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
 
   // A SwiftError is passed in R6.
   CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
@@ -197,8 +197,8 @@ def CC_ARM_AAPCS_VFP : CallingConv<[
   CCIfType<[v1i64, v2i32, v4i16, v8i8, v2f32], CCBitConvertToType<f64>>,
   CCIfType<[v2i64, v4i32, v8i16, v16i8, v4f32], CCBitConvertToType<v2f64>>,
 
-  // A SwiftSelf is passed in R9.
-  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R9]>>>,
+  // Pass SwiftSelf in a callee saved register.
+  CCIfSwiftSelf<CCIfType<[i32], CCAssignToReg<[R10]>>>,
 
   // A SwiftError is passed in R6.
   CCIfSwiftError<CCIfType<[i32], CCAssignToReg<[R6]>>>,
