@@ -35,8 +35,6 @@ public:
 
   /// Code Generation virtual methods...
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
-  const MCPhysReg *
-  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
 
@@ -95,6 +93,9 @@ public:
 
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;
+
+  /// Returns CSR_AArch64_CXX_TLS_Darwin_ViaCopy_SaveList.
+  static const MCPhysReg *getFastTLSSavedViaCopy();
 };
 
 } // end namespace llvm

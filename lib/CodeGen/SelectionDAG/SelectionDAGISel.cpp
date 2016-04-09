@@ -471,57 +471,14 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
 
   MF->setHasInlineAsm(false);
 
-  FuncInfo->SplitCSR = false;
-
-  // We split CSR if the target supports it for the given function
-  // and the function has only return exits.
-  if (OptLevel != CodeGenOpt::None && TLI->supportSplitCSR(MF)) {
-    FuncInfo->SplitCSR = true;
-
-    // Collect all the return blocks.
-    for (const BasicBlock &BB : Fn) {
-      if (!succ_empty(&BB))
-        continue;
-
-      const TerminatorInst *Term = BB.getTerminator();
-      if (isa<UnreachableInst>(Term) || isa<ReturnInst>(Term))
-        continue;
-
-      // Bail out if the exit block is not Return nor Unreachable.
-      FuncInfo->SplitCSR = false;
-      break;
-    }
-  }
-
-  MachineBasicBlock *EntryMBB = &MF->front();
-  if (FuncInfo->SplitCSR)
-    // This performs initialization so lowering for SplitCSR will be correct.
-    TLI->initializeSplitCSR(EntryMBB);
-
   SelectAllBasicBlocks(Fn);
 
   // If the first basic block in the function has live ins that need to be
   // copied into vregs, emit the copies into the top of the block before
   // emitting the code for the block.
   const TargetRegisterInfo &TRI = *MF->getSubtarget().getRegisterInfo();
+  MachineBasicBlock *EntryMBB = &MF->front();
   RegInfo->EmitLiveInCopies(EntryMBB, TRI, *TII);
-
-  // Insert copies in the entry block and the return blocks.
-  if (FuncInfo->SplitCSR) {
-    SmallVector<MachineBasicBlock*, 4> Returns;
-    // Collect all the return blocks.
-    for (MachineBasicBlock &MBB : mf) {
-      if (!MBB.succ_empty())
-        continue;
-
-      MachineBasicBlock::iterator Term = MBB.getFirstTerminator();
-      if (Term != MBB.end() && Term->isReturn()) {
-        Returns.push_back(&MBB);
-        continue;
-      }
-    }
-    TLI->insertCopiesSplitCSR(EntryMBB, Returns);
-  }
 
   DenseMap<unsigned, unsigned> LiveInMap;
   if (!FuncInfo->ArgDbgValues.empty())

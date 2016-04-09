@@ -21,6 +21,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/StackMaps.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -1786,6 +1787,18 @@ bool TargetLoweringBase::isLegalAddressingMode(const DataLayout &DL,
     return false;
   }
 
+  return true;
+}
+
+bool TargetLoweringBase::mayUseSplitCSR(const MachineFunction &MF) {
+  for (const BasicBlock &BB : *MF.getFunction()) {
+    if (!succ_empty(&BB))
+      continue;
+
+    const TerminatorInst *Term = BB.getTerminator();
+    if (!isa<UnreachableInst>(Term) && !isa<ReturnInst>(Term))
+      return false;
+  }
   return true;
 }
 

@@ -1021,9 +1021,6 @@ bool X86FastISel::X86SelectRet(const Instruction *I) {
       F.getAttributes().hasAttrSomewhere(Attribute::SwiftError))
     return false;
 
-  if (TLI.supportSplitCSR(FuncInfo.MF))
-    return false;
-
   CallingConv::ID CC = F.getCallingConv();
   if (CC != CallingConv::C &&
       CC != CallingConv::Fast &&

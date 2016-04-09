@@ -92,9 +92,8 @@ class X86MachineFunctionInfo : public MachineFunctionInfo {
   /// used to address arguments in a function using a base pointer.
   int SEHFramePtrSaveIndex = 0;
 
-  /// True if this function has a subset of CSRs that is handled explicitly via
-  /// copies.
-  bool IsSplitCSR = false;
+  /// zero-terminated list of callee saved registers saved by copying to a vreg.
+  const MCPhysReg *CSRSavedViaCopy = nullptr;
 
   /// True if this function uses the red zone.
   bool UsesRedZone = false;
@@ -168,8 +167,10 @@ public:
     return ForwardedMustTailRegParms;
   }
 
-  bool isSplitCSR() const { return IsSplitCSR; }
-  void setIsSplitCSR(bool s) { IsSplitCSR = s; }
+  const MCPhysReg *getCSRSavedViaCopy() const { return CSRSavedViaCopy; }
+  void setCSRSavedViaCopy(const MCPhysReg *CSRSavedViaCopy) {
+    this->CSRSavedViaCopy = CSRSavedViaCopy;
+  }
 
   bool getUsesRedZone() const { return UsesRedZone; }
   void setUsesRedZone(bool V) { UsesRedZone = V; }

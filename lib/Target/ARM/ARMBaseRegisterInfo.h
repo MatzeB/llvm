@@ -98,8 +98,6 @@ protected:
 public:
   /// Code Generation virtual methods...
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
-  const MCPhysReg *
-  getCalleeSavedRegsViaCopy(const MachineFunction *MF) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
   const uint32_t *getNoPreservedMask() const override;
@@ -193,6 +191,9 @@ public:
                       const TargetRegisterClass *DstRC,
                       unsigned DstSubReg,
                       const TargetRegisterClass *NewRC) const override;
+
+  /// Returns CSR_iOS_CXX_TLS_ViaCopy_SaveList.
+  static const MCPhysReg *getFastTLSSavedViaCopy();
 };
 
 } // end namespace llvm

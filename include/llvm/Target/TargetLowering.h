@@ -1218,6 +1218,10 @@ public:
       Action != TypeSplitVector;
   }
 
+  /// Returns true if the given function only ends in return (or unreachable)
+  /// instructions.
+  static bool mayUseSplitCSR(const MachineFunction &MF);
+
   //===--------------------------------------------------------------------===//
   // TargetLowering Configuration Methods - These methods should be invoked by
   // the derived class constructor to configure this object for the target.
@@ -2307,33 +2311,10 @@ public:
     return false;
   }
 
-  /// Return true if the target supports that a subset of CSRs for the given
-  /// machine function is handled explicitly via copies.
-  virtual bool supportSplitCSR(MachineFunction *MF) const {
-    return false;
-  }
-
   /// Return true if the MachineFunction contains a COPY which would imply
   /// HasCopyImplyingStackAdjustment.
   virtual bool hasCopyImplyingStackAdjustment(MachineFunction *MF) const {
     return false;
-  }
-
-  /// Perform necessary initialization to handle a subset of CSRs explicitly
-  /// via copies. This function is called at the beginning of instruction
-  /// selection.
-  virtual void initializeSplitCSR(MachineBasicBlock *Entry) const {
-    llvm_unreachable("Not Implemented");
-  }
-
-  /// Insert explicit copies in entry and exit blocks. We copy a subset of
-  /// CSRs to virtual registers in the entry block, and copy them back to
-  /// physical registers in the exit blocks. This function is called at the end
-  /// of instruction selection.
-  virtual void insertCopiesSplitCSR(
-      MachineBasicBlock *Entry,
-      const SmallVectorImpl<MachineBasicBlock *> &Exits) const {
-    llvm_unreachable("Not Implemented");
   }
 
   //===--------------------------------------------------------------------===//
@@ -2679,6 +2660,18 @@ public:
 
   bool verifyReturnAddressArgumentIsConstant(SDValue Op,
                                              SelectionDAG &DAG) const;
+
+  /// Copy callee saved registers that are saved in vregs back to physregs.
+  /// Takes a zero-terminated list of registers that have been added with
+  /// MachineFunction::addLiveIn().  Creates a sequence of
+  /// CopyFromReg/CopyToReg nodes and appends physreg operands to the given
+  /// operand list.  Returns the glue value of the last CopyToReg.
+  /// Note: Typically used to add operands to the target return instruction when
+  /// some callee saved registers are kept in vregs because they are also used
+  /// for function parameters.
+  SDValue addCalleeSaveRegOps(const MCPhysReg *Regs, SDLoc DL, SDValue Chain,
+                              SDValue Glue, SmallVectorImpl<SDValue> &Ops,
+                              SelectionDAG &DAG) const;
 
   //===--------------------------------------------------------------------===//
   // Inline Asm Support hooks

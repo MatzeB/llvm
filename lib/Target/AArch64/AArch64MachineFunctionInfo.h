@@ -75,9 +75,8 @@ class AArch64FunctionInfo : public MachineFunctionInfo {
   /// registers.
   unsigned VarArgsFPRSize;
 
-  /// True if this function has a subset of CSRs that is handled explicitly via
-  /// copies.
-  bool IsSplitCSR;
+  /// zero-terminated list of callee saved registers saved by copying to a vreg.
+  const MCPhysReg *CSRSavedViaCopy = nullptr;
 
   /// True when the stack gets realigned dynamically because the size of stack
   /// frame is unknown at compile time. e.g., in case of VLAs.
@@ -88,13 +87,13 @@ public:
       : BytesInStackArgArea(0), ArgumentStackToRestore(0), HasStackFrame(false),
         NumLocalDynamicTLSAccesses(0), VarArgsStackIndex(0), VarArgsGPRIndex(0),
         VarArgsGPRSize(0), VarArgsFPRIndex(0), VarArgsFPRSize(0),
-        IsSplitCSR(false), StackRealigned(false) {}
+        StackRealigned(false) {}
 
   explicit AArch64FunctionInfo(MachineFunction &MF)
       : BytesInStackArgArea(0), ArgumentStackToRestore(0), HasStackFrame(false),
         NumLocalDynamicTLSAccesses(0), VarArgsStackIndex(0), VarArgsGPRIndex(0),
         VarArgsGPRSize(0), VarArgsFPRIndex(0), VarArgsFPRSize(0),
-        IsSplitCSR(false), StackRealigned(false) {
+        StackRealigned(false) {
     (void)MF;
   }
 
@@ -112,8 +111,10 @@ public:
   bool isStackRealigned() const { return StackRealigned; }
   void setStackRealigned(bool s) { StackRealigned = s; }
 
-  bool isSplitCSR() const { return IsSplitCSR; }
-  void setIsSplitCSR(bool s) { IsSplitCSR = s; }
+  const MCPhysReg *getCSRSavedViaCopy() const { return CSRSavedViaCopy; }
+  void setCSRSavedViaCopy(const MCPhysReg *CSRSavedViaCopy) {
+    this->CSRSavedViaCopy = CSRSavedViaCopy;
+  }
 
   void setLocalStackSize(unsigned Size) { LocalStackSize = Size; }
   unsigned getLocalStackSize() const { return LocalStackSize; }

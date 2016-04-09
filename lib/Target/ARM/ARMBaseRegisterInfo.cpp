@@ -89,19 +89,10 @@ ARMBaseRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return CSR_iOS_SwiftError_SaveList;
 
   if (STI.isTargetDarwin() && F->getCallingConv() == CallingConv::CXX_FAST_TLS)
-    return MF->getInfo<ARMFunctionInfo>()->isSplitCSR()
+    return MF->getInfo<ARMFunctionInfo>()->getCSRSavedViaCopy()
                ? CSR_iOS_CXX_TLS_PE_SaveList
                : CSR_iOS_CXX_TLS_SaveList;
   return RegList;
-}
-
-const MCPhysReg *ARMBaseRegisterInfo::getCalleeSavedRegsViaCopy(
-    const MachineFunction *MF) const {
-  assert(MF && "Invalid MachineFunction pointer.");
-  if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS &&
-      MF->getInfo<ARMFunctionInfo>()->isSplitCSR())
-    return CSR_iOS_CXX_TLS_ViaCopy_SaveList;
-  return nullptr;
 }
 
 const uint32_t *
@@ -835,4 +826,8 @@ bool ARMBaseRegisterInfo::shouldCoalesce(MachineInstr *MI,
     return true;
   }
   return false;
+}
+
+const MCPhysReg *ARMBaseRegisterInfo::getFastTLSSavedViaCopy() {
+  return CSR_iOS_CXX_TLS_ViaCopy_SaveList;
 }

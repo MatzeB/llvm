@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -2936,6 +2937,26 @@ verifyReturnAddressArgumentIsConstant(SDValue Op, SelectionDAG &DAG) const {
   }
 
   return false;
+}
+
+SDValue TargetLowering::addCalleeSaveRegOps(const MCPhysReg *Regs, SDLoc DL,
+    SDValue Chain, SDValue Glue, SmallVectorImpl<SDValue> &Ops,
+    SelectionDAG &DAG) const {
+  const MachineFunction &MF = DAG.getMachineFunction();
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  for (const MCPhysReg *I = Regs; *I; ++I) {
+    const MCPhysReg PReg = *I;
+    unsigned VReg = MRI.getLiveInVirtReg(PReg);
+
+    const TargetRegisterClass &RC = *MRI.getRegClass(VReg);
+    MVT RegVT = *RC.vt_begin();
+    SDValue Val = DAG.getCopyFromReg(Chain, DL, VReg, RegVT);
+    SDValue CopyToReg = DAG.getCopyToReg(Chain, DL, PReg, Val, Glue);
+    Glue = CopyToReg.getValue(1);
+
+    Ops.push_back(DAG.getRegister(PReg, RegVT));
+  }
+  return Glue;
 }
 
 //===----------------------------------------------------------------------===//

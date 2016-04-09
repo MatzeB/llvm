@@ -250,7 +250,7 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return CSR_64_RT_AllRegs_SaveList;
   case CallingConv::CXX_FAST_TLS:
     if (Is64Bit)
-      return MF->getInfo<X86MachineFunctionInfo>()->isSplitCSR() ?
+      return MF->getInfo<X86MachineFunctionInfo>()->getCSRSavedViaCopy() ?
              CSR_64_CXX_TLS_Darwin_PE_SaveList : CSR_64_TLS_Darwin_SaveList;
     break;
   case CallingConv::Intel_OCL_BI: {
@@ -308,15 +308,6 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   if (CallsEHReturn)
     return CSR_32EHRet_SaveList;
   return CSR_32_SaveList;
-}
-
-const MCPhysReg *X86RegisterInfo::getCalleeSavedRegsViaCopy(
-    const MachineFunction *MF) const {
-  assert(MF && "Invalid MachineFunction pointer.");
-  if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS &&
-      MF->getInfo<X86MachineFunctionInfo>()->isSplitCSR())
-    return CSR_64_CXX_TLS_Darwin_ViaCopy_SaveList;
-  return nullptr;
 }
 
 const uint32_t *
@@ -654,4 +645,8 @@ unsigned llvm::get512BitSuperRegister(unsigned Reg) {
   if (Reg >= X86::ZMM0 && Reg <= X86::ZMM31)
     return Reg;
   llvm_unreachable("Unexpected SIMD register");
+}
+
+const MCPhysReg *X86RegisterInfo::getFastTLSSavedViaCopy() {
+  return CSR_64_CXX_TLS_Darwin_ViaCopy_SaveList;
 }

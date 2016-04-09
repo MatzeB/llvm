@@ -2672,6 +2672,28 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
   // much is there while considering tail calls (because we can reuse it).
   FuncInfo->setBytesInStackArgArea(StackArgSize);
 
+  // Should we save callee save registers via vregs?
+  if (CallConv == CallingConv::CXX_FAST_TLS &&
+      MF.getFunction()->hasFnAttribute(Attribute::NoUnwind) &&
+      !MF.getTarget().Options.EnableFastISel && mayUseSplitCSR(MF)) {
+    const MCPhysReg *SavedViaCopy =
+      AArch64RegisterInfo::getFastTLSSavedViaCopy();
+    FuncInfo->setCSRSavedViaCopy(SavedViaCopy);
+
+    // Add live-ins.
+    for (const MCPhysReg *I = SavedViaCopy; *I; ++I) {
+      const MCPhysReg Reg = *I;
+      const TargetRegisterClass *RC;
+      if (AArch64::GPR64RegClass.contains(Reg))
+        RC = &AArch64::GPR64RegClass;
+      else if (AArch64::FPR64RegClass.contains(Reg))
+        RC = &AArch64::FPR64RegClass;
+      else
+        llvm_unreachable("Unexpected register class in CSRsViaCopy!");
+      MF.addLiveIn(Reg, RC);
+    }
+  }
+
   return Chain;
 }
 
@@ -3348,11 +3370,12 @@ AArch64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
                           ? RetCC_AArch64_WebKit_JS
                           : RetCC_AArch64_AAPCS;
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
-                 *DAG.getContext());
+  MachineFunction &MF = DAG.getMachineFunction();
+  CCState CCInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
   CCInfo.AnalyzeReturn(Outs, RetCC);
 
   // Copy the result values into the output registers.
+  SDValue IncomingChain = Chain;
   SDValue Flag;
   SmallVector<SDValue, 4> RetOps(1, Chain);
   for (unsigned i = 0, realRVLocIdx = 0; i != RVLocs.size();
@@ -3382,19 +3405,11 @@ AArch64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
     Flag = Chain.getValue(1);
     RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
   }
-  const AArch64RegisterInfo *TRI = Subtarget->getRegisterInfo();
-  const MCPhysReg *I =
-      TRI->getCalleeSavedRegsViaCopy(&DAG.getMachineFunction());
-  if (I) {
-    for (; *I; ++I) {
-      if (AArch64::GPR64RegClass.contains(*I))
-        RetOps.push_back(DAG.getRegister(*I, MVT::i64));
-      else if (AArch64::FPR64RegClass.contains(*I))
-        RetOps.push_back(DAG.getRegister(*I, MVT::getFloatingPointVT(64)));
-      else
-        llvm_unreachable("Unexpected register class in CSRsViaCopy!");
-    }
-  }
+  const AArch64FunctionInfo &FuncInfo = *MF.getInfo<AArch64FunctionInfo>();
+  const MCPhysReg *SavedViaCopy = FuncInfo.getCSRSavedViaCopy();
+  if (SavedViaCopy != nullptr)
+    Flag = addCalleeSaveRegOps(SavedViaCopy, DL, IncomingChain, Flag, RetOps,
+                               DAG);
 
   RetOps[0] = Chain; // Update chain.
 
@@ -10262,53 +10277,6 @@ Value *AArch64TargetLowering::getSafeStackPointerLocation(IRBuilder<> &IRB) cons
   return IRB.CreatePointerCast(
       IRB.CreateConstGEP1_32(IRB.CreateCall(ThreadPointerFunc), TlsOffset),
       Type::getInt8PtrTy(IRB.getContext())->getPointerTo(0));
-}
-
-void AArch64TargetLowering::initializeSplitCSR(MachineBasicBlock *Entry) const {
-  // Update IsSplitCSR in AArch64unctionInfo.
-  AArch64FunctionInfo *AFI = Entry->getParent()->getInfo<AArch64FunctionInfo>();
-  AFI->setIsSplitCSR(true);
-}
-
-void AArch64TargetLowering::insertCopiesSplitCSR(
-    MachineBasicBlock *Entry,
-    const SmallVectorImpl<MachineBasicBlock *> &Exits) const {
-  const AArch64RegisterInfo *TRI = Subtarget->getRegisterInfo();
-  const MCPhysReg *IStart = TRI->getCalleeSavedRegsViaCopy(Entry->getParent());
-  if (!IStart)
-    return;
-
-  const TargetInstrInfo *TII = Subtarget->getInstrInfo();
-  MachineRegisterInfo *MRI = &Entry->getParent()->getRegInfo();
-  MachineBasicBlock::iterator MBBI = Entry->begin();
-  for (const MCPhysReg *I = IStart; *I; ++I) {
-    const TargetRegisterClass *RC = nullptr;
-    if (AArch64::GPR64RegClass.contains(*I))
-      RC = &AArch64::GPR64RegClass;
-    else if (AArch64::FPR64RegClass.contains(*I))
-      RC = &AArch64::FPR64RegClass;
-    else
-      llvm_unreachable("Unexpected register class in CSRsViaCopy!");
-
-    unsigned NewVR = MRI->createVirtualRegister(RC);
-    // Create copy from CSR to a virtual register.
-    // FIXME: this currently does not emit CFI pseudo-instructions, it works
-    // fine for CXX_FAST_TLS since the C++-style TLS access functions should be
-    // nounwind. If we want to generalize this later, we may need to emit
-    // CFI pseudo-instructions.
-    assert(Entry->getParent()->getFunction()->hasFnAttribute(
-               Attribute::NoUnwind) &&
-           "Function should be nounwind in insertCopiesSplitCSR!");
-    Entry->addLiveIn(*I);
-    BuildMI(*Entry, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY), NewVR)
-        .addReg(*I);
-
-    // Insert the copy-back instructions right before the terminator.
-    for (auto *Exit : Exits)
-      BuildMI(*Exit, Exit->getFirstTerminator(), DebugLoc(),
-              TII->get(TargetOpcode::COPY), *I)
-          .addReg(NewVR);
-  }
 }
 
 bool AArch64TargetLowering::isIntDivCheap(EVT VT, AttributeSet Attr) const {

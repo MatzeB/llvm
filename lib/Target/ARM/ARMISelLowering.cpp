@@ -2273,6 +2273,7 @@ ARMTargetLowering::LowerReturn(SDValue Chain,
   CCInfo.AnalyzeReturn(Outs, CCAssignFnForNode(CallConv, /* Return */ true,
                                                isVarArg));
 
+  SDValue IncomingChain = Chain;
   SDValue Flag;
   SmallVector<SDValue, 4> RetOps;
   RetOps.push_back(Chain); // Operand #0 = Chain (updated below)
@@ -2345,19 +2346,10 @@ ARMTargetLowering::LowerReturn(SDValue Chain,
     Flag = Chain.getValue(1);
     RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
   }
-  const ARMBaseRegisterInfo *TRI = Subtarget->getRegisterInfo();
-  const MCPhysReg *I =
-      TRI->getCalleeSavedRegsViaCopy(&DAG.getMachineFunction());
-  if (I) {
-    for (; *I; ++I) {
-      if (ARM::GPRRegClass.contains(*I))
-        RetOps.push_back(DAG.getRegister(*I, MVT::i32));
-      else if (ARM::DPRRegClass.contains(*I))
-        RetOps.push_back(DAG.getRegister(*I, MVT::getFloatingPointVT(64)));
-      else
-        llvm_unreachable("Unexpected register class in CSRsViaCopy!");
-    }
-  }
+  const MCPhysReg *SavedViaCopy = AFI->getCSRSavedViaCopy();
+  if (SavedViaCopy != nullptr)
+    Flag = addCalleeSaveRegOps(SavedViaCopy, dl, IncomingChain, Flag, RetOps,
+                               DAG);
 
   // Update chain and glue.
   RetOps[0] = Chain;
@@ -3388,6 +3380,27 @@ ARMTargetLowering::LowerFormalArguments(SDValue Chain,
                          TotalArgRegsSaveSize);
 
   AFI->setArgumentStackSize(CCInfo.getNextStackOffset());
+
+  // Should we save callee save registers via vregs?
+  if (CallConv == CallingConv::CXX_FAST_TLS &&
+      MF.getFunction()->hasFnAttribute(Attribute::NoUnwind) &&
+      !MF.getTarget().Options.EnableFastISel && mayUseSplitCSR(MF)) {
+    const MCPhysReg *SavedViaCopy =
+      ARMBaseRegisterInfo::getFastTLSSavedViaCopy();
+    AFI->setCSRSavedViaCopy(SavedViaCopy);
+
+    for (const MCPhysReg *I = SavedViaCopy; *I; ++I) {
+      const MCPhysReg Reg = *I;
+      const TargetRegisterClass *RC;
+      if (ARM::GPRRegClass.contains(Reg))
+        RC = &ARM::GPRRegClass;
+      else if (ARM::DPRRegClass.contains(Reg))
+        RC = &ARM::DPRRegClass;
+      else
+        llvm_unreachable("Unexpected register class in CSRsViaCopy!");
+      MF.addLiveIn(Reg, RC);
+    }
+  }
 
   return Chain;
 }
@@ -12529,51 +12542,4 @@ unsigned ARMTargetLowering::getExceptionSelectorRegister(
   // Platforms which do not use SjLj EH may return values in these registers
   // via the personality function.
   return Subtarget->useSjLjEH() ? ARM::NoRegister : ARM::R1;
-}
-
-void ARMTargetLowering::initializeSplitCSR(MachineBasicBlock *Entry) const {
-  // Update IsSplitCSR in ARMFunctionInfo.
-  ARMFunctionInfo *AFI = Entry->getParent()->getInfo<ARMFunctionInfo>();
-  AFI->setIsSplitCSR(true);
-}
-
-void ARMTargetLowering::insertCopiesSplitCSR(
-    MachineBasicBlock *Entry,
-    const SmallVectorImpl<MachineBasicBlock *> &Exits) const {
-  const ARMBaseRegisterInfo *TRI = Subtarget->getRegisterInfo();
-  const MCPhysReg *IStart = TRI->getCalleeSavedRegsViaCopy(Entry->getParent());
-  if (!IStart)
-    return;
-
-  const TargetInstrInfo *TII = Subtarget->getInstrInfo();
-  MachineRegisterInfo *MRI = &Entry->getParent()->getRegInfo();
-  MachineBasicBlock::iterator MBBI = Entry->begin();
-  for (const MCPhysReg *I = IStart; *I; ++I) {
-    const TargetRegisterClass *RC = nullptr;
-    if (ARM::GPRRegClass.contains(*I))
-      RC = &ARM::GPRRegClass;
-    else if (ARM::DPRRegClass.contains(*I))
-      RC = &ARM::DPRRegClass;
-    else
-      llvm_unreachable("Unexpected register class in CSRsViaCopy!");
-
-    unsigned NewVR = MRI->createVirtualRegister(RC);
-    // Create copy from CSR to a virtual register.
-    // FIXME: this currently does not emit CFI pseudo-instructions, it works
-    // fine for CXX_FAST_TLS since the C++-style TLS access functions should be
-    // nounwind. If we want to generalize this later, we may need to emit
-    // CFI pseudo-instructions.
-    assert(Entry->getParent()->getFunction()->hasFnAttribute(
-               Attribute::NoUnwind) &&
-           "Function should be nounwind in insertCopiesSplitCSR!");
-    Entry->addLiveIn(*I);
-    BuildMI(*Entry, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY), NewVR)
-        .addReg(*I);
-
-    // Insert the copy-back instructions right before the terminator.
-    for (auto *Exit : Exits)
-      BuildMI(*Exit, Exit->getFirstTerminator(), DebugLoc(),
-              TII->get(TargetOpcode::COPY), *I)
-          .addReg(NewVR);
-  }
 }

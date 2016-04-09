@@ -2138,6 +2138,7 @@ X86TargetLowering::LowerReturn(SDValue Chain,
   CCState CCInfo(CallConv, isVarArg, MF, RVLocs, *DAG.getContext());
   CCInfo.AnalyzeReturn(Outs, RetCC_X86);
 
+  SDValue IncomingChain = Chain;
   SDValue Flag;
   SmallVector<SDValue, 6> RetOps;
   RetOps.push_back(Chain); // Operand #0 = Chain (updated below)
@@ -2228,8 +2229,8 @@ X86TargetLowering::LowerReturn(SDValue Chain,
   // either case FuncInfo->setSRetReturnReg() will have been called.
   if (unsigned SRetReg = FuncInfo->getSRetReturnReg()) {
     // When we have both sret and another return value, we should use the
-    // original Chain stored in RetOps[0], instead of the current Chain updated
-    // in the above loop. If we only have sret, RetOps[0] equals to Chain.
+    // original Chain, instead of the current Chain updated in the above loop.
+    // If we only have sret, RetOps[0] equals to Chain.
 
     // For the case of sret and another return value, we have
     //   Chain_0 at the function entry
@@ -2246,7 +2247,7 @@ X86TargetLowering::LowerReturn(SDValue Chain,
     //   Chain dependency from Unit A to Unit B
 
     // So here, we use RetOps[0] (i.e Chain_0) for getCopyFromReg.
-    SDValue Val = DAG.getCopyFromReg(RetOps[0], dl, SRetReg,
+    SDValue Val = DAG.getCopyFromReg(IncomingChain, dl, SRetReg,
                                      getPointerTy(MF.getDataLayout()));
 
     unsigned RetValReg
@@ -2260,17 +2261,12 @@ X86TargetLowering::LowerReturn(SDValue Chain,
         DAG.getRegister(RetValReg, getPointerTy(DAG.getDataLayout())));
   }
 
-  const X86RegisterInfo *TRI = Subtarget.getRegisterInfo();
-  const MCPhysReg *I =
-      TRI->getCalleeSavedRegsViaCopy(&DAG.getMachineFunction());
-  if (I) {
-    for (; *I; ++I) {
-      if (X86::GR64RegClass.contains(*I))
-        RetOps.push_back(DAG.getRegister(*I, MVT::i64));
-      else
-        llvm_unreachable("Unexpected register class in CSRsViaCopy!");
-    }
-  }
+  // Ensure callee saved registers that are saved via copies are back in their
+  // registers.
+  const MCPhysReg *SavedViaCopy = FuncInfo->getCSRSavedViaCopy();
+  if (SavedViaCopy != nullptr)
+    Flag = addCalleeSaveRegOps(SavedViaCopy, dl, IncomingChain, Flag, RetOps,
+                               DAG);
 
   RetOps[0] = Chain;  // Update chain.
 
@@ -2950,6 +2946,25 @@ SDValue X86TargetLowering::LowerFormalArguments(
       // space to accommodate holding this slot at the correct offset).
       int PSPSymFI = MFI->CreateStackObject(8, 8, /*isSS=*/false);
       EHInfo->PSPSymFrameIdx = PSPSymFI;
+    }
+  }
+
+  // Should we save callee save registers via vregs?
+  if (CallConv == CallingConv::CXX_FAST_TLS && Is64Bit &&
+      MF.getFunction()->hasFnAttribute(Attribute::NoUnwind) &&
+      !MF.getTarget().Options.EnableFastISel && mayUseSplitCSR(MF)) {
+    const MCPhysReg *SavedViaCopy = X86RegisterInfo::getFastTLSSavedViaCopy();
+    FuncInfo->setCSRSavedViaCopy(SavedViaCopy);
+
+    // Add live-ins.
+    for (const MCPhysReg *I = SavedViaCopy; *I; ++I) {
+      const MCPhysReg Reg = *I;
+      const TargetRegisterClass *RC;
+      if (X86::GR64RegClass.contains(Reg))
+        RC = &X86::GR64RegClass;
+      else
+        llvm_unreachable("Unexpected register class in CSRsViaCopy!");
+      MF.addLiveIn(Reg, RC);
     }
   }
 
@@ -30548,53 +30563,4 @@ bool X86TargetLowering::isIntDivCheap(EVT VT, AttributeSet Attr) const {
   bool OptSize = Attr.hasAttribute(AttributeSet::FunctionIndex,
                                    Attribute::MinSize);
   return OptSize && !VT.isVector();
-}
-
-void X86TargetLowering::initializeSplitCSR(MachineBasicBlock *Entry) const {
-  if (!Subtarget.is64Bit())
-    return;
-
-  // Update IsSplitCSR in X86MachineFunctionInfo.
-  X86MachineFunctionInfo *AFI =
-    Entry->getParent()->getInfo<X86MachineFunctionInfo>();
-  AFI->setIsSplitCSR(true);
-}
-
-void X86TargetLowering::insertCopiesSplitCSR(
-    MachineBasicBlock *Entry,
-    const SmallVectorImpl<MachineBasicBlock *> &Exits) const {
-  const X86RegisterInfo *TRI = Subtarget.getRegisterInfo();
-  const MCPhysReg *IStart = TRI->getCalleeSavedRegsViaCopy(Entry->getParent());
-  if (!IStart)
-    return;
-
-  const TargetInstrInfo *TII = Subtarget.getInstrInfo();
-  MachineRegisterInfo *MRI = &Entry->getParent()->getRegInfo();
-  MachineBasicBlock::iterator MBBI = Entry->begin();
-  for (const MCPhysReg *I = IStart; *I; ++I) {
-    const TargetRegisterClass *RC = nullptr;
-    if (X86::GR64RegClass.contains(*I))
-      RC = &X86::GR64RegClass;
-    else
-      llvm_unreachable("Unexpected register class in CSRsViaCopy!");
-
-    unsigned NewVR = MRI->createVirtualRegister(RC);
-    // Create copy from CSR to a virtual register.
-    // FIXME: this currently does not emit CFI pseudo-instructions, it works
-    // fine for CXX_FAST_TLS since the C++-style TLS access functions should be
-    // nounwind. If we want to generalize this later, we may need to emit
-    // CFI pseudo-instructions.
-    assert(Entry->getParent()->getFunction()->hasFnAttribute(
-               Attribute::NoUnwind) &&
-           "Function should be nounwind in insertCopiesSplitCSR!");
-    Entry->addLiveIn(*I);
-    BuildMI(*Entry, MBBI, DebugLoc(), TII->get(TargetOpcode::COPY), NewVR)
-        .addReg(*I);
-
-    // Insert the copy-back instructions right before the terminator.
-    for (auto *Exit : Exits)
-      BuildMI(*Exit, Exit->getFirstTerminator(), DebugLoc(),
-              TII->get(TargetOpcode::COPY), *I)
-          .addReg(NewVR);
-  }
 }

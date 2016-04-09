@@ -48,7 +48,7 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   if (MF->getFunction()->getCallingConv() == CallingConv::AnyReg)
     return CSR_AArch64_AllRegs_SaveList;
   if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS)
-    return MF->getInfo<AArch64FunctionInfo>()->isSplitCSR() ?
+    return MF->getInfo<AArch64FunctionInfo>()->getCSRSavedViaCopy() ?
            CSR_AArch64_CXX_TLS_Darwin_PE_SaveList :
            CSR_AArch64_CXX_TLS_Darwin_SaveList;
   if (MF->getSubtarget<AArch64Subtarget>().getTargetLowering()
@@ -62,13 +62,8 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return CSR_AArch64_AAPCS_SaveList;
 }
 
-const MCPhysReg *AArch64RegisterInfo::getCalleeSavedRegsViaCopy(
-    const MachineFunction *MF) const {
-  assert(MF && "Invalid MachineFunction pointer.");
-  if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS &&
-      MF->getInfo<AArch64FunctionInfo>()->isSplitCSR())
-    return CSR_AArch64_CXX_TLS_Darwin_ViaCopy_SaveList;
-  return nullptr;
+const MCPhysReg *AArch64RegisterInfo::getFastTLSSavedViaCopy() {
+  return CSR_AArch64_CXX_TLS_Darwin_ViaCopy_SaveList;
 }
 
 const uint32_t *

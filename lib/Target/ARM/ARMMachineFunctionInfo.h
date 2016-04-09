@@ -118,9 +118,8 @@ class ARMFunctionInfo : public MachineFunctionInfo {
   /// coalesced weights.
   DenseMap<const MachineBasicBlock*, unsigned> CoalescedWeights;
 
-  /// True if this function has a subset of CSRs that is handled explicitly via
-  /// copies.
-  bool IsSplitCSR;
+  /// zero-terminated list of callee saved registers saved by copying to a vreg.
+  const MCPhysReg *CSRSavedViaCopy = nullptr;
 
 public:
   ARMFunctionInfo() :
@@ -132,7 +131,7 @@ public:
     FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
     GPRCS1Size(0), GPRCS2Size(0), DPRCSAlignGapSize(0), DPRCSSize(0),
     NumAlignedDPRCS2Regs(0), PICLabelUId(0),
-    VarArgsFrameIndex(0), HasITBlocks(false), IsSplitCSR(false) {}
+    VarArgsFrameIndex(0), HasITBlocks(false) {}
 
   explicit ARMFunctionInfo(MachineFunction &MF);
 
@@ -203,8 +202,10 @@ public:
   bool hasITBlocks() const { return HasITBlocks; }
   void setHasITBlocks(bool h) { HasITBlocks = h; }
 
-  bool isSplitCSR() const { return IsSplitCSR; }
-  void setIsSplitCSR(bool s) { IsSplitCSR = s; }
+  const MCPhysReg *getCSRSavedViaCopy() const { return CSRSavedViaCopy; }
+  void setCSRSavedViaCopy(const MCPhysReg *CSRSavedViaCopy) {
+    this->CSRSavedViaCopy = CSRSavedViaCopy;
+  }
 
   void recordCPEClone(unsigned CPIdx, unsigned CPCloneIdx) {
     if (!CPEClones.insert(std::make_pair(CPCloneIdx, CPIdx)).second)
