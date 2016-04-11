@@ -556,6 +556,11 @@ public:
     OperandRecycler.deallocate(Cap, Array);
   }
 
+  /// Return allocator for data with the lifetime of the MachineFunction.
+  BumpPtrAllocator &getAllocator() {
+    return Allocator;
+  }
+
   /// \brief Allocate and initialize a register mask with @p NumRegister bits.
   uint32_t *allocateRegisterMask(unsigned NumRegister) {
     unsigned Size = (NumRegister + 31) / 32;

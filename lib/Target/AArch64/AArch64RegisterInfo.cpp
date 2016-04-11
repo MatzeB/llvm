@@ -39,7 +39,7 @@ AArch64RegisterInfo::AArch64RegisterInfo(const Triple &TT)
     : AArch64GenRegisterInfo(AArch64::LR), TT(TT) {}
 
 const MCPhysReg *
-AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+AArch64RegisterInfo::getBasicCalleeSavedRegs(const MachineFunction *MF) {
   assert(MF && "Invalid MachineFunction pointer.");
   if (MF->getFunction()->getCallingConv() == CallingConv::GHC)
     // GHC set of callee saved regs is empty as all those regs are
@@ -48,9 +48,7 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   if (MF->getFunction()->getCallingConv() == CallingConv::AnyReg)
     return CSR_AArch64_AllRegs_SaveList;
   if (MF->getFunction()->getCallingConv() == CallingConv::CXX_FAST_TLS)
-    return MF->getInfo<AArch64FunctionInfo>()->getCSRSavedViaCopy() ?
-           CSR_AArch64_CXX_TLS_Darwin_PE_SaveList :
-           CSR_AArch64_CXX_TLS_Darwin_SaveList;
+    return CSR_AArch64_CXX_TLS_Darwin_SaveList;
   if (MF->getSubtarget<AArch64Subtarget>().getTargetLowering()
           ->supportSwiftError() &&
       MF->getFunction()->getAttributes().hasAttrSomewhere(
@@ -62,8 +60,21 @@ AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return CSR_AArch64_AAPCS_SaveList;
 }
 
+const MCPhysReg *
+AArch64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  const AArch64FunctionInfo &FuncInfo = *MF->getInfo<AArch64FunctionInfo>();
+  const MCPhysReg *CalleeSavedRegs = FuncInfo.getCalleeSavedRegs();
+  if (CalleeSavedRegs)
+    return CalleeSavedRegs;
+  return getBasicCalleeSavedRegs(MF);
+}
+
 const MCPhysReg *AArch64RegisterInfo::getFastTLSSavedViaCopy() {
   return CSR_AArch64_CXX_TLS_Darwin_ViaCopy_SaveList;
+}
+
+const MCPhysReg *AArch64RegisterInfo::getFastTLSSaved() {
+  return CSR_AArch64_CXX_TLS_Darwin_PE_SaveList;
 }
 
 const uint32_t *

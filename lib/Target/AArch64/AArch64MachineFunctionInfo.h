@@ -82,6 +82,8 @@ class AArch64FunctionInfo : public MachineFunctionInfo {
   /// frame is unknown at compile time. e.g., in case of VLAs.
   bool StackRealigned;
 
+  const MCPhysReg *CalleeSavedRegs = nullptr;
+
 public:
   AArch64FunctionInfo()
       : BytesInStackArgArea(0), ArgumentStackToRestore(0), HasStackFrame(false),
@@ -141,6 +143,9 @@ public:
 
   unsigned getVarArgsFPRSize() const { return VarArgsFPRSize; }
   void setVarArgsFPRSize(unsigned Size) { VarArgsFPRSize = Size; }
+
+  const MCPhysReg *getCalleeSavedRegs() const { return CalleeSavedRegs; }
+  void setCalleeSavedRegs(const MCPhysReg *CSR) { CalleeSavedRegs = CSR; }
 
   typedef SmallPtrSet<const MachineInstr *, 16> SetOfInstructions;
 

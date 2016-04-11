@@ -2519,6 +2519,11 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
     assert(!Res && "Call operand has unhandled type");
     (void)Res;
   }
+
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+  const uint32_t *PreservedMask = TRI.getCallPreservedMask(MF, CallConv);
+  BitVector ParametersInCalleeSaveRegs;
+
   assert(ArgLocs.size() == Ins.size());
   SmallVector<SDValue, 16> ArgValues;
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
@@ -2563,8 +2568,15 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
       else
         llvm_unreachable("RegVT not supported by FORMAL_ARGUMENTS Lowering");
 
+      MCPhysReg PhysReg = VA.getLocReg();
+      if (!MachineOperand::clobbersPhysReg(PreservedMask, PhysReg)) {
+        if (ParametersInCalleeSaveRegs.size() == 0)
+          ParametersInCalleeSaveRegs.resize(TRI.getNumRegs());
+        ParametersInCalleeSaveRegs.set(PhysReg);
+      }
+
       // Transform the arguments in physical registers into virtual ones.
-      unsigned Reg = MF.addLiveIn(VA.getLocReg(), RC);
+      unsigned Reg = MF.addLiveIn(PhysReg, RC);
       ArgValue = DAG.getCopyFromReg(Chain, DL, Reg, RegVT);
 
       // If this is an 8, 16 or 32-bit value, it is really passed promoted
@@ -2672,15 +2684,49 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
   // much is there while considering tail calls (because we can reuse it).
   FuncInfo->setBytesInStackArgArea(StackArgSize);
 
-  // Should we save callee save registers via vregs?
-  if (CallConv == CallingConv::CXX_FAST_TLS &&
+  const MCPhysReg *CalleeSavedRegs =
+    AArch64RegisterInfo::getBasicCalleeSavedRegs(&MF);
+  const MCPhysReg *SavedViaCopy = nullptr;
+
+  // Should we save some callee saved registers in vregs?
+  if ((CallConv == CallingConv::CXX_FAST_TLS ||
+       ParametersInCalleeSaveRegs.size() > 0) &&
       MF.getFunction()->hasFnAttribute(Attribute::NoUnwind) &&
       !MF.getTarget().Options.EnableFastISel && mayUseSplitCSR(MF)) {
-    const MCPhysReg *SavedViaCopy =
-      AArch64RegisterInfo::getFastTLSSavedViaCopy();
+    if (CallConv == CallingConv::CXX_FAST_TLS) {
+      SavedViaCopy = AArch64RegisterInfo::getFastTLSSavedViaCopy();
+      CalleeSavedRegs = AArch64RegisterInfo::getFastTLSSaved();
+    } else {
+      assert(ParametersInCalleeSaveRegs.size() > 0 && "must have csr params");
+      // Split callee saved registers into SavedViaCopy and the rest.
+      unsigned NCalleeSavedRegs = 0;
+      for (const MCPhysReg *CSR = CalleeSavedRegs; *CSR != 0; ++CSR)
+        ++NCalleeSavedRegs;
+      unsigned NParamsInCSR = ParametersInCalleeSaveRegs.count();
+
+      MCPhysReg *NewCalleeSavedRegs =
+        MF.getAllocator().Allocate<MCPhysReg>(NCalleeSavedRegs-NParamsInCSR+1);
+      MCPhysReg *NewSavedViaCopy =
+        MF.getAllocator().Allocate<MCPhysReg>(NParamsInCSR+1);
+      unsigned C0 = 0;
+      unsigned C1 = 0;
+      for (const MCPhysReg *CSR = CalleeSavedRegs; *CSR != 0; ++CSR) {
+        MCPhysReg Reg = *CSR;
+        if (ParametersInCalleeSaveRegs[Reg])
+          NewSavedViaCopy[C0++] = Reg;
+        else
+          NewCalleeSavedRegs[C1++] = Reg;
+      }
+      NewSavedViaCopy[C0++] = 0;
+      NewCalleeSavedRegs[C1++] = 0;
+      assert(C0 == NParamsInCSR+1 && "Correct register count");
+      assert(C1 == NCalleeSavedRegs-NParamsInCSR+1 && "Correct register count");
+      CalleeSavedRegs = NewCalleeSavedRegs;
+      SavedViaCopy = NewSavedViaCopy;
+    }
     FuncInfo->setCSRSavedViaCopy(SavedViaCopy);
 
-    // Add live-ins.
+    // Add live-ins for SavedViaCopy.
     for (const MCPhysReg *I = SavedViaCopy; *I; ++I) {
       const MCPhysReg Reg = *I;
       const TargetRegisterClass *RC;
@@ -2693,6 +2739,7 @@ SDValue AArch64TargetLowering::LowerFormalArguments(
       MF.addLiveIn(Reg, RC);
     }
   }
+  FuncInfo->setCalleeSavedRegs(CalleeSavedRegs);
 
   return Chain;
 }

@@ -33,10 +33,16 @@ public:
 
   bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;
 
-  /// Code Generation virtual methods...
+  /// Return a zero teerminated list of callee saved registers for function \p
+  /// MF. This does not include callee saved registers handled by the SplitCSR
+  /// mechanism \see getCalleeSavedRegsViaCopy().
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
+
+  /// Return a zero terminated list of callee saved registers for function
+  /// \p MF, also includes registers handled by SplitCSR.
+  static const MCPhysReg *getBasicCalleeSavedRegs(const MachineFunction *MF);
 
   unsigned getCSRFirstUseCost() const override {
     // The cost will be compared against BlockFrequency where entry has the
@@ -96,6 +102,8 @@ public:
 
   /// Returns CSR_AArch64_CXX_TLS_Darwin_ViaCopy_SaveList.
   static const MCPhysReg *getFastTLSSavedViaCopy();
+  /// Returns CSR_AArch64_CXX_TLS_Darwin_PE_SaveList.
+  static const MCPhysReg *getFastTLSSaved();
 };
 
 } // end namespace llvm

@@ -20,6 +20,19 @@ define i8 *@call_swiftself(i8* %arg) {
   ret i8 *%res
 }
 
+declare void @func(i8 *)
+
+; CHECK-LABEL: swiftself_call_normal:
+; OPT-NOT: {{stp|str}} {{.*}}x19
+; OPT: mov x0, x19
+; OPT-NEXT: bl {{_?}}func
+; OPT-NOT: {{ldp|ldr}} {{.*}}x19
+; OPT: ret
+define void @swiftself_call_normal(i8* swiftself %addr0) nounwind {
+  call void @func(i8 *%addr0)
+  ret void
+}
+
 ; x19 should be saved by the callee even if used for swiftself
 ; CHECK-LABEL: swiftself_clobber:
 ; CHECK: {{stp|str}} {{.*}}x19{{.*}}sp
@@ -34,6 +47,7 @@ define i8 *@swiftself_clobber(i8* swiftself %addr0) {
 ; Demonstrate that we do not need any movs when calling multiple functions
 ; with swiftself argument.
 ; CHECK-LABEL: swiftself_passthrough:
+; OPT-NOT: stp {{.*}}x19
 ; OPT: bl {{_?}}swiftself_param
 ; OPT-NEXT: bl {{_?}}swiftself_param
 ; OPT: ret
@@ -47,7 +61,7 @@ define void @swiftself_passthrough(i8* swiftself %addr0) {
 ; CHECK-LABEL: swiftself_tail:
 ; OPT: b {{_?}}swiftself_param
 ; OPT-NOT: ret
-define i8* @swiftself_tail(i8* swiftself %addr0) {
+define i8* @swiftself_tail(i8* swiftself %addr0) nounwind {
   call void asm sideeffect "", "~{x19}"()
   %res = tail call i8* @swiftself_param(i8* swiftself %addr0)
   ret i8* %res
