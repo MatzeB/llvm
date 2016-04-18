@@ -1817,11 +1817,14 @@ void CodeGenRegBank::computeDerivedInfo() {
 
   computeRegUnitLaneMasks();
 
-  // Compute register class HasDisjunctSubRegs flag.
+  // Compute register class HasDisjunctSubRegs/CoveredBySubRegs flag.
   for (CodeGenRegisterClass &RC : RegClasses) {
     RC.HasDisjunctSubRegs = false;
-    for (const CodeGenRegister *Reg : RC.getMembers())
+    RC.CoveredBySubRegs = true;
+    for (const CodeGenRegister *Reg : RC.getMembers()) {
       RC.HasDisjunctSubRegs |= Reg->HasDisjunctSubRegs;
+      RC.CoveredBySubRegs &= Reg->CoveredBySubRegs;
+    }
   }
 
   // Get the weight of each set.
