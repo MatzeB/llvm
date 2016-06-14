@@ -1136,7 +1136,7 @@ define <4 x float> @uitofp_2i64_to_4f32(<2 x i64> %a) {
 ; SSE-LABEL: uitofp_2i64_to_4f32:
 ; SSE:       # BB#0:
 ; SSE-NEXT:    movdqa %xmm0, %xmm1
-; SSE-NEXT:    movd %xmm1, %rax
+; SSE-NEXT:    movd %xmm0, %rax
 ; SSE-NEXT:    movl %eax, %ecx
 ; SSE-NEXT:    andl $1, %ecx
 ; SSE-NEXT:    testq %rax, %rax

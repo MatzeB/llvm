@@ -31,12 +31,18 @@ using namespace llvm;
 
 STATISTIC(NumDeletes, "Number of dead copies deleted");
 
+static cl::opt<bool>
+EnableFullCopyPropagation("full-copy-propagation",
+  cl::desc("Replace uses with earlier copy sources where possible"),
+  cl::init(true));
+
 namespace {
   typedef SmallVector<unsigned, 4> RegList;
   typedef DenseMap<unsigned, RegList> SourceMap;
   typedef DenseMap<unsigned, MachineInstr*> Reg2MIMap;
 
   class MachineCopyPropagation : public MachineFunctionPass {
+    const MachineFunction *MF;
     const TargetRegisterInfo *TRI;
     const TargetInstrInfo *TII;
     const MachineRegisterInfo *MRI;
@@ -62,6 +68,7 @@ namespace {
   private:
     void ClobberRegister(unsigned Reg);
     void CopyPropagateBlock(MachineBasicBlock &MBB);
+    bool rename(MachineInstr &MI, unsigned FromReg, unsigned ToReg) const;
     bool eraseIfRedundant(MachineInstr &Copy, unsigned Src, unsigned Def);
 
     /// Candidates for deletion.
@@ -73,6 +80,7 @@ namespace {
     /// Src -> Def map
     SourceMap SrcMap;
     bool Changed;
+    bool FullCopyPropagation;
   };
 }
 char MachineCopyPropagation::ID = 0;
@@ -177,6 +185,38 @@ bool MachineCopyPropagation::eraseIfRedundant(MachineInstr &Copy, unsigned Src,
   return true;
 }
 
+/// Change register use operands reading \p FromReg to \p ToReg where possible.
+bool MachineCopyPropagation::rename(MachineInstr &MI, unsigned FromReg,
+                                    unsigned ToReg) const {
+  assert(TargetRegisterInfo::isPhysicalRegister(FromReg));
+  assert(TargetRegisterInfo::isPhysicalRegister(ToReg));
+  // Check that it is save to rename on all operands.
+  const MCInstrDesc &Desc = MI.getDesc();
+  for (const MachineOperand &MO : MI.operands()) {
+    if (!MO.isReg() || !MO.isUse() || MO.getReg() != FromReg)
+      continue;
+    unsigned OpNum = MI.getOperandNo(&MO);
+    // Operands not mention in the MCInstrDesc are probably due to ABI
+    // constraints and should not be touched.
+    if (OpNum > Desc.getNumOperands() ||
+        Desc.getOperandConstraint(OpNum, MCOI::TIED_TO) != -1)
+      return false;
+
+    const TargetRegisterClass *RC = TII->getRegClass(Desc, OpNum, TRI, *MF);
+    if (RC == nullptr || !RC->contains(ToReg))
+      return false;
+  }
+
+  // Rename register on use operands.
+  for (MachineOperand &MO : MI.operands()) {
+    if (!MO.isReg() || !MO.isUse() || MO.getReg() != FromReg)
+      continue;
+    assert(MO.getSubReg() == 0);
+    MO.setReg(ToReg);
+  }
+  return true;
+}
+
 void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
   DEBUG(dbgs() << "MCP: CopyPropagateBlock " << MBB.getName() << "\n");
 
@@ -254,7 +294,7 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
     // Not a copy.
     SmallVector<unsigned, 2> Defs;
     const MachineOperand *RegMask = nullptr;
-    for (const MachineOperand &MO : MI->operands()) {
+    for (MachineOperand &MO : MI->operands()) {
       if (MO.isRegMask())
         RegMask = &MO;
       if (!MO.isReg())
@@ -269,6 +309,35 @@ void MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
       if (MO.isDef()) {
         Defs.push_back(Reg);
         continue;
+      }
+
+      // Full copy propagation. Translate
+      //    x = COPY y
+      //    use x
+      // into
+      //    x = COPY y
+      //    use y
+      // This reduces dependencies possibly helping post-ra schedulers and
+      // out of order execution engines.
+      if (FullCopyPropagation && MO.readsReg() && !MRI->isReserved(Reg)) {
+        Reg2MIMap::iterator CI = AvailCopyMap.find(Reg);
+        if (CI != AvailCopyMap.end()) {
+          MachineInstr &Copy = *CI->second;
+          assert(Copy.isCopy());
+          unsigned Def = Copy.getOperand(0).getReg();
+          unsigned Src = Copy.getOperand(1).getReg();
+          assert(!MRI->isReserved(Def));
+          if (Reg == Def && !MRI->isReserved(Src)) {
+            bool Renamed = rename(*MI, Def, Src);
+            if (Renamed) {
+              // Clear potential kill flags on the way.
+              for (MachineInstr &MI :
+                   make_range(Copy.getIterator(), MI->getIterator()))
+                MI.clearRegisterKills(Src, TRI);
+              Reg = Src;
+            }
+          }
+        }
       }
 
       // If 'Reg' is defined by a copy, the copy is no longer a candidate
@@ -359,9 +428,13 @@ bool MachineCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
 
   Changed = false;
 
-  TRI = MF.getSubtarget().getRegisterInfo();
-  TII = MF.getSubtarget().getInstrInfo();
+  this->MF = &MF;
+  const TargetSubtargetInfo &STI = MF.getSubtarget();
+  TRI = STI.getRegisterInfo();
+  TII = STI.getInstrInfo();
   MRI = &MF.getRegInfo();
+  FullCopyPropagation = EnableFullCopyPropagation &
+                        STI.enableFullCopyPropagation();
 
   for (MachineBasicBlock &MBB : MF)
     CopyPropagateBlock(MBB);

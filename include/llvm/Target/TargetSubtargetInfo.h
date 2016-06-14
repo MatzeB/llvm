@@ -205,6 +205,9 @@ public:
 
   /// Enable tracking of subregister liveness in register allocator.
   virtual bool enableSubRegLiveness() const { return false; }
+
+  /// Enable copy propagation for arbitrary register uses.
+  virtual bool enableFullCopyPropagation() const { return false; }
 };
 
 } // End llvm namespace

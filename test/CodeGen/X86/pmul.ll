@@ -830,7 +830,7 @@ define <64 x i8> @mul_v64i8c(<64 x i8> %i) nounwind  {
 ; SSE41:       # BB#0: # %entry
 ; SSE41-NEXT:    movdqa %xmm1, %xmm4
 ; SSE41-NEXT:    movdqa %xmm0, %xmm1
-; SSE41-NEXT:    pmovsxbw %xmm1, %xmm0
+; SSE41-NEXT:    pmovsxbw %xmm0, %xmm0
 ; SSE41-NEXT:    pmovsxbw {{.*}}(%rip), %xmm6
 ; SSE41-NEXT:    pmullw %xmm6, %xmm0
 ; SSE41-NEXT:    movdqa {{.*#+}} xmm7 = [255,255,255,255,255,255,255,255]
@@ -1016,7 +1016,7 @@ define <64 x i8> @mul_v64i8(<64 x i8> %i, <64 x i8> %j) nounwind  {
 ; SSE41-NEXT:    movdqa %xmm1, %xmm8
 ; SSE41-NEXT:    movdqa %xmm0, %xmm1
 ; SSE41-NEXT:    pmovsxbw %xmm4, %xmm9
-; SSE41-NEXT:    pmovsxbw %xmm1, %xmm0
+; SSE41-NEXT:    pmovsxbw %xmm0, %xmm0
 ; SSE41-NEXT:    pmullw %xmm9, %xmm0
 ; SSE41-NEXT:    movdqa {{.*#+}} xmm9 = [255,255,255,255,255,255,255,255]
 ; SSE41-NEXT:    pand %xmm9, %xmm0

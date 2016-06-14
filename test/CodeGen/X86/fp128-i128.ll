@@ -196,7 +196,7 @@ entry:
   ret fp128 %add
 ; CHECK-LABEL: TestI128_4:
 ; CHECK:       movaps %xmm0, %xmm1
-; CHECK-NEXT:  movaps %xmm1, 16(%rsp)
+; CHECK-NEXT:  movaps %xmm0, 16(%rsp)
 ; CHECK-NEXT:  movq 24(%rsp), %rax
 ; CHECK-NEXT:  movq %rax, 8(%rsp)
 ; CHECK-NEXT:  movq $0, (%rsp)
@@ -240,7 +240,7 @@ entry:
   ret fp128 %add
 ; CHECK-LABEL: acosl:
 ; CHECK:       movaps %xmm0, %xmm1
-; CHECK-NEXT:  movaps %xmm1, 16(%rsp)
+; CHECK-NEXT:  movaps %xmm0, 16(%rsp)
 ; CHECK-NEXT:  movq 24(%rsp), %rax
 ; CHECK-NEXT:  movq %rax, 8(%rsp)
 ; CHECK-NEXT:  movq $0, (%rsp)

@@ -249,6 +249,8 @@ public:
 
   bool enableEarlyIfConversion() const override;
 
+  bool enableFullCopyPropagation() const override { return true; }
+
   std::unique_ptr<PBQPRAConstraint> getCustomPBQPConstraints() const override;
 };
 } // End llvm namespace

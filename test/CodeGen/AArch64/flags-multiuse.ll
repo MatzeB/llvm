@@ -12,7 +12,9 @@ define i32 @test_multiflag(i32 %n, i32 %m, i32 %o) {
 ; CHECK-LABEL: test_multiflag:
 
   %test = icmp ne i32 %n, %m
-; CHECK: cmp [[LHS:w[0-9]+]], [[RHS:w[0-9]+]]
+; CHECK: mov [[RHSCOPY:w[0-9]+]], [[RHS:w[0-9]+]]
+; CHECK: mov [[LHSCOPY:w[0-9]+]], [[LHS:w[0-9]+]]
+; CHECK: cmp [[LHS]], [[RHS]]
 
   %val = zext i1 %test to i32
 ; CHECK: cset {{[xw][0-9]+}}, ne
@@ -25,7 +27,7 @@ define i32 @test_multiflag(i32 %n, i32 %m, i32 %o) {
   ; Currently, the comparison is emitted again. An MSR/MRS pair would also be
   ; acceptable, but assuming the call preserves NZCV is not.
   br i1 %test, label %iftrue, label %iffalse
-; CHECK: cmp [[LHS]], [[RHS]]
+; CHECK: cmp [[LHSCOPY]], [[RHSCOPY]]
 ; CHECK: b.eq
 
 iftrue:
