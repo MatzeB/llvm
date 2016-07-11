@@ -188,7 +188,8 @@ class MachineModuleInfo : public ImmutablePass {
   EHPersonality PersonalityTypeCache;
 
   MachineFunctionInitializer *MFInitializer;
-  /// Maps IR Functions to their corresponding MachineFunctions.
+  /// Maps IR Functions to their corresponding MachineFunctions. Owns the
+  /// MachineFunction objects.
   DenseMap<const Function*, std::unique_ptr<MachineFunction>> MachineFunctions;
   const Function *LastRequest = nullptr; ///< Used for shortcut/cache.
   MachineFunction *LastResult = nullptr; ///< Used for shortcut/cache.

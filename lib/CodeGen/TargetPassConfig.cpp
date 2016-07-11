@@ -22,8 +22,10 @@
 #include "llvm/Analysis/ScopedNoAliasAA.h"
 #include "llvm/Analysis/TypeBasedAliasAnalysis.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/RegisterUsageInfo.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
@@ -92,6 +94,8 @@ static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
     cl::init(false),
     cl::ZeroOrMore);
+static cl::opt<bool> AddDummyMachineModulePass("dummy-machine-module-pass",
+                                               cl::Hidden);
 
 static cl::opt<std::string>
 PrintMachineInstrs("print-machineinstrs", cl::ValueOptional,
@@ -538,6 +542,55 @@ void TargetPassConfig::addISelPrepare() {
     addPass(createVerifierPass());
 }
 
+namespace {
+
+/// This pass is simply a demonstration that module passes work for CodeGen.
+/// It adds a new IR and corresponding machine function late in the codegen
+/// pipeline.
+class DummyMachineModulePass : public ModulePass {
+public:
+  static char ID;
+  DummyMachineModulePass() : ModulePass(ID) {}
+
+  bool runOnModule(Module &M) override {
+    errs() << "RunOnModule\n";
+
+    // Let's create an empty function to show the concept.
+    LLVMContext &C = M.getContext();
+    Function *F = dyn_cast<Function>(
+      M.getOrInsertFunction("AddedFunc", Type::getVoidTy(C), NULL));
+    assert(F != nullptr);
+
+    BasicBlock *EntryBB = BasicBlock::Create(C, "entry", F);
+    IRBuilder<> Builder(EntryBB);
+    Builder.CreateRetVoid();
+
+    MachineModuleInfo &MMI = getAnalysis<MachineModuleInfo>();
+    MachineFunction &MF = MMI.getMachineFunction(*F);
+    MachineBasicBlock *MBB = MF.CreateMachineBasicBlock();
+
+    MF.getProperties().set(
+      MachineFunctionProperties::Property::AllVRegsAllocated);
+
+    MF.insert(MF.begin(), MBB);
+
+    return true;
+  }
+
+  const char *getPassName() const override { return "DummyMachineModulePass"; }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachineModuleInfo>();
+    AU.addPreserved<MachineModuleInfo>();
+
+    ModulePass::getAnalysisUsage(AU);
+  }
+};
+
+char DummyMachineModulePass::ID = 0;
+
+}
+
 /// Add the complete set of target-independent postISel code generator passes.
 ///
 /// This can be read as the standard order of major LLVM CodeGen stages. Stages
@@ -646,6 +699,9 @@ void TargetPassConfig::addMachinePasses() {
     addBlockPlacement();
 
   addPreEmitPass();
+
+  if (AddDummyMachineModulePass)
+    PM->add(new DummyMachineModulePass());
 
   if (TM->Options.EnableIPRA)
     // Collect register usage information and produce a register mask of
