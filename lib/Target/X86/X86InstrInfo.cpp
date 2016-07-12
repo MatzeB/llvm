@@ -3156,9 +3156,9 @@ void X86InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     // first frame index.
     // See X86ISelLowering.cpp - X86::hasCopyImplyingStackAdjustment.
 
-    const TargetRegisterInfo &TRI = getRegisterInfo();
-    MachineBasicBlock::LivenessQueryResult LQR =
-        MBB.computeRegisterLiveness(&TRI, AX, MI);
+    const TargetRegisterInfo *TRI = &getRegisterInfo();
+    MachineBasicBlock::LivenessQueryResult LQR = MachineBasicBlock::LQR_Unknown;
+    //    MBB.computeRegisterLiveness(TRI, AX, MI);
     // We do not want to save and restore AX if we do not have to.
     // Moreover, if we do so whereas AX is dead, we would need to set
     // an undef flag on the use of AX, otherwise the verifier will
