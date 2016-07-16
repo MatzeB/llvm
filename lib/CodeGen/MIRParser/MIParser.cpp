@@ -124,7 +124,8 @@ public:
   bool
   parseBasicBlockDefinitions(DenseMap<unsigned, MachineBasicBlock *> &MBBSlots);
   bool parseBasicBlocks();
-  bool parse(MachineInstr *&MI);
+  bool parseMachineInstr(MachineInstr *&MI,
+                         SmallVectorImpl<VRegInfo*> &VRegInfos);
   bool parseStandaloneMBB(MachineBasicBlock *&MBB);
   bool parseStandaloneNamedRegister(unsigned &Reg);
   bool parseStandaloneVirtualRegister(VRegInfo *&Info);
@@ -146,7 +147,8 @@ public:
   bool parseSubRegisterIndex(unsigned &SubReg);
   bool parseRegisterTiedDefIndex(unsigned &TiedDefIdx);
   bool parseRegisterOperand(MachineOperand &Dest,
-                            Optional<unsigned> &TiedDefIdx, bool IsDef = false);
+                            Optional<unsigned> &TiedDefIdx, VRegInfo *&RegInfo,
+                            bool IsDef = false);
   bool parseImmediateOperand(MachineOperand &Dest);
   bool parseIRConstant(StringRef::iterator Loc, StringRef Source,
                        const Constant *&C);
@@ -178,9 +180,10 @@ public:
   bool parseTargetIndexOperand(MachineOperand &Dest);
   bool parseLiveoutRegisterMaskOperand(MachineOperand &Dest);
   bool parseMachineOperand(MachineOperand &Dest,
-                           Optional<unsigned> &TiedDefIdx);
+                           Optional<unsigned> &TiedDefIdx, VRegInfo *&RegInfo);
   bool parseMachineOperandAndTargetFlags(MachineOperand &Dest,
-                                         Optional<unsigned> &TiedDefIdx);
+                                         Optional<unsigned> &TiedDefIdx,
+                                         VRegInfo *&RegInfo);
   bool parseOffset(int64_t &Offset);
   bool parseAlignment(unsigned &Alignment);
   bool parseOperandsOffset(MachineOperand &Op);
@@ -276,6 +279,9 @@ private:
   ///
   /// Return true if the name isn't a name of a bitmask target flag.
   bool getBitmaskTargetFlag(StringRef Name, unsigned &Flag);
+
+  void inferRegisterClasses(const MachineInstr &MI,
+                            const SmallVectorImpl<VRegInfo*> &VRegInfos);
 };
 
 } // end anonymous namespace
@@ -568,9 +574,13 @@ bool MIParser::parseBasicBlock(MachineBasicBlock &MBB) {
       continue;
     }
     MachineInstr *MI = nullptr;
-    if (parse(MI))
+    SmallVector<VRegInfo*,8> VRegInfos;
+    if (parseMachineInstr(MI, VRegInfos))
       return true;
     MBB.insert(MBB.end(), MI);
+
+    inferRegisterClasses(*MI, VRegInfos);
+
     if (IsInBundle) {
       PrevMI->setFlag(MachineInstr::BundledSucc);
       MI->setFlag(MachineInstr::BundledPred);
@@ -616,17 +626,61 @@ bool MIParser::parseBasicBlocks() {
   return false;
 }
 
-bool MIParser::parse(MachineInstr *&MI) {
+void MIParser::inferRegisterClasses(const MachineInstr &MI,
+    const SmallVectorImpl<VRegInfo*> &VRegInfos) {
+  // Check that the MI is well formed enough to use the MI.defs() array.
+  const MCInstrDesc &Desc = MI.getDesc();
+  if (MI.getNumOperands() < Desc.getNumDefs())
+    return;
+
+  // We can infer register classes from explicit def operands.
+  // We chose to ignore uses to get deterministic behaviour and avoid
+  // register classes changing unexpectedly.
+  unsigned I = 0;
+  for (const MachineOperand &MO : MI.defs()) {
+    VRegInfo *Info = VRegInfos[I++];
+    if (!MO.isReg())
+      continue;
+    unsigned Reg = MO.getReg();
+    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+      continue;
+    assert(Info != nullptr);
+    if (Info->Explicit || Info->MultipleRCs)
+      continue;
+    if (Info->Kind == VRegInfo::UNKNOWN) {
+      Info->Kind = VRegInfo::NORMAL;
+      Info->D.RC = nullptr;
+    } else if (Info->Kind != VRegInfo::NORMAL)
+      continue;
+
+    unsigned OpIdx = MI.getOperandNo(&MO);
+    const TargetSubtargetInfo &STI = MF.getSubtarget();
+    const TargetInstrInfo *TII = STI.getInstrInfo();
+    const TargetRegisterInfo *TRI = STI.getRegisterInfo();
+    const TargetRegisterClass *RC = MI.getRegClassConstraint(OpIdx, TII, TRI);
+    if (Info->D.RC == nullptr) {
+      Info->D.RC = RC;
+    } else if (Info->D.RC != RC) {
+      Info->MultipleRCs = true;
+      Info->D.RC = nullptr;
+    }
+  }
+}
+
+bool MIParser::parseMachineInstr(MachineInstr *&MI,
+                                 SmallVectorImpl<VRegInfo*> &VRegInfos) {
   // Parse any register operands before '='
   MachineOperand MO = MachineOperand::CreateImm(0);
   SmallVector<ParsedMachineOperand, 8> Operands;
   while (Token.isRegister() || Token.isRegisterFlag()) {
     auto Loc = Token.location();
     Optional<unsigned> TiedDefIdx;
-    if (parseRegisterOperand(MO, TiedDefIdx, /*IsDef=*/true))
+    VRegInfo *Info = nullptr;
+    if (parseRegisterOperand(MO, TiedDefIdx, Info, /*IsDef=*/true))
       return true;
     Operands.push_back(
         ParsedMachineOperand(MO, Loc, Token.location(), TiedDefIdx));
+    VRegInfos.push_back(Info);
     if (Token.isNot(MIToken::comma))
       break;
     lex();
@@ -643,10 +697,12 @@ bool MIParser::parse(MachineInstr *&MI) {
          Token.isNot(MIToken::coloncolon) && Token.isNot(MIToken::lbrace)) {
     auto Loc = Token.location();
     Optional<unsigned> TiedDefIdx;
-    if (parseMachineOperandAndTargetFlags(MO, TiedDefIdx))
+    VRegInfo *Info = nullptr;
+    if (parseMachineOperandAndTargetFlags(MO, TiedDefIdx, Info))
       return true;
     Operands.push_back(
         ParsedMachineOperand(MO, Loc, Token.location(), TiedDefIdx));
+    VRegInfos.push_back(Info);
     if (Token.isNewlineOrEOF() || Token.is(MIToken::coloncolon) ||
         Token.is(MIToken::lbrace))
       break;
@@ -697,12 +753,13 @@ bool MIParser::parse(MachineInstr *&MI) {
     MI->addOperand(MF, Operand.Operand);
   if (assignRegisterTies(*MI, Operands))
     return true;
-  if (MemOperands.empty())
-    return false;
-  MachineInstr::mmo_iterator MemRefs =
-      MF.allocateMemRefsArray(MemOperands.size());
-  std::copy(MemOperands.begin(), MemOperands.end(), MemRefs);
-  MI->setMemRefs(MemRefs, MemRefs + MemOperands.size());
+  if (!MemOperands.empty()) {
+    MachineInstr::mmo_iterator MemRefs =
+        MF.allocateMemRefsArray(MemOperands.size());
+    std::copy(MemOperands.begin(), MemOperands.end(), MemRefs);
+    MI->setMemRefs(MemRefs, MemRefs + MemOperands.size());
+  }
+
   return false;
 }
 
@@ -1044,7 +1101,7 @@ bool MIParser::assignRegisterTies(MachineInstr &MI,
 
 bool MIParser::parseRegisterOperand(MachineOperand &Dest,
                                     Optional<unsigned> &TiedDefIdx,
-                                    bool IsDef) {
+                                    VRegInfo *&RegInfo, bool IsDef) {
   unsigned Flags = IsDef ? RegState::Define : 0;
   while (Token.isRegisterFlag()) {
     if (parseRegisterFlag(Flags))
@@ -1053,7 +1110,6 @@ bool MIParser::parseRegisterOperand(MachineOperand &Dest,
   if (!Token.isRegister())
     return error("expected a register after register flags");
   unsigned Reg;
-  VRegInfo *RegInfo;
   if (parseRegister(Reg, RegInfo))
     return true;
   lex();
@@ -1696,7 +1752,8 @@ bool MIParser::parseLiveoutRegisterMaskOperand(MachineOperand &Dest) {
 }
 
 bool MIParser::parseMachineOperand(MachineOperand &Dest,
-                                   Optional<unsigned> &TiedDefIdx) {
+                                   Optional<unsigned> &TiedDefIdx,
+                                   VRegInfo *&RegInfo) {
   switch (Token.kind()) {
   case MIToken::kw_implicit:
   case MIToken::kw_implicit_define:
@@ -1710,7 +1767,7 @@ bool MIParser::parseMachineOperand(MachineOperand &Dest,
   case MIToken::underscore:
   case MIToken::NamedRegister:
   case MIToken::VirtualRegister:
-    return parseRegisterOperand(Dest, TiedDefIdx);
+    return parseRegisterOperand(Dest, TiedDefIdx, RegInfo);
   case MIToken::IntegerLiteral:
     return parseImmediateOperand(Dest);
   case MIToken::IntegerType:
@@ -1775,7 +1832,8 @@ bool MIParser::parseMachineOperand(MachineOperand &Dest,
 }
 
 bool MIParser::parseMachineOperandAndTargetFlags(
-    MachineOperand &Dest, Optional<unsigned> &TiedDefIdx) {
+    MachineOperand &Dest, Optional<unsigned> &TiedDefIdx,
+    VRegInfo *&RegInfo) {
   unsigned TF = 0;
   bool HasTargetFlags = false;
   if (Token.is(MIToken::kw_target_flags)) {
@@ -1807,7 +1865,7 @@ bool MIParser::parseMachineOperandAndTargetFlags(
       return true;
   }
   auto Loc = Token.location();
-  if (parseMachineOperand(Dest, TiedDefIdx))
+  if (parseMachineOperand(Dest, TiedDefIdx, RegInfo))
     return true;
   if (!HasTargetFlags)
     return false;
@@ -2354,9 +2412,9 @@ bool llvm::parseNamedRegisterReference(PerFunctionMIParsingState &PFS,
 }
 
 bool llvm::parseVirtualRegisterReference(PerFunctionMIParsingState &PFS,
-                                         VRegInfo *&Info, StringRef Src,
+                                         VRegInfo *&RegInfo, StringRef Src,
                                          SMDiagnostic &Error) {
-  return MIParser(PFS, Error, Src).parseStandaloneVirtualRegister(Info);
+  return MIParser(PFS, Error, Src).parseStandaloneVirtualRegister(RegInfo);
 }
 
 bool llvm::parseStackObjectReference(PerFunctionMIParsingState &PFS,

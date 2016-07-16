@@ -37,6 +37,7 @@ struct VRegInfo {
     UNKNOWN, NORMAL, GENERIC, REGBANK
   } Kind = UNKNOWN;
   bool Explicit = false; ///< VReg was explicitly specified in the .mir file.
+  bool MultipleRCs = false;
   union {
     const TargetRegisterClass *RC;
     const RegisterBank *RegBank;
