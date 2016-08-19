@@ -15,16 +15,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
+
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/PassSupport.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
@@ -693,3 +696,34 @@ void scavengeFrameVirtualRegs(RegScavenger &RS, MachineFunction &MF) {
 }
 
 } // end namespace llvm
+
+namespace {
+/// This class runs register scavenging independ of the PrologEpilogInserter.
+/// This is used in for testing.
+class ScavengerTest : public MachineFunctionPass {
+public:
+  static char ID;
+  ScavengerTest() : MachineFunctionPass(ID) {}
+  bool runOnMachineFunction(MachineFunction &MF) {
+    const TargetSubtargetInfo &STI = MF.getSubtarget();
+    const TargetFrameLowering &TFL = *STI.getFrameLowering();
+
+    RegScavenger RS;
+    // Let's hope that calling those outside of PrologEpilogueInserter works
+    // well enough to initialize the scavenger with some emergency spillslots
+    // for the target.
+    BitVector SavedRegs;
+    TFL.determineCalleeSaves(MF, SavedRegs, &RS);
+    TFL.processFunctionBeforeFrameFinalized(MF, &RS);
+
+    // Let's scavenge the current function
+    scavengeFrameVirtualRegs(RS, MF);
+    return true;
+  }
+};
+char ScavengerTest::ID;
+
+} // end anonymous namespace
+
+INITIALIZE_PASS(ScavengerTest, "scavenger-test",
+                "Scavenge virtual registers inside basic blocks", false, false)
