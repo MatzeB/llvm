@@ -593,19 +593,27 @@ unsigned RegScavenger::scavengeRegisterBackwards(const TargetRegisterClass &RC,
 /// current instruction.
 static unsigned scavengeVReg(MachineRegisterInfo &MRI, RegScavenger &RS,
                              unsigned VReg, bool ReserveAfter) {
+  const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
 #ifndef NDEBUG
   // Verify that all definitions and uses are in the same basic block.
   const MachineBasicBlock *CommonMBB = nullptr;
-  bool HadDef = false;
+  // Real definition for the reg, re-definitions are not considered.
+  const MachineInstr *RealDef = nullptr;
   for (MachineOperand &MO : MRI.reg_nodbg_operands(VReg)) {
     MachineBasicBlock *MBB = MO.getParent()->getParent();
     if (CommonMBB == nullptr)
       CommonMBB = MBB;
     assert(MBB == CommonMBB && "All defs+uses must be in the same basic block");
-    if (MO.isDef())
-      HadDef = true;
+    if (MO.isDef()) {
+      const MachineInstr &MI = *MO.getParent();
+      if (!MI.readsRegister(VReg, &TRI)) {
+        assert(!RealDef || RealDef == &MI &&
+               "Can have at most one definition which is not a redefinition");
+        RealDef = &MI;
+      }
+    }
   }
-  assert(HadDef && "Must have at least 1 Def");
+  assert(RealDef != nullptr && "Must have at least 1 Def");
 #endif
 
   // We should only have one definition of the register. However to accomodate
@@ -614,7 +622,6 @@ static unsigned scavengeVReg(MachineRegisterInfo &MRI, RegScavenger &RS,
   // we get a single contiguous lifetime.
   //
   // Definitions in MRI.def_begin() are unordered, search for the first.
-  const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
   MachineRegisterInfo::def_iterator FirstDef =
     std::find_if(MRI.def_begin(VReg), MRI.def_end(),
                  [VReg, &TRI](const MachineOperand &MO) {
