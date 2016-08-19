@@ -427,13 +427,13 @@ void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     case AMDGPU::SI_SPILL_S64_SAVE:
     case AMDGPU::SI_SPILL_S32_SAVE: {
       unsigned NumSubRegs = getNumSubRegsForSpillOp(MI->getOpcode());
-      unsigned TmpReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
       unsigned SuperReg = MI->getOperand(0).getReg();
       bool IsKill = MI->getOperand(0).isKill();
 
       // SubReg carries the "Kill" flag when SubReg == SuperReg.
       unsigned SubKillState = getKillRegState((NumSubRegs == 1) && IsKill);
       for (unsigned i = 0, e = NumSubRegs; i < e; ++i) {
+        unsigned TmpReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
         unsigned SubReg = NumSubRegs == 1 ?
           SuperReg : getSubReg(SuperReg, getSubRegFromChannel(i));
 
@@ -507,7 +507,6 @@ void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
     case AMDGPU::SI_SPILL_S64_RESTORE:
     case AMDGPU::SI_SPILL_S32_RESTORE: {
       unsigned NumSubRegs = getNumSubRegsForSpillOp(MI->getOpcode());
-      unsigned TmpReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
       unsigned SuperReg = MI->getOperand(0).getReg();
 
       // m0 is not allowed as with readlane/writelane, so a temporary SGPR and
@@ -519,6 +518,7 @@ void SIRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
       }
 
       for (unsigned i = 0, e = NumSubRegs; i < e; ++i) {
+        unsigned TmpReg = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
         unsigned SubReg = NumSubRegs == 1 ?
           SuperReg : getSubReg(SuperReg, getSubRegFromChannel(i));
 
