@@ -347,7 +347,7 @@ lostFractionThroughTruncation(const integerPart *parts,
 {
   unsigned int lsb;
 
-  lsb = APInt::tcLSB(parts, partCount);
+  lsb = tc::LSB(parts, partCount);
 
   /* Note this is guaranteed true if bits == 0, or LSB == -1U.  */
   if (bits <= lsb)
@@ -355,7 +355,7 @@ lostFractionThroughTruncation(const integerPart *parts,
   if (bits == lsb + 1)
     return lfExactlyHalf;
   if (bits <= partCount * integerPartWidth &&
-      APInt::tcExtractBit(parts, bits - 1))
+      tc::ExtractBit(parts, bits - 1))
     return lfMoreThanHalf;
 
   return lfLessThanHalf;
@@ -369,7 +369,7 @@ shiftRight(integerPart *dst, unsigned int parts, unsigned int bits)
 
   lost_fraction = lostFractionThroughTruncation(dst, parts, bits);
 
-  APInt::tcShiftRight(dst, parts, bits);
+  tc::ShiftRight(dst, parts, bits);
 
   return lost_fraction;
 }
@@ -485,7 +485,7 @@ powerOf5(integerPart *dst, unsigned int power)
     /* Calculate pow(5,pow(2,n+3)) if we haven't yet.  */
     if (pc == 0) {
       pc = partsCount[n - 1];
-      APInt::tcFullMultiply(pow5, pow5 - pc, pow5 - pc, pc, pc);
+      tc::FullMultiply(pow5, pow5 - pc, pow5 - pc, pc, pc);
       pc *= 2;
       if (pow5[pc - 1] == 0)
         pc--;
@@ -495,7 +495,7 @@ powerOf5(integerPart *dst, unsigned int power)
     if (power & 1) {
       integerPart *tmp;
 
-      APInt::tcFullMultiply(p2, p1, pow5, result, pc);
+      tc::FullMultiply(p2, p1, pow5, result, pc);
       result += pc;
       if (p2[result - 1] == 0)
         result--;
@@ -511,7 +511,7 @@ powerOf5(integerPart *dst, unsigned int power)
   }
 
   if (p1 != dst)
-    APInt::tcAssign(dst, p1, result);
+    tc::Assign(dst, p1, result);
 
   return result;
 }
@@ -613,7 +613,7 @@ APFloat::copySignificand(const APFloat &rhs)
   assert(isFiniteNonZero() || category == fcNaN);
   assert(rhs.partCount() >= partCount());
 
-  APInt::tcAssign(significandParts(), rhs.significandParts(),
+  tc::Assign(significandParts(), rhs.significandParts(),
                   partCount());
 }
 
@@ -630,9 +630,9 @@ void APFloat::makeNaN(bool SNaN, bool Negative, const APInt *fill)
 
   // Set the significand bits to the fill.
   if (!fill || fill->getNumWords() < numParts)
-    APInt::tcSet(significand, 0, numParts);
+    tc::Set(significand, 0, numParts);
   if (fill) {
-    APInt::tcAssign(significand, fill->getRawData(),
+    tc::Assign(significand, fill->getRawData(),
                     std::min(fill->getNumWords(), numParts));
 
     // Zero out the excess bits of the significand.
@@ -648,23 +648,23 @@ void APFloat::makeNaN(bool SNaN, bool Negative, const APInt *fill)
 
   if (SNaN) {
     // We always have to clear the QNaN bit to make it an SNaN.
-    APInt::tcClearBit(significand, QNaNBit);
+    tc::ClearBit(significand, QNaNBit);
 
     // If there are no bits set in the payload, we have to set
     // *something* to make it a NaN instead of an infinity;
     // conventionally, this is the next bit down from the QNaN bit.
-    if (APInt::tcIsZero(significand, numParts))
-      APInt::tcSetBit(significand, QNaNBit - 1);
+    if (tc::IsZero(significand, numParts))
+      tc::SetBit(significand, QNaNBit - 1);
   } else {
     // We always have to set the QNaN bit to make it a QNaN.
-    APInt::tcSetBit(significand, QNaNBit);
+    tc::SetBit(significand, QNaNBit);
   }
 
   // For x87 extended precision, we want to make a NaN, not a
   // pseudo-NaN.  Maybe we should expose the ability to make
   // pseudo-NaNs?
   if (semantics == &APFloat::x87DoubleExtended)
-    APInt::tcSetBit(significand, QNaNBit + 1);
+    tc::SetBit(significand, QNaNBit + 1);
 }
 
 APFloat APFloat::makeNaN(const fltSemantics &Sem, bool SNaN, bool Negative,
@@ -705,7 +705,7 @@ APFloat::operator=(APFloat &&rhs) {
 bool
 APFloat::isDenormal() const {
   return isFiniteNonZero() && (exponent == semantics->minExponent) &&
-         (APInt::tcExtractBit(significandParts(), 
+         (tc::ExtractBit(significandParts(), 
                               semantics->precision - 1) == 0);
 }
 
@@ -887,7 +887,7 @@ APFloat::significandParts()
 void
 APFloat::zeroSignificand()
 {
-  APInt::tcSet(significandParts(), 0, partCount());
+  tc::Set(significandParts(), 0, partCount());
 }
 
 /* Increment an fcNormal floating point number's significand.  */
@@ -896,7 +896,7 @@ APFloat::incrementSignificand()
 {
   integerPart carry;
 
-  carry = APInt::tcIncrement(significandParts(), partCount());
+  carry = tc::Increment(significandParts(), partCount());
 
   /* Our callers should never cause us to overflow.  */
   assert(carry == 0);
@@ -914,7 +914,7 @@ APFloat::addSignificand(const APFloat &rhs)
   assert(semantics == rhs.semantics);
   assert(exponent == rhs.exponent);
 
-  return APInt::tcAdd(parts, rhs.significandParts(), 0, partCount());
+  return tc::Add(parts, rhs.significandParts(), 0, partCount());
 }
 
 /* Subtract the significand of the RHS with a borrow flag.  Returns
@@ -929,7 +929,7 @@ APFloat::subtractSignificand(const APFloat &rhs, integerPart borrow)
   assert(semantics == rhs.semantics);
   assert(exponent == rhs.exponent);
 
-  return APInt::tcSubtract(parts, rhs.significandParts(), borrow,
+  return tc::Subtract(parts, rhs.significandParts(), borrow,
                            partCount());
 }
 
@@ -963,11 +963,11 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
   lhsSignificand = significandParts();
   partsCount = partCount();
 
-  APInt::tcFullMultiply(fullSignificand, lhsSignificand,
+  tc::FullMultiply(fullSignificand, lhsSignificand,
                         rhs.significandParts(), partsCount, partsCount);
 
   lost_fraction = lfExactlyZero;
-  omsb = APInt::tcMSB(fullSignificand, newPartsCount) + 1;
+  omsb = tc::MSB(fullSignificand, newPartsCount) + 1;
   exponent += rhs.exponent;
 
   // Assume the operands involved in the multiplication are single-precision
@@ -996,7 +996,7 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     extendedPrecision = 2 * precision + 1;
     if (omsb != extendedPrecision - 1) {
       assert(extendedPrecision > omsb);
-      APInt::tcShiftLeft(fullSignificand, newPartsCount,
+      tc::ShiftLeft(fullSignificand, newPartsCount,
                          (extendedPrecision - 1) - omsb);
       exponent -= (extendedPrecision - 1) - omsb;
     }
@@ -1031,7 +1031,7 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     significand = savedSignificand;
     semantics = savedSemantics;
 
-    omsb = APInt::tcMSB(fullSignificand, newPartsCount) + 1;
+    omsb = tc::MSB(fullSignificand, newPartsCount) + 1;
   }
 
   // Convert the result having "2 * precision" significant-bits back to the one
@@ -1057,7 +1057,7 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     exponent += bits;
   }
 
-  APInt::tcAssign(lhsSignificand, fullSignificand, partsCount);
+  tc::Assign(lhsSignificand, fullSignificand, partsCount);
 
   if (newPartsCount > 4)
     delete [] fullSignificand;
@@ -1100,46 +1100,46 @@ APFloat::divideSignificand(const APFloat &rhs)
   unsigned int precision = semantics->precision;
 
   /* Normalize the divisor.  */
-  bit = precision - APInt::tcMSB(divisor, partsCount) - 1;
+  bit = precision - tc::MSB(divisor, partsCount) - 1;
   if (bit) {
     exponent += bit;
-    APInt::tcShiftLeft(divisor, partsCount, bit);
+    tc::ShiftLeft(divisor, partsCount, bit);
   }
 
   /* Normalize the dividend.  */
-  bit = precision - APInt::tcMSB(dividend, partsCount) - 1;
+  bit = precision - tc::MSB(dividend, partsCount) - 1;
   if (bit) {
     exponent -= bit;
-    APInt::tcShiftLeft(dividend, partsCount, bit);
+    tc::ShiftLeft(dividend, partsCount, bit);
   }
 
   /* Ensure the dividend >= divisor initially for the loop below.
      Incidentally, this means that the division loop below is
      guaranteed to set the integer bit to one.  */
-  if (APInt::tcCompare(dividend, divisor, partsCount) < 0) {
+  if (tc::Compare(dividend, divisor, partsCount) < 0) {
     exponent--;
-    APInt::tcShiftLeft(dividend, partsCount, 1);
-    assert(APInt::tcCompare(dividend, divisor, partsCount) >= 0);
+    tc::ShiftLeft(dividend, partsCount, 1);
+    assert(tc::Compare(dividend, divisor, partsCount) >= 0);
   }
 
   /* Long division.  */
   for (bit = precision; bit; bit -= 1) {
-    if (APInt::tcCompare(dividend, divisor, partsCount) >= 0) {
-      APInt::tcSubtract(dividend, divisor, 0, partsCount);
-      APInt::tcSetBit(lhsSignificand, bit - 1);
+    if (tc::Compare(dividend, divisor, partsCount) >= 0) {
+      tc::Subtract(dividend, divisor, 0, partsCount);
+      tc::SetBit(lhsSignificand, bit - 1);
     }
 
-    APInt::tcShiftLeft(dividend, partsCount, 1);
+    tc::ShiftLeft(dividend, partsCount, 1);
   }
 
   /* Figure out the lost fraction.  */
-  int cmp = APInt::tcCompare(dividend, divisor, partsCount);
+  int cmp = tc::Compare(dividend, divisor, partsCount);
 
   if (cmp > 0)
     lost_fraction = lfMoreThanHalf;
   else if (cmp == 0)
     lost_fraction = lfExactlyHalf;
-  else if (APInt::tcIsZero(dividend, partsCount))
+  else if (tc::IsZero(dividend, partsCount))
     lost_fraction = lfExactlyZero;
   else
     lost_fraction = lfLessThanHalf;
@@ -1153,13 +1153,13 @@ APFloat::divideSignificand(const APFloat &rhs)
 unsigned int
 APFloat::significandMSB() const
 {
-  return APInt::tcMSB(significandParts(), partCount());
+  return tc::MSB(significandParts(), partCount());
 }
 
 unsigned int
 APFloat::significandLSB() const
 {
-  return APInt::tcLSB(significandParts(), partCount());
+  return tc::LSB(significandParts(), partCount());
 }
 
 /* Note that a zero result is NOT normalized to fcZero.  */
@@ -1183,10 +1183,10 @@ APFloat::shiftSignificandLeft(unsigned int bits)
   if (bits) {
     unsigned int partsCount = partCount();
 
-    APInt::tcShiftLeft(significandParts(), partsCount, bits);
+    tc::ShiftLeft(significandParts(), partsCount, bits);
     exponent -= bits;
 
-    assert(!APInt::tcIsZero(significandParts(), partsCount));
+    assert(!tc::IsZero(significandParts(), partsCount));
   }
 }
 
@@ -1204,7 +1204,7 @@ APFloat::compareAbsoluteValue(const APFloat &rhs) const
   /* If exponents are equal, do an unsigned bignum comparison of the
      significands.  */
   if (compare == 0)
-    compare = APInt::tcCompare(significandParts(), rhs.significandParts(),
+    compare = tc::Compare(significandParts(), rhs.significandParts(),
                                partCount());
 
   if (compare > 0)
@@ -1232,7 +1232,7 @@ APFloat::handleOverflow(roundingMode rounding_mode)
   /* Otherwise we become the largest finite number.  */
   category = fcNormal;
   exponent = semantics->maxExponent;
-  APInt::tcSetLeastSignificantBits(significandParts(), partCount(),
+  tc::SetLeastSignificantBits(significandParts(), partCount(),
                                    semantics->precision);
 
   return opInexact;
@@ -1264,7 +1264,7 @@ APFloat::roundAwayFromZero(roundingMode rounding_mode,
 
     /* Our zeroes don't have a significand to test.  */
     if (lost_fraction == lfExactlyHalf && category != fcZero)
-      return APInt::tcExtractBit(significandParts(), bit);
+      return tc::ExtractBit(significandParts(), bit);
 
     return false;
 
@@ -2040,9 +2040,9 @@ APFloat::convert(const fltSemantics &toSemantics,
     // The new type requires more storage; make it available.
     integerPart *newParts;
     newParts = new integerPart[newPartCount];
-    APInt::tcSet(newParts, 0, newPartCount);
+    tc::Set(newParts, 0, newPartCount);
     if (isFiniteNonZero() || category==fcNaN)
-      APInt::tcAssign(newParts, significandParts(), oldPartCount);
+      tc::Assign(newParts, significandParts(), oldPartCount);
     freeSignificand();
     significand.parts = newParts;
   } else if (newPartCount == 1 && oldPartCount != 1) {
@@ -2060,7 +2060,7 @@ APFloat::convert(const fltSemantics &toSemantics,
   // If this is an extension, perform the shift now that the storage is
   // available.
   if (shift > 0 && (isFiniteNonZero() || category==fcNaN))
-    APInt::tcShiftLeft(significandParts(), newPartCount, shift);
+    tc::ShiftLeft(significandParts(), newPartCount, shift);
 
   if (isFiniteNonZero()) {
     fs = normalize(rounding_mode, lostFraction);
@@ -2071,7 +2071,7 @@ APFloat::convert(const fltSemantics &toSemantics,
     // For x87 extended precision, we want to make a NaN, not a special NaN if
     // the input wasn't special either.
     if (!X86SpecialNan && semantics == &APFloat::x87DoubleExtended)
-      APInt::tcSetBit(significandParts(), semantics->precision - 1);
+      tc::SetBit(significandParts(), semantics->precision - 1);
 
     // gcc forces the Quiet bit on, which means (float)(double)(float_sNan)
     // does not give you back the same bits.  This is dubious, and we
@@ -2115,7 +2115,7 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
   dstPartsCount = partCountForBits(width);
 
   if (category == fcZero) {
-    APInt::tcSet(parts, 0, dstPartsCount);
+    tc::Set(parts, 0, dstPartsCount);
     // Negative zero can't be represented as an int.
     *isExact = !sign;
     return opOK;
@@ -2127,7 +2127,7 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
      the destination.  */
   if (exponent < 0) {
     /* Our absolute value is less than one; truncate everything.  */
-    APInt::tcSet(parts, 0, dstPartsCount);
+    tc::Set(parts, 0, dstPartsCount);
     /* For exponent -1 the integer bit represents .5, look at that.
        For smaller exponents leftmost truncated bit is 0. */
     truncatedBits = semantics->precision -1U - exponent;
@@ -2143,11 +2143,11 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
     if (bits < semantics->precision) {
       /* We truncate (semantics->precision - bits) bits.  */
       truncatedBits = semantics->precision - bits;
-      APInt::tcExtract(parts, dstPartsCount, src, bits, truncatedBits);
+      tc::Extract(parts, dstPartsCount, src, bits, truncatedBits);
     } else {
       /* We want at least as many bits as are available.  */
-      APInt::tcExtract(parts, dstPartsCount, src, semantics->precision, 0);
-      APInt::tcShiftLeft(parts, dstPartsCount, bits - semantics->precision);
+      tc::Extract(parts, dstPartsCount, src, semantics->precision, 0);
+      tc::ShiftLeft(parts, dstPartsCount, bits - semantics->precision);
       truncatedBits = 0;
     }
   }
@@ -2159,7 +2159,7 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
                                                   truncatedBits);
     if (lost_fraction != lfExactlyZero &&
         roundAwayFromZero(rounding_mode, lost_fraction, truncatedBits)) {
-      if (APInt::tcIncrement(parts, dstPartsCount))
+      if (tc::Increment(parts, dstPartsCount))
         return opInvalidOp;     /* Overflow.  */
     }
   } else {
@@ -2167,7 +2167,7 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
   }
 
   /* Step 3: check if we fit in the destination.  */
-  unsigned int omsb = APInt::tcMSB(parts, dstPartsCount) + 1;
+  unsigned int omsb = tc::MSB(parts, dstPartsCount) + 1;
 
   if (sign) {
     if (!isSigned) {
@@ -2178,7 +2178,7 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
       /* It takes omsb bits to represent the unsigned integer value.
          We lose a bit for the sign, but care is needed as the
          maximally negative integer is a special case.  */
-      if (omsb == width && APInt::tcLSB(parts, dstPartsCount) + 1 != omsb)
+      if (omsb == width && tc::LSB(parts, dstPartsCount) + 1 != omsb)
         return opInvalidOp;
 
       /* This case can happen because of rounding.  */
@@ -2186,7 +2186,7 @@ APFloat::convertToSignExtendedInteger(integerPart *parts, unsigned int width,
         return opInvalidOp;
     }
 
-    APInt::tcNegate (parts, dstPartsCount);
+    tc::Negate (parts, dstPartsCount);
   } else {
     if (omsb >= width + !isSigned)
       return opInvalidOp;
@@ -2230,9 +2230,9 @@ APFloat::convertToInteger(integerPart *parts, unsigned int width,
     else
       bits = width - isSigned;
 
-    APInt::tcSetLeastSignificantBits(parts, dstPartsCount, bits);
+    tc::SetLeastSignificantBits(parts, dstPartsCount, bits);
     if (sign && isSigned)
-      APInt::tcShiftLeft(parts, dstPartsCount, width - 1);
+      tc::ShiftLeft(parts, dstPartsCount, width - 1);
   }
 
   return fs;
@@ -2268,7 +2268,7 @@ APFloat::convertFromUnsignedParts(const integerPart *src,
   lostFraction lost_fraction;
 
   category = fcNormal;
-  omsb = APInt::tcMSB(src, srcCount) + 1;
+  omsb = tc::MSB(src, srcCount) + 1;
   dst = significandParts();
   dstCount = partCount();
   precision = semantics->precision;
@@ -2279,11 +2279,11 @@ APFloat::convertFromUnsignedParts(const integerPart *src,
     exponent = omsb - 1;
     lost_fraction = lostFractionThroughTruncation(src, srcCount,
                                                   omsb - precision);
-    APInt::tcExtract(dst, dstCount, src, precision, omsb - precision);
+    tc::Extract(dst, dstCount, src, precision, omsb - precision);
   } else {
     exponent = precision - 1;
     lost_fraction = lfExactlyZero;
-    APInt::tcExtract(dst, dstCount, src, omsb, 0);
+    tc::Extract(dst, dstCount, src, omsb, 0);
   }
 
   return normalize(rounding_mode, lost_fraction);
@@ -2318,14 +2318,14 @@ APFloat::convertFromSignExtendedInteger(const integerPart *src,
   opStatus status;
 
   if (isSigned &&
-      APInt::tcExtractBit(src, srcCount * integerPartWidth - 1)) {
+      tc::ExtractBit(src, srcCount * integerPartWidth - 1)) {
     integerPart *copy;
 
     /* If we're signed and negative negate a copy.  */
     sign = true;
     copy = new integerPart[srcCount];
-    APInt::tcAssign(copy, src, srcCount);
-    APInt::tcNegate(copy, srcCount);
+    tc::Assign(copy, src, srcCount);
+    tc::Negate(copy, srcCount);
     status = convertFromUnsignedParts(copy, srcCount, rounding_mode);
     delete [] copy;
   } else {
@@ -2346,7 +2346,7 @@ APFloat::convertFromZeroExtendedInteger(const integerPart *parts,
   APInt api = APInt(width, makeArrayRef(parts, partCount));
 
   sign = false;
-  if (isSigned && APInt::tcExtractBit(parts, width - 1)) {
+  if (isSigned && tc::ExtractBit(parts, width - 1)) {
     sign = true;
     api = -api;
   }
@@ -2493,7 +2493,7 @@ APFloat::roundSignificandWithExponent(const integerPart *decSigParts,
 
     /* Both multiplySignificand and divideSignificand return the
        result with the integer bit set.  */
-    assert(APInt::tcExtractBit
+    assert(tc::ExtractBit
            (decSig.significandParts(), calcSemantics.precision - 1) == 1);
 
     HUerr = HUerrBound(calcLostFraction != lfExactlyZero, sigStatus != opOK,
@@ -2503,7 +2503,7 @@ APFloat::roundSignificandWithExponent(const integerPart *decSigParts,
 
     /* Are we guaranteed to round correctly if we truncate?  */
     if (HUdistance >= HUerr) {
-      APInt::tcExtract(significandParts(), partCount(), decSig.significandParts(),
+      tc::Extract(significandParts(), partCount(), decSig.significandParts(),
                        calcSemantics.precision - excessPrecision,
                        excessPrecision);
       /* Take the exponent of decSig.  If we tcExtract-ed less bits
@@ -2618,7 +2618,7 @@ APFloat::convertFromDecimalString(StringRef str, roundingMode rounding_mode)
       } while (p <= D.lastSigDigit && multiplier <= (~ (integerPart) 0 - 9) / 10);
 
       /* Multiply out the current part.  */
-      APInt::tcMultiplyPart(decSignificand, decSignificand, multiplier, val,
+      tc::MultiplyPart(decSignificand, decSignificand, multiplier, val,
                             partCount, partCount + 1, false);
 
       /* If we used another part (likely but not guaranteed), increase
@@ -3431,7 +3431,7 @@ void APFloat::makeSmallest(bool Negative) {
   category = fcNormal;
   sign = Negative;
   exponent = semantics->minExponent;
-  APInt::tcSet(significandParts(), 1, partCount());
+  tc::Set(significandParts(), 1, partCount());
 }
 
 
@@ -3807,7 +3807,7 @@ bool APFloat::isSignaling() const {
 
   // IEEE-754R 2008 6.2.1: A signaling NaN bit string should be encoded with the
   // first bit of the trailing significand being 0.
-  return !APInt::tcExtractBit(significandParts(), semantics->precision - 2);
+  return !tc::ExtractBit(significandParts(), semantics->precision - 2);
 }
 
 /// IEEE-754R 2008 5.3.1: nextUp/nextDown.
@@ -3848,7 +3848,7 @@ APFloat::opStatus APFloat::next(bool nextDown) {
   case fcNormal:
     // nextUp(-getSmallest()) = -0
     if (isSmallest() && isNegative()) {
-      APInt::tcSet(significandParts(), 0, partCount());
+      tc::Set(significandParts(), 0, partCount());
       category = fcZero;
       exponent = 0;
       break;
@@ -3856,7 +3856,7 @@ APFloat::opStatus APFloat::next(bool nextDown) {
 
     // nextUp(getLargest()) == INFINITY
     if (isLargest() && !isNegative()) {
-      APInt::tcSet(significandParts(), 0, partCount());
+      tc::Set(significandParts(), 0, partCount());
       category = fcInfinity;
       exponent = semantics->maxExponent + 1;
       break;
@@ -3888,13 +3888,13 @@ APFloat::opStatus APFloat::next(bool nextDown) {
       //   since we set the integral bit to 0 when we represent denormals, we
       //   just decrement the significand.
       integerPart *Parts = significandParts();
-      APInt::tcDecrement(Parts, partCount());
+      tc::Decrement(Parts, partCount());
 
       if (WillCrossBinadeBoundary) {
         // Our result is a normal number. Do the following:
         // 1. Set the integral bit to 1.
         // 2. Decrement the exponent.
-        APInt::tcSetBit(Parts, semantics->precision - 1);
+        tc::SetBit(Parts, semantics->precision - 1);
         exponent--;
       }
     } else {
@@ -3910,8 +3910,8 @@ APFloat::opStatus APFloat::next(bool nextDown) {
 
       if (WillCrossBinadeBoundary) {
         integerPart *Parts = significandParts();
-        APInt::tcSet(Parts, 0, partCount());
-        APInt::tcSetBit(Parts, semantics->precision - 1);
+        tc::Set(Parts, 0, partCount());
+        tc::SetBit(Parts, semantics->precision - 1);
         assert(exponent != semantics->maxExponent &&
                "We can not increment an exponent beyond the maxExponent allowed"
                " by the given floating point semantics.");
@@ -3935,7 +3935,7 @@ APFloat::makeInf(bool Negative) {
   category = fcInfinity;
   sign = Negative;
   exponent = semantics->maxExponent + 1;
-  APInt::tcSet(significandParts(), 0, partCount());
+  tc::Set(significandParts(), 0, partCount());
 }
 
 void
@@ -3943,12 +3943,12 @@ APFloat::makeZero(bool Negative) {
   category = fcZero;
   sign = Negative;
   exponent = semantics->minExponent-1;
-  APInt::tcSet(significandParts(), 0, partCount());
+  tc::Set(significandParts(), 0, partCount());
 }
 
 void APFloat::makeQuiet() {
   assert(isNaN());
-  APInt::tcSetBit(significandParts(), semantics->precision - 2);
+  tc::SetBit(significandParts(), semantics->precision - 2);
 }
 
 int llvm::ilogb(const APFloat &Arg) {

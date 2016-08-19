@@ -21,7 +21,6 @@
 
 namespace llvm {
 
-class APInt;
 class Argument;
 class AssemblyAnnotationWriter;
 class BasicBlock;
@@ -30,6 +29,9 @@ class ConstantData;
 class ConstantAggregate;
 class DataLayout;
 class Function;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 class GlobalAlias;
 class GlobalIFunc;
 class GlobalIndirectSymbol;

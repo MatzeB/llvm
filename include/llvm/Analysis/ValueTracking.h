@@ -23,7 +23,9 @@
 
 namespace llvm {
 template <typename T> class ArrayRef;
-  class APInt;
+
+template <unsigned NumInlineWords> class GenericAPInt;
+typedef GenericAPInt<1> APInt;
   class AddOperator;
   class AssumptionCache;
   class DataLayout;

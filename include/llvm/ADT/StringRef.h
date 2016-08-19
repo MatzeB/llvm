@@ -22,7 +22,9 @@
 namespace llvm {
   template <typename T>
   class SmallVectorImpl;
-  class APInt;
+  template <unsigned NumInlineWords>
+  class GenericAPInt;
+  typedef GenericAPInt<1> APInt;
   class hash_code;
   class StringRef;
 

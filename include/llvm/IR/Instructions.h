@@ -31,7 +31,9 @@
 
 namespace llvm {
 
-class APInt;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 class ConstantInt;
 class ConstantRange;
 class DataLayout;

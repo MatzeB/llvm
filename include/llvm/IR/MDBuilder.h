@@ -21,11 +21,13 @@
 
 namespace llvm {
 
-class APInt;
 template <typename T> class ArrayRef;
 class LLVMContext;
 class Constant;
 class ConstantAsMetadata;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 class MDNode;
 class MDString;
 

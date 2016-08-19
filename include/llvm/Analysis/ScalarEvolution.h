@@ -36,7 +36,9 @@
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
-  class APInt;
+  template <unsigned NumInlineWords>
+  class GenericAPInt;
+  typedef GenericAPInt<1> APInt;
   class AssumptionCache;
   class Constant;
   class ConstantInt;

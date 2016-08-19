@@ -48,7 +48,9 @@
 
 namespace llvm {
 
-class APInt;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 class MDNode;
 class Module;
 class Use;

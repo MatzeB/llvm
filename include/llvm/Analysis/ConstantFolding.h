@@ -21,7 +21,9 @@
 #define LLVM_ANALYSIS_CONSTANTFOLDING_H
 
 namespace llvm {
-class APInt;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 template <typename T> class ArrayRef;
 class Constant;
 class ConstantExpr;

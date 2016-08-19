@@ -17,7 +17,9 @@
 #include "llvm/IR/User.h"
 
 namespace llvm {
-  class APInt;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 
   template<typename T> class SmallVectorImpl;
 

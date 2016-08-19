@@ -22,7 +22,9 @@
 namespace llvm {
 
 typedef void* PointerTy;
-class APInt;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 
 struct GenericValue {
   struct IntPair {

@@ -25,9 +25,11 @@
 namespace llvm {
 
 class Value;
-class APInt;
 class LLVMContext;
 template<typename T> class ArrayRef;
+template <unsigned NumInlineWords>
+class GenericAPInt;
+typedef GenericAPInt<1> APInt;
 class StringRef;
 
 /// Class to represent integer types. Note that this class is also used to
