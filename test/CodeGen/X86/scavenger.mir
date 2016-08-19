@@ -1,0 +1,49 @@
+# RUN: llc -mtriple=i386-- -run-pass scavenger-test -verify-machineinstrs -o - %s | FileCheck %s
+
+--- |
+  define void @func0() { ret void }
+  define void @func1() { ret void }
+  define void @func2() { ret void }
+...
+---
+# CHECK-LABEL: name: func0
+name: func0
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gr32 }
+body: |
+  bb.0:
+    %0 = MOV32ri 42
+    %ebp = COPY %0
+...
+---
+# CHECK-LABEL: name: func1
+name: func1
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gr32 }
+body: |
+  bb.0:
+    dead %0 = MOV32ri 42
+...
+---
+# CHECK-LABEL: name: func2
+name: func2
+tracksRegLiveness: true
+registers:
+  - { id: 0, class: gr32 }
+  - { id: 1, class: gr32 }
+  - { id: 2, class: gr32 }
+body: |
+  bb.0:
+    %eax = MOV32ri 13
+    %0 = MOV32ri 42
+    %ebp = COPY %0
+    
+    dead %1 = MOV32ri 23
+
+    NOOP implicit %ebp
+
+    dead %2 = MOV32ri 7
+    RETQ %eax
+...
