@@ -220,6 +220,10 @@ private:
                        MachineBasicBlock::iterator &UseMI);
 };
 
+/// Replace all frame index virtual registers with physical registers. Use the
+/// register scavenger to find an appropriate register to use.
+void scavengeFrameVirtualRegs(RegScavenger &RS, MachineFunction &MF);
+
 } // End llvm namespace
 
 #endif

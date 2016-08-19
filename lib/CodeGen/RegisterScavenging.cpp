@@ -15,6 +15,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -30,6 +31,8 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "reg-scavenging"
+
+STATISTIC(NumScavengedRegs, "Number of frame index regs scavenged");
 
 void RegScavenger::setRegUsed(unsigned Reg, LaneBitmask LaneMask) {
   LiveUnits.addRegMasked(Reg, LaneMask);
@@ -579,3 +582,114 @@ unsigned RegScavenger::scavengeRegisterBackwards(const TargetRegisterClass &RC,
   }
   return Reg;
 }
+
+/// Allocate a register for the virtual register \p VReg. The last use of
+/// \p VReg is around the current position of the register scavenger \p RS.
+/// \p ReserveAfter controls whether the scavenged register needs to be reserved
+/// after the current instruction, otherwise it will only be reserved before the
+/// current instruction.
+static unsigned scavengeVReg(MachineRegisterInfo &MRI, RegScavenger &RS,
+                             unsigned VReg, bool ReserveAfter) {
+#ifndef NDEBUG
+  // Verify that all definitions and uses are in the same basic block.
+  const MachineBasicBlock *CommonMBB = nullptr;
+  bool HadDef = false;
+  for (MachineOperand &MO : MRI.reg_nodbg_operands(VReg)) {
+    MachineBasicBlock *MBB = MO.getParent()->getParent();
+    if (CommonMBB == nullptr)
+      CommonMBB = MBB;
+    assert(MBB == CommonMBB && "All defs+uses must be in the same basic block");
+    if (MO.isDef())
+      HadDef = true;
+  }
+  assert(HadDef && "Must have at least 1 Def");
+#endif
+
+  // We should only have one definition of the register. However to accomodate
+  // the requirements of two address code we also allow definitions in
+  // subsequent instructions provided they also read the register. That way
+  // we get a single contiguous lifetime.
+  //
+  // Definitions in MRI.def_begin() are unordered, search for the first.
+  const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
+  MachineRegisterInfo::def_iterator FirstDef =
+    std::find_if(MRI.def_begin(VReg), MRI.def_end(),
+                 [VReg, &TRI](const MachineOperand &MO) {
+      return !MO.getParent()->readsRegister(VReg, &TRI);
+    });
+  assert(FirstDef != MRI.def_end() &&
+         "Must have one definition that does not redefine vreg");
+  MachineInstr &DefMI = *FirstDef->getParent();
+
+  // The register scavenger will report a free register inserting an emergency
+  // spill/reload if necessary.
+  int SPAdj = 0;
+  const TargetRegisterClass &RC = *MRI.getRegClass(VReg);
+  unsigned SReg = RS.scavengeRegisterBackwards(RC, DefMI.getIterator(),
+                                               ReserveAfter, SPAdj);
+  MRI.replaceRegWith(VReg, SReg);
+  ++NumScavengedRegs;
+  return SReg;
+}
+
+namespace llvm {
+
+void scavengeFrameVirtualRegs(RegScavenger &RS, MachineFunction &MF) {
+  // FIXME: Iterating over the instruction stream is unnecessary. We can simply
+  // iterate over the vreg use list, which at this point only contains machine
+  // operands for which eliminateFrameIndex need a new scratch reg.
+
+  // Run through the instructions and find any virtual registers.
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+  const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
+  for (MachineBasicBlock &MBB : MF) {
+    RS.enterBasicBlockEnd(MBB);
+
+    bool LastIterationHadVRegUses = false;
+    for (MachineBasicBlock::iterator I = MBB.end(); I != MBB.begin(); ) {
+      --I;
+      // Move RegScavenger to the position between *I and *std::next(I).
+      RS.backward(I);
+
+      // Look for unassigned vregs in the uses of *std::next(I).
+      if (LastIterationHadVRegUses) {
+        MachineBasicBlock::iterator N = std::next(I);
+        const MachineInstr &NMI = *N;
+        for (const MachineOperand &MO : NMI.operands()) {
+          if (!MO.isReg() || !MO.readsReg())
+            continue;
+          unsigned Reg = MO.getReg();
+          if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+            unsigned SReg = scavengeVReg(MRI, RS, Reg, true);
+            N->addRegisterKilled(SReg, &TRI, false);
+            RS.setRegUsed(SReg);
+          }
+        }
+      }
+
+      // Look for unassigned vregs in the defs of *I.
+      LastIterationHadVRegUses = false;
+      const MachineInstr &MI = *I;
+      for (const MachineOperand &MO : MI.operands()) {
+        if (!MO.isReg())
+          continue;
+        unsigned Reg = MO.getReg();
+        if (!TargetRegisterInfo::isVirtualRegister(Reg))
+          continue;
+        // We have to look at all operands anyway so we can precalculate here
+        // whether there is a reading operand. This allows use to skip the use
+        // step in the next iteration if there was none.
+        if (MO.readsReg())
+          LastIterationHadVRegUses = true;
+        if (MO.isDef()) {
+          unsigned SReg = scavengeVReg(MRI, RS, Reg, false);
+          I->addRegisterDead(SReg, &TRI, false);
+        }
+      }
+    }
+  }
+
+  MRI.clearVirtRegs();
+}
+
+} // end namespace llvm
