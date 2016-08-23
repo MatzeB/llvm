@@ -119,7 +119,6 @@ void APIntImpl::assignSlowCase(APIntRef RHS) {
   }
   BitWidth = RHS.BitWidth;
   std::copy(RHS.words().begin(), RHS.words().end(), words().begin());
-  clearUnusedBits();
 }
 
 /// This method 'profiles' an APInt for use with FoldingSet.
@@ -1083,12 +1082,11 @@ void APIntImpl::shl(unsigned shiftAmt) {
   }
 
   // Copy whole words from this to Result.
-  unsigned i = getNumWords() - 1;
-  for (; i > offset; --i)
+  for (unsigned i = getNumWords() - 1; i > offset; --i)
     words()[i] = words()[i - offset] << wordShift |
                  words()[i - offset - 1] >> (APINT_BITS_PER_WORD - wordShift);
   words()[offset] = words()[0] << wordShift;
-  for (i = 0; i < offset; ++i)
+  for (unsigned i = 0; i < offset; ++i)
     words()[i] = 0;
 
   clearUnusedBits();

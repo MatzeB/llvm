@@ -388,7 +388,7 @@ class APIntImpl {
   void clearAllBits() {
     if (isSingleWord()) {
       words().back() = 0;
-    } else{
+    } else {
       for (uint64_t &Word : words())
         Word = 0;
     }
