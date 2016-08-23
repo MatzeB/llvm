@@ -858,6 +858,7 @@ void APIntImpl::sext(unsigned width) {
 
   if (needsCleanup())
     delete[] OutOfLineStorage;
+  BitWidth = width;
   if (Dest != InlineStorage)
     OutOfLineStorage = Dest;
 }
@@ -874,20 +875,23 @@ void APIntImpl::zext(unsigned width) {
   }
 
   uint64_t *Dest;
-  unsigned i;
   if (NewNumWords > NumInlineWords) {
     Dest = getMemory(NewNumWords);
     // Copy words.
-    for (i = 0; i != getNumWords(); i++)
-      Dest[i] = words()[i];
+    std::copy(words().begin(), words().begin() + getNumWords(), Dest);
   } else {
     Dest = InlineStorage;
-    i = getNumWords() + 1;
   }
 
   // Zero remaining words.
+  unsigned i = getNumWords() + 1;
   memset(&Dest[i], 0, (NewNumWords - i) * APINT_WORD_SIZE);
+
+  if (needsCleanup())
+    delete[] OutOfLineStorage;
   BitWidth = width;
+  if (NewNumWords > NumInlineWords)
+    OutOfLineStorage = Dest;
 }
 
 /// Arithmetic right-shift this APInt by shiftAmt.
