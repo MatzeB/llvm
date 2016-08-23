@@ -332,6 +332,10 @@ class APIntImpl {
   /// \brief Returns whether this instance allocated memory.
   bool needsCleanup() const { return BitWidth > getNumInlineBits(); }
 
+  bool wouldNeedCleanup(unsigned BitWidth) {
+    return BitWidth > getNumInlineBits();
+  }
+
   /// \brief Get the number of words.
   ///
   /// *NOTE* Here one word's bitwidth equals to that of uint64_t.

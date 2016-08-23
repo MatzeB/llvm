@@ -111,20 +111,11 @@ void APIntImpl::initFromArray(ArrayRef<uint64_t> BigVal) {
 }
 
 void APIntImpl::assignSlowCase(APIntRef RHS) {
-  if (BitWidth == RHS.getBitWidth()) {
-    // assume same bit-width single-word case is already handled
-    assert(!isSingleWord());
-  } else if (isSingleWord()) {
-    // assume case where both are single words is already handled
-    assert(!RHS.isSingleWord());
-    OutOfLineStorage = getMemory(RHS.getNumWords());
-  } else if (getNumWords() == RHS.getNumWords()) {
-    ;
-  } else if (RHS.isSingleWord()) {
-    delete [] OutOfLineStorage;
-  } else {
-    delete [] OutOfLineStorage;
-    OutOfLineStorage = getMemory(RHS.getNumWords());
+  if (getNumWords() != RHS.getNumWords()) {
+    if (needsCleanup())
+      delete [] OutOfLineStorage;
+    if (wouldNeedCleanup(RHS.BitWidth))
+      OutOfLineStorage = getMemory(RHS.getNumWords());
   }
   BitWidth = RHS.BitWidth;
   std::copy(RHS.words().begin(), RHS.words().end(), words().begin());
