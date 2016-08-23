@@ -1150,26 +1150,21 @@ public:
 
   /// @brief Move assignment operator.
   GenericAPInt &operator=(GenericAPInt &&that) {
-    if (needsCleanup()) {
-      // The MSVC STL shipped in 2013 requires that self move assignment be a
-      // no-op.  Otherwise algorithms like stable_sort will produce answers
-      // where half of the output is left in a moved-from state.
-      if (this == &that)
-        return *this;
-      delete[] pVal;
+    // The MSVC STL shipped in 2013 requires that self move assignment be a
+    // no-op.  Otherwise algorithms like stable_sort will produce answers
+    // where half of the output is left in a moved-from state.
+    if (this == &that)
+      return *this;
 
+    if (needsCleanup())
+      delete[] pVal;
+    BitWidth = that.BitWidth;
+    if (that.needsCleanup()) {
       pVal = that.pVal;
     } else {
-      // Use memcpy so that type based alias analysis sees both VAL and pVal
-      // as modified.
       std::copy(that.words().begin(), that.words().end(), words().begin());
     }
-
-    // If 'this == &that', avoid zeroing our own bitwidth by storing to 'that'
-    // first.
-    unsigned ThatBitWidth = that.BitWidth;
     that.BitWidth = 0;
-    BitWidth = ThatBitWidth;
 
     return *this;
   }
