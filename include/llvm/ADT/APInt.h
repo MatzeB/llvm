@@ -1157,14 +1157,13 @@ public:
       if (this == &that)
         return *this;
       delete[] pVal;
-    }
 
-    // Use memcpy so that type based alias analysis sees both VAL and pVal
-    // as modified.
-    if (needsCleanup())
       pVal = that.pVal;
-    else
+    } else {
+      // Use memcpy so that type based alias analysis sees both VAL and pVal
+      // as modified.
       std::copy(that.words().begin(), that.words().end(), words().begin());
+    }
 
     // If 'this == &that', avoid zeroing our own bitwidth by storing to 'that'
     // first.
