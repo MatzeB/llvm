@@ -1593,7 +1593,8 @@ void APIntImpl::fromString(unsigned numbits, StringRef str, uint8_t radix) {
 
   // Allocate memory
   if (needsCleanup())
-    OutOfLineStorage = getClearedMemory(getNumWords());
+    OutOfLineStorage = getMemory(getNumWords());
+  clearAllBits();
 
   // Figure out if we can shift instead of multiply
   unsigned shift = (radix == 16 ? 4 : radix == 8 ? 3 : radix == 2 ? 1 : 0);
