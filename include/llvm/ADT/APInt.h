@@ -83,7 +83,7 @@ class APIntRef {
   /// \brief Determine if this GenericAPInt just has one word to store value.
   ///
   /// \returns true if the number of bits <= 64, false otherwise.
-  bool isSingleWord() const { return BitWidth <= 64; }
+  bool isSingleWord() const { return BitWidth <= APINT_BITS_PER_WORD; }
 
   ArrayRef<uint64_t> words() const { return Words; }
 
