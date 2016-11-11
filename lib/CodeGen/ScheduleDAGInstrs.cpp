@@ -1299,7 +1299,12 @@ void ScheduleDAGInstrs::fixupKills(MachineBasicBlock *MBB) {
 void ScheduleDAGInstrs::dumpNode(const SUnit *SU) const {
   // Cannot completely remove virtual function even in release mode.
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-  SU->getInstr()->dump();
+  const MachineInstr *MI = SU->getInstr();
+  if (MI == nullptr) {
+    dbgs() << "(null)\n";
+  } else {
+    MI->print(dbgs(), false, /*WholeBundle=*/true);
+  }
 #endif
 }
 

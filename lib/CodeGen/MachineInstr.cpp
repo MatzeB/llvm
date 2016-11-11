@@ -1699,7 +1699,7 @@ LLVM_DUMP_METHOD void MachineInstr::dump() const {
 }
 #endif
 
-void MachineInstr::print(raw_ostream &OS, bool SkipOpers,
+void MachineInstr::print(raw_ostream &OS, bool SkipOpers, bool WholeBundle,
                          const TargetInstrInfo *TII) const {
   const Module *M = nullptr;
   if (const MachineBasicBlock *MBB = getParent())
@@ -1707,11 +1707,12 @@ void MachineInstr::print(raw_ostream &OS, bool SkipOpers,
       M = MF->getFunction()->getParent();
 
   ModuleSlotTracker MST(M);
-  print(OS, MST, SkipOpers, TII);
+  print(OS, MST, SkipOpers, WholeBundle, TII);
 }
 
 void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
-                         bool SkipOpers, const TargetInstrInfo *TII) const {
+                         bool SkipOpers, bool WholeBundle,
+                         const TargetInstrInfo *TII) const {
   // We can be a bit tidier if we know the MachineFunction.
   const MachineFunction *MF = nullptr;
   const TargetRegisterInfo *TRI = nullptr;
@@ -1995,6 +1996,19 @@ void MachineInstr::print(raw_ostream &OS, ModuleSlotTracker &MST,
   }
 
   OS << '\n';
+
+  if (WholeBundle && isBundledWithSucc()) {
+    if (const MachineBasicBlock *MBB = getParent()) {
+      auto I = MachineBasicBlock::const_instr_iterator(this);
+      auto Next = std::next(I);
+      if (Next == MBB->end())
+        OS << "ERROR: Invalid bundle flags!\n";
+      else {
+        OS << "  * ";
+        Next->print(OS, MST, SkipOpers, WholeBundle);
+      }
+    }
+  }
 }
 
 bool MachineInstr::addRegisterKilled(unsigned IncomingReg,
