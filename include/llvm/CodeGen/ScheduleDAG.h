@@ -289,6 +289,7 @@ class TargetRegisterInfo;
     bool isCloned         : 1;         ///< True if this node has been cloned.
     bool isUnbuffered     : 1;         ///< Uses an unbuffered resource.
     bool hasReservedResource : 1;      ///< Uses a reserved resource.
+    bool skip             : 1;        ///< Ignore/Skip this node.
     Sched::Preference SchedulingPref = Sched::None; ///< Scheduling preference.
 
   private:
@@ -313,8 +314,8 @@ class TargetRegisterInfo;
         hasPhysRegUses(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
         isScheduleHigh(false), isScheduleLow(false), isCloned(false),
-        isUnbuffered(false), hasReservedResource(false), isDepthCurrent(false),
-        isHeightCurrent(false) {}
+        isUnbuffered(false), hasReservedResource(false), skip(false),
+        isDepthCurrent(false), isHeightCurrent(false) {}
 
     /// \brief Constructs an SUnit for post-regalloc scheduling to represent a
     /// MachineInstr.
@@ -324,8 +325,8 @@ class TargetRegisterInfo;
         hasPhysRegUses(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
         isScheduleHigh(false), isScheduleLow(false), isCloned(false),
-        isUnbuffered(false), hasReservedResource(false), isDepthCurrent(false),
-        isHeightCurrent(false) {}
+        isUnbuffered(false), hasReservedResource(false), skip(false),
+        isDepthCurrent(false), isHeightCurrent(false) {}
 
     /// \brief Constructs a placeholder SUnit.
     SUnit()
@@ -334,7 +335,7 @@ class TargetRegisterInfo;
         hasPhysRegClobbers(false), isPending(false), isAvailable(false),
         isScheduled(false), isScheduleHigh(false), isScheduleLow(false),
         isCloned(false), isUnbuffered(false), hasReservedResource(false),
-        isDepthCurrent(false), isHeightCurrent(false) {}
+        skip(false), isDepthCurrent(false), isHeightCurrent(false) {}
 
     /// \brief Boundary nodes are placeholders for the boundary of the
     /// scheduling region.

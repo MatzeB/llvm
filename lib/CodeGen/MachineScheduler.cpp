@@ -738,6 +738,7 @@ void ScheduleDAGMI::schedule() {
     DEBUG(dbgs() << "** ScheduleDAGMI::schedule picking next node\n");
     SUnit *SU = SchedImpl->pickNode(IsTopNode);
     if (!SU) break;
+    assert(!SU->skip);
 
     assert(!SU->isScheduled && "Node already scheduled");
     if (!checkSchedLimit())
@@ -795,6 +796,8 @@ findRootsAndBiasEdges(SmallVectorImpl<SUnit*> &TopRoots,
                       SmallVectorImpl<SUnit*> &BotRoots) {
   for (std::vector<SUnit>::iterator
          I = SUnits.begin(), E = SUnits.end(); I != E; ++I) {
+    if (I->skip)
+      continue;
     SUnit *SU = &(*I);
     assert(!SU->isBoundaryNode() && "Boundary node should not be in SUnits");
 
@@ -964,7 +967,8 @@ void ScheduleDAGMILive::initRegPressure() {
   VRegUses.clear();
   VRegUses.setUniverse(MRI.getNumVirtRegs());
   for (SUnit &SU : SUnits)
-    collectVRegUses(SU);
+    if (!SU.skip)
+      collectVRegUses(SU);
 
   TopRPTracker.init(&MF, RegClassInfo, LIS, BB, RegionBegin,
                     ShouldTrackLaneMasks, false);
@@ -1554,6 +1558,8 @@ void BaseMemOpClusterMutation::apply(ScheduleDAGInstrs *DAGInstrs) {
   SmallVector<SmallVector<SUnit*,4>, 32> StoreChainDependents;
   for (unsigned Idx = 0, End = DAG->SUnits.size(); Idx != End; ++Idx) {
     SUnit *SU = &DAG->SUnits[Idx];
+    if (SU->skip)
+      continue;
     if ((IsLoad && !SU->getInstr()->mayLoad()) ||
         (!IsLoad && !SU->getInstr()->mayStore()))
       continue;
@@ -1779,6 +1785,8 @@ void CopyConstrain::apply(ScheduleDAGInstrs *DAGInstrs) {
 
   for (unsigned Idx = 0, End = DAG->SUnits.size(); Idx != End; ++Idx) {
     SUnit *SU = &DAG->SUnits[Idx];
+    if (SU->skip)
+      continue;
     if (!SU->getInstr()->isCopy())
       continue;
 
