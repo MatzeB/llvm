@@ -402,13 +402,19 @@ namespace llvm {
       return mi2iMap.count(&instr);
     }
 
+    /// Variant of getInstructionIndex() that ignores bundles. Mostly used to
+    /// implement handleMoveIntoBundle().
+    SlotIndex getInstructionIndexIgnoreBundles(const MachineInstr &MI) const {
+      Mi2IndexMap::const_iterator itr = mi2iMap.find(&MI);
+      assert(itr != mi2iMap.end() && "Instruction not found in maps.");
+      return itr->second;
+    }
+
     /// Returns the base index for the given instruction.
     SlotIndex getInstructionIndex(const MachineInstr &MI) const {
       // Instructions inside a bundle have the same number as the bundle itself.
       const MachineInstr &BundleStart = *getBundleStart(MI.getIterator());
-      Mi2IndexMap::const_iterator itr = mi2iMap.find(&BundleStart);
-      assert(itr != mi2iMap.end() && "Instruction not found in maps.");
-      return itr->second;
+      return getInstructionIndexIgnoreBundles(BundleStart);
     }
 
     /// Returns the instruction for the given index, or null if the given

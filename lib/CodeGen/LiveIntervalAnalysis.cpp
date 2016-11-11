@@ -1369,7 +1369,8 @@ void LiveIntervals::handleMove(MachineInstr &MI, bool UpdateFlags) {
 void LiveIntervals::handleMoveIntoBundle(MachineInstr &MI,
                                          MachineInstr &BundleStart,
                                          bool UpdateFlags) {
-  SlotIndex OldIndex = Indexes->getInstructionIndex(MI);
+  SlotIndex OldIndex = Indexes->getInstructionIndexIgnoreBundles(MI);
+  Indexes->removeMachineInstrFromMaps(MI);
   SlotIndex NewIndex = Indexes->getInstructionIndex(BundleStart);
   HMEditor HME(*this, *MRI, *TRI, OldIndex, NewIndex, UpdateFlags);
   HME.updateAllRanges(&MI);
