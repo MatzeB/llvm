@@ -41,18 +41,19 @@ public:
 
 private:
   bool expandMBB(MachineBasicBlock &MBB);
-  bool expandMI(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
-                MachineBasicBlock::iterator &NextMBBI);
+  bool expandMI(MachineBasicBlock &MBB, MachineBasicBlock::instr_iterator MBBI,
+                MachineBasicBlock::instr_iterator &NextMBBI);
   bool expandMOVImm(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
                     unsigned BitSize);
 
-  bool expandCMP_SWAP(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
+  bool expandCMP_SWAP(MachineBasicBlock &MBB,
+                      MachineBasicBlock::instr_iterator MBBI,
                       unsigned LdarOp, unsigned StlrOp, unsigned CmpOp,
                       unsigned ExtendImm, unsigned ZeroReg,
-                      MachineBasicBlock::iterator &NextMBBI);
+                      MachineBasicBlock::instr_iterator &NextMBBI);
   bool expandCMP_SWAP_128(MachineBasicBlock &MBB,
-                          MachineBasicBlock::iterator MBBI,
-                          MachineBasicBlock::iterator &NextMBBI);
+                          MachineBasicBlock::instr_iterator MBBI,
+                          MachineBasicBlock::instr_iterator &NextMBBI);
 };
 char AArch64ExpandPseudo::ID = 0;
 }
@@ -128,7 +129,7 @@ static bool tryOrrMovk(uint64_t UImm, uint64_t OrrImm, MachineInstr &MI,
             .addImm(AArch64_AM::getShifterImm(AArch64_AM::LSL, ShiftAmt));
 
     transferImpOps(MI, MIB, MIB1);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -209,7 +210,7 @@ static bool tryToreplicateChunks(uint64_t UImm, MachineInstr &MI,
     // and we can exit.
     if (CountThree) {
       transferImpOps(MI, MIB, MIB1);
-      MI.eraseFromParent();
+      MI.eraseFromBundle();
       return true;
     }
 
@@ -230,7 +231,7 @@ static bool tryToreplicateChunks(uint64_t UImm, MachineInstr &MI,
             .addImm(AArch64_AM::getShifterImm(AArch64_AM::LSL, ShiftAmt));
 
     transferImpOps(MI, MIB, MIB2);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -383,7 +384,7 @@ static bool trySequenceOfOnes(uint64_t UImm, MachineInstr &MI,
   // Early exit in case we only need to emit a single MOVK instruction.
   if (SingleMovk) {
     transferImpOps(MI, MIB, MIB1);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -397,7 +398,7 @@ static bool trySequenceOfOnes(uint64_t UImm, MachineInstr &MI,
               AArch64_AM::getShifterImm(AArch64_AM::LSL, SecondMovkIdx * 16));
 
   transferImpOps(MI, MIB, MIB2);
-  MI.eraseFromParent();
+  MI.eraseFromBundle();
   return true;
 }
 
@@ -414,7 +415,7 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
   if (DstReg == AArch64::XZR || DstReg == AArch64::WZR) {
     // Useless def, and we don't want to risk creating an invalid ORR (which
     // would really write to sp).
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -429,7 +430,7 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
             .addReg(BitSize == 32 ? AArch64::WZR : AArch64::XZR)
             .addImm(Encoding);
     transferImpOps(MI, MIB, MIB);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -558,7 +559,7 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
 
   if (Shift == LastShift) {
     transferImpOps(MI, MIB1, MIB1);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -579,7 +580,7 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
   }
 
   transferImpOps(MI, MIB1, MIB2);
-  MI.eraseFromParent();
+  MI.eraseFromBundle();
   return true;
 }
 
@@ -589,9 +590,9 @@ static void addPostLoopLiveIns(MachineBasicBlock *MBB, LivePhysRegs &LiveRegs) {
 }
 
 bool AArch64ExpandPseudo::expandCMP_SWAP(
-    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, unsigned LdarOp,
-    unsigned StlrOp, unsigned CmpOp, unsigned ExtendImm, unsigned ZeroReg,
-    MachineBasicBlock::iterator &NextMBBI) {
+    MachineBasicBlock &MBB, MachineBasicBlock::instr_iterator MBBI,
+    unsigned LdarOp, unsigned StlrOp, unsigned CmpOp, unsigned ExtendImm,
+    unsigned ZeroReg, MachineBasicBlock::instr_iterator &NextMBBI) {
   MachineInstr &MI = *MBBI;
   DebugLoc DL = MI.getDebugLoc();
   MachineOperand &Dest = MI.getOperand(0);
@@ -656,14 +657,14 @@ bool AArch64ExpandPseudo::expandCMP_SWAP(
 
   MBB.addSuccessor(LoadCmpBB);
 
-  NextMBBI = MBB.end();
-  MI.eraseFromParent();
+  NextMBBI = MBB.instr_end();
+  MI.eraseFromBundle();
   return true;
 }
 
-bool AArch64ExpandPseudo::expandCMP_SWAP_128(
-    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
-    MachineBasicBlock::iterator &NextMBBI) {
+bool AArch64ExpandPseudo::expandCMP_SWAP_128(MachineBasicBlock &MBB,
+    MachineBasicBlock::instr_iterator MBBI,
+    MachineBasicBlock::instr_iterator &NextMBBI) {
 
   MachineInstr &MI = *MBBI;
   DebugLoc DL = MI.getDebugLoc();
@@ -751,16 +752,16 @@ bool AArch64ExpandPseudo::expandCMP_SWAP_128(
 
   MBB.addSuccessor(LoadCmpBB);
 
-  NextMBBI = MBB.end();
-  MI.eraseFromParent();
+  NextMBBI = MBB.instr_end();
+  MI.eraseFromBundle();
   return true;
 }
 
 /// \brief If MBBI references a pseudo instruction that should be expanded here,
 /// do the expansion and return true.  Otherwise return false.
 bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MBBI,
-                                   MachineBasicBlock::iterator &NextMBBI) {
+                                   MachineBasicBlock::instr_iterator MBBI,
+                                   MachineBasicBlock::instr_iterator &NextMBBI) {
   MachineInstr &MI = *MBBI;
   unsigned Opcode = MI.getOpcode();
   switch (Opcode) {
@@ -827,7 +828,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
             .add(MI.getOperand(2))
             .addImm(AArch64_AM::getShifterImm(AArch64_AM::LSL, 0));
     transferImpOps(MI, MIB1, MIB1);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -862,7 +863,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     }
 
     transferImpOps(MI, MIB1, MIB2);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -886,7 +887,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
             .addImm(0);
 
     transferImpOps(MI, MIB1, MIB2);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
 
@@ -904,7 +905,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::RET))
           .addReg(AArch64::LR, RegState::Undef);
     transferImpOps(MI, MIB, MIB);
-    MI.eraseFromParent();
+    MI.eraseFromBundle();
     return true;
   }
   case AArch64::CMP_SWAP_8:
@@ -938,9 +939,10 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
 bool AArch64ExpandPseudo::expandMBB(MachineBasicBlock &MBB) {
   bool Modified = false;
 
-  MachineBasicBlock::iterator MBBI = MBB.begin(), E = MBB.end();
-  while (MBBI != E) {
-    MachineBasicBlock::iterator NMBBI = std::next(MBBI);
+  MachineBasicBlock::instr_iterator MBBI = MBB.instr_begin(),
+                                    MBBIE = MBB.instr_end();
+  while (MBBI != MBBIE) {
+    MachineBasicBlock::instr_iterator NMBBI = std::next(MBBI);
     Modified |= expandMI(MBB, MBBI, NMBBI);
     MBBI = NMBBI;
   }
