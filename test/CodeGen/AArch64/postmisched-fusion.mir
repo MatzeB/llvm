@@ -1,0 +1,21 @@
+# RUN: llc -o - %s -mtriple=aarch64-- -mattr=+arith-bcc-fusion -run-pass=postmisched -run-pass=unpack-mi-bundles | FileCheck %s
+---
+# Test that the post machine scheduler respects macro op fusion.
+# CHECK-LABEL: name: func0
+# CHECK: %xzr = SUBSXri{{.*}}implicit-def %nzcv
+# CHECK-NEXT: Bcc {{.*}}implicit killed %nzcv
+name: func0
+tracksRegLiveness: true
+body: |
+  bb.0:
+    successors: %bb.1, %bb.2
+    %x8 = IMPLICIT_DEF
+    %x9 = LDRXui %x8, 0 :: (load 8)
+    dead %xzr = SUBSXri %x8, 0, 0, implicit def %nzcv
+    %x10 = ADDXri %x9, 13, 0
+    Bcc 1, %bb.1, implicit killed %nzcv
+    B %bb.2
+
+  bb.1:
+  bb.2:
+...
