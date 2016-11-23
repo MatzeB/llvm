@@ -886,6 +886,21 @@ bool LiveIntervals::checkRegMaskInterference(LiveInterval &LI,
 //                         IntervalUpdate class.
 //===----------------------------------------------------------------------===//
 
+void LiveIntervals::replaceRegMaskIndex(SlotIndex OldIndex,
+                                        SlotIndex NewIndex) {
+  SmallVectorImpl<SlotIndex>::iterator RI =
+    std::lower_bound(RegMaskSlots.begin(), RegMaskSlots.end(), OldIndex);
+  assert(RI != RegMaskSlots.end() && *RI == OldIndex.getRegSlot() &&
+         "No RegMask at OldIndex.");
+  *RI = NewIndex.getRegSlot();
+  assert((RI == RegMaskSlots.begin() ||
+          SlotIndex::isEarlierInstr(*std::prev(RI), *RI)) &&
+         "Cannot move regmask instruction above another call");
+  assert((std::next(RI) == RegMaskSlots.end() ||
+          SlotIndex::isEarlierInstr(*RI, *std::next(RI))) &&
+         "Cannot move regmask instruction below another call");
+}
+
 /// Toolkit used by handleMove to trim or extend live intervals.
 class LiveIntervals::HMEditor {
 private:
@@ -958,7 +973,7 @@ public:
           updateRange(*LR, *Units, LaneBitmask::getNone());
     }
     if (hasRegMask)
-      updateRegMaskSlots();
+      LIS.replaceRegMaskIndex(OldIdx, NewIdx);
   }
 
 private:
@@ -1281,21 +1296,6 @@ private:
     }
   }
 
-  void updateRegMaskSlots() {
-    SmallVectorImpl<SlotIndex>::iterator RI =
-      std::lower_bound(LIS.RegMaskSlots.begin(), LIS.RegMaskSlots.end(),
-                       OldIdx);
-    assert(RI != LIS.RegMaskSlots.end() && *RI == OldIdx.getRegSlot() &&
-           "No RegMask at OldIdx.");
-    *RI = NewIdx.getRegSlot();
-    assert((RI == LIS.RegMaskSlots.begin() ||
-            SlotIndex::isEarlierInstr(*std::prev(RI), *RI)) &&
-           "Cannot move regmask instruction above another call");
-    assert((std::next(RI) == LIS.RegMaskSlots.end() ||
-            SlotIndex::isEarlierInstr(*RI, *std::next(RI))) &&
-           "Cannot move regmask instruction below another call");
-  }
-
   // Return the last use of reg between NewIdx and OldIdx.
   SlotIndex findLastUseBefore(SlotIndex Before, unsigned Reg,
                               LaneBitmask LaneMask) {
@@ -1374,6 +1374,74 @@ void LiveIntervals::handleMoveIntoBundle(MachineInstr &MI,
   SlotIndex NewIndex = Indexes->getInstructionIndex(BundleStart);
   HMEditor HME(*this, *MRI, *TRI, OldIndex, NewIndex, UpdateFlags);
   HME.updateAllRanges(&MI);
+}
+
+static void replaceIndexInLiveRange(LiveRange &LR, SlotIndex OldIndex,
+                                    SlotIndex NewIndex) {
+  LiveRange::iterator I = LR.find(OldIndex.getBaseIndex());
+  if (I != LR.end()) {
+    if (SlotIndex::isSameInstr(I->start, OldIndex)) {
+      I->start = SlotIndex(NewIndex, I->start.getSlot());
+      VNInfo *VNI = I->valno;
+      if (SlotIndex::isSameInstr(VNI->def, OldIndex))
+        VNI->def = SlotIndex(NewIndex, VNI->def.getSlot());
+    }
+    if (SlotIndex::isSameInstr(I->end, OldIndex)) {
+      I->end = SlotIndex(NewIndex, I->end.getSlot());
+
+      // Need to end at dead slot if the segment contracted to a dead def.
+      if (SlotIndex::isSameInstr(I->start, I->end))
+        I->end = I->end.getDeadSlot();
+    }
+  }
+#ifndef NDEBUG
+  if (I != LR.begin()) {
+    LiveRange::iterator P = std::prev(I);
+    assert(!SlotIndex::isSameInstr(P->end, OldIndex));
+  }
+#endif
+}
+
+void LiveIntervals::replaceIndex(MachineInstr &MI, SlotIndex OldIndex,
+                                 SlotIndex NewIndex) {
+  bool hasRegMask = false;
+  for (MachineOperand &MO : MI.operands()) {
+    if (MO.isRegMask()) {
+      hasRegMask = true;
+      continue;
+    }
+    if (!MO.isReg())
+      continue;
+    // Note that we also check into undef/internal operands as they may have
+    // been already rewritten by finalizeBundle() when we get here.
+    unsigned Reg = MO.getReg();
+    if (TargetRegisterInfo::isVirtualRegister(Reg)) {
+      LiveInterval &LI = getInterval(Reg);
+      replaceIndexInLiveRange(LI, OldIndex, NewIndex);
+      for (LiveInterval::SubRange &S : LI.subranges())
+        replaceIndexInLiveRange(S, OldIndex, NewIndex);
+    } else if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      for (MCRegUnitIterator Units(Reg, TRI); Units.isValid(); ++Units)
+        if (LiveRange *LR = getCachedRegUnit(*Units))
+          replaceIndexInLiveRange(*LR, OldIndex, NewIndex);
+    }
+  }
+  if (hasRegMask)
+    replaceRegMaskIndex(OldIndex, NewIndex);
+}
+
+void LiveIntervals::handleFinalizedBundle(MachineInstr &BundleMI) {
+  assert(BundleMI.isBundledWithSucc() && !Indexes->hasIndex(BundleMI) &&
+         "Should have a newly created bundle.");
+  SlotIndex NewIndex = Indexes->insertMachineInstrInMaps(BundleMI);
+
+  MachineBasicBlock::instr_iterator I = BundleMI.getIterator();
+  while (I->isBundledWithSucc()) {
+    MachineInstr &MI = *++I;
+    SlotIndex OldIndex = Indexes->getInstructionIndexIgnoreBundles(MI);
+    Indexes->removeMachineInstrFromMaps(MI);
+    replaceIndex(MI, OldIndex, NewIndex);
+  }
 }
 
 void LiveIntervals::repairOldRegInRange(const MachineBasicBlock::iterator Begin,

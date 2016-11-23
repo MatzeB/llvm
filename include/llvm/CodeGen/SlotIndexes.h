@@ -118,11 +118,6 @@ namespace llvm {
       return listEntry()->getIndex() | getSlot();
     }
 
-    /// Returns the slot for this SlotIndex.
-    Slot getSlot() const {
-      return static_cast<Slot>(lie.getInt());
-    }
-
   public:
     enum {
       /// The default distance between instructions as returned by distance().
@@ -153,6 +148,11 @@ namespace llvm {
 
     /// Dump this index to stderr.
     void dump() const;
+
+    /// Returns the slot for this SlotIndex.
+    Slot getSlot() const {
+      return static_cast<Slot>(lie.getInt());
+    }
 
     /// Compare two SlotIndex objects for equality.
     bool operator==(SlotIndex other) const {

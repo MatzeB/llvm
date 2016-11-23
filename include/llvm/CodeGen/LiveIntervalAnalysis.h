@@ -312,6 +312,15 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
     void handleMoveIntoBundle(MachineInstr &MI, MachineInstr &BundleStart,
                               bool UpdateFlags = false);
 
+    /// Handle live interval updates after finalizeBundle() was called.
+    /// This assumes that a sequence of instructions was moved to form an
+    /// instruction BUNDLE. \p MI should point to an instruction bundle. For all
+    /// instructions inside the bundle we get the previously assigned SlotIndex
+    /// and replace it with the SlotIndex of the BUNDLE instruction in all
+    /// affected live ranges. Then the instruction is remove from the SlotIndex
+    /// maps because it is part of a bundle now.
+    void handleFinalizedBundle(MachineInstr &MI);
+
     /// Update live intervals for instructions in a range of iterators. It is
     /// intended for use after target hooks that may insert or remove
     /// instructions, and is only efficient for a small number of instructions.
@@ -463,6 +472,12 @@ extern cl::opt<bool> UseSegmentSetForPhysRegs;
                              const SlotIndex endIdx, LiveRange &LR,
                              unsigned Reg,
                              LaneBitmask LaneMask = LaneBitmask::getAll());
+
+    /// In the live ranges of all registers used or defined by \p MI replace
+    /// \p OldIndex with \p NewIndex.
+    void replaceIndex(MachineInstr &MI, SlotIndex OldIndex, SlotIndex NewIndex);
+
+    void replaceRegMaskIndex(SlotIndex OldIndex, SlotIndex NewIndex);
 
     class HMEditor;
   };
