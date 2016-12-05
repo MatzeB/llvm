@@ -249,6 +249,16 @@ namespace llvm {
     /// Returns an iterator to the bottom of the current scheduling region.
     MachineBasicBlock::iterator end() const { return RegionEnd; }
 
+    /// Sets new end of scheduling region.
+    void setEnd(MachineBasicBlock::iterator NewEnd) {
+      RegionEnd = NewEnd;
+    }
+
+    /// Sets new begin of scheduling region.
+    void setBegin(MachineBasicBlock::iterator NewBegin) {
+      RegionBegin = NewBegin;
+    }
+
     /// Creates a new SUnit and return a ptr to it.
     SUnit *newSUnit(MachineInstr *MI);
 
