@@ -142,9 +142,9 @@ public:
     bool HadErrors = false;
     if (O->hasArgStr()) {
       // Add argument to the argument map!
-      if (!SC->OptionsMap.insert(std::make_pair(O->ArgStr, O)).second) {
-        errs() << ProgramName << ": CommandLine Error: Option '" << O->ArgStr
-               << "' registered more than once!\n";
+      if (!SC->OptionsMap.insert(std::make_pair(O->getArgStr(), O)).second) {
+        errs() << ProgramName << ": CommandLine Error: Option '"
+               << O->getArgStr() << "' registered more than once!\n";
         HadErrors = true;
       }
     }
@@ -188,7 +188,7 @@ public:
     SmallVector<StringRef, 16> OptionNames;
     O->getExtraOptionNames(OptionNames);
     if (O->hasArgStr())
-      OptionNames.push_back(O->ArgStr);
+      OptionNames.push_back(O->getArgStr());
 
     SubCommand &Sub = *SC;
     for (auto Name : OptionNames)
@@ -235,11 +235,11 @@ public:
   void updateArgStr(Option *O, StringRef NewName, SubCommand *SC) {
     SubCommand &Sub = *SC;
     if (!Sub.OptionsMap.insert(std::make_pair(NewName, O)).second) {
-      errs() << ProgramName << ": CommandLine Error: Option '" << O->ArgStr
+      errs() << ProgramName << ": CommandLine Error: Option '" << O->getArgStr()
              << "' registered more than once!\n";
       report_fatal_error("inconsistency in registered CommandLine options");
     }
-    Sub.OptionsMap.erase(O->ArgStr);
+    Sub.OptionsMap.erase(O->getArgStr());
   }
 
   void updateArgStr(Option *O, StringRef NewName) {
@@ -337,7 +337,7 @@ void Option::removeArgument() { GlobalParser->removeOption(this); }
 void Option::setArgStr(StringRef S) {
   if (FullyInitialized)
     GlobalParser->updateArgStr(this, S);
-  ArgStr = S;
+  Info.ArgStr = S;
 }
 
 // Initialise the general option category.
@@ -451,7 +451,7 @@ static Option *LookupNearestOption(StringRef Arg,
     SmallVector<StringRef, 16> OptionNames;
     O->getExtraOptionNames(OptionNames);
     if (O->hasArgStr())
-      OptionNames.push_back(O->ArgStr);
+      OptionNames.push_back(O->getArgStr());
 
     bool PermitValue = O->getValueExpectedFlag() != cl::ValueDisallowed;
     StringRef Flag = PermitValue ? LHS : Arg;
@@ -562,7 +562,7 @@ static inline bool ProvideOption(Option *Handler, StringRef ArgName,
 
 static bool ProvidePositionalOption(Option *Handler, StringRef Arg, int i) {
   int Dummy = i;
-  return ProvideOption(Handler, Handler->ArgStr, Arg, 0, nullptr, Dummy);
+  return ProvideOption(Handler, Handler->getArgStr(), Arg, 0, nullptr, Dummy);
 }
 
 // Option predicates...
@@ -1066,7 +1066,7 @@ bool CommandLineParser::ParseCommandLineOptions(int argc,
                      "unbounded number of values, and this option"
                      " does not require a value!");
           errs() << ProgramName << ": CommandLine Error: Option '"
-                 << Opt->ArgStr << "' is all messed up!\n";
+                 << Opt->getArgStr() << "' is all messed up!\n";
           errs() << PositionalOpts.size();
         }
         ErrorParsing = true;
@@ -1318,9 +1318,9 @@ bool CommandLineParser::ParseCommandLineOptions(int argc,
 
 bool Option::error(const Twine &Message, StringRef ArgName) {
   if (!ArgName.data())
-    ArgName = ArgStr;
+    ArgName = getArgStr();
   if (ArgName.empty())
-    errs() << HelpStr; // Be nice for positional arguments
+    errs() << getHelpStr(); // Be nice for positional arguments
   else
     errs() << GlobalParser->ProgramName << ": for the -" << ArgName;
 
@@ -1355,9 +1355,10 @@ bool Option::addOccurrence(unsigned pos, StringRef ArgName, StringRef Value,
 // has been specified yet.
 //
 static StringRef getValueStr(const Option &O, StringRef DefaultMsg) {
-  if (O.ValueStr.empty())
+  StringRef ValueStr = O.getValueStr();
+  if (ValueStr.empty())
     return DefaultMsg;
-  return O.ValueStr;
+  return ValueStr;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1365,7 +1366,7 @@ static StringRef getValueStr(const Option &O, StringRef DefaultMsg) {
 //
 
 // Return the width of the option tag for printing...
-size_t alias::getOptionWidth() const { return ArgStr.size() + 6; }
+size_t alias::getOptionWidth() const { return getArgStr().size() + 6; }
 
 static void printHelpStr(StringRef HelpStr, size_t Indent,
                          size_t FirstLineIndentedBy) {
@@ -1379,8 +1380,9 @@ static void printHelpStr(StringRef HelpStr, size_t Indent,
 
 // Print out the option for the alias.
 void alias::printOptionInfo(size_t GlobalWidth) const {
+  StringRef ArgStr = getArgStr();
   outs() << "  -" << ArgStr;
-  printHelpStr(HelpStr, GlobalWidth, ArgStr.size() + 6);
+  printHelpStr(getHelpStr(), GlobalWidth, ArgStr.size() + 6);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1392,7 +1394,7 @@ void alias::printOptionInfo(size_t GlobalWidth) const {
 
 // Return the width of the option tag for printing...
 size_t basic_parser_impl::getOptionWidth(const Option &O) const {
-  size_t Len = O.ArgStr.size();
+  size_t Len = O.getArgStr().size();
   auto ValName = getValueName();
   if (!ValName.empty())
     Len += getValueStr(O, ValName).size() + 3;
@@ -1405,19 +1407,20 @@ size_t basic_parser_impl::getOptionWidth(const Option &O) const {
 //
 void basic_parser_impl::printOptionInfo(const Option &O,
                                         size_t GlobalWidth) const {
-  outs() << "  -" << O.ArgStr;
+  outs() << "  -" << O.getArgStr();
 
   auto ValName = getValueName();
   if (!ValName.empty())
     outs() << "=<" << getValueStr(O, ValName) << '>';
 
-  printHelpStr(O.HelpStr, GlobalWidth, getOptionWidth(O));
+  printHelpStr(O.getHelpStr(), GlobalWidth, getOptionWidth(O));
 }
 
 void basic_parser_impl::printOptionName(const Option &O,
                                         size_t GlobalWidth) const {
-  outs() << "  -" << O.ArgStr;
-  outs().indent(GlobalWidth - O.ArgStr.size());
+  StringRef ArgStr = O.getArgStr();
+  outs() << "  -" << ArgStr;
+  outs().indent(GlobalWidth - ArgStr.size());
 }
 
 // parser<bool> implementation
@@ -1531,7 +1534,7 @@ unsigned generic_parser_base::findOption(StringRef Name) {
 // Return the width of the option tag for printing...
 size_t generic_parser_base::getOptionWidth(const Option &O) const {
   if (O.hasArgStr()) {
-    size_t Size = O.ArgStr.size() + 6;
+    size_t Size = O.getArgStr().size() + 6;
     for (unsigned i = 0, e = getNumOptions(); i != e; ++i)
       Size = std::max(Size, getOption(i).size() + 8);
     return Size;
@@ -1548,9 +1551,11 @@ size_t generic_parser_base::getOptionWidth(const Option &O) const {
 //
 void generic_parser_base::printOptionInfo(const Option &O,
                                           size_t GlobalWidth) const {
+  StringRef HelpStr = O.getHelpStr();
   if (O.hasArgStr()) {
-    outs() << "  -" << O.ArgStr;
-    printHelpStr(O.HelpStr, GlobalWidth, O.ArgStr.size() + 6);
+    StringRef ArgStr = O.getArgStr();
+    outs() << "  -" << ArgStr;
+    printHelpStr(HelpStr, GlobalWidth, ArgStr.size() + 6);
 
     for (unsigned i = 0, e = getNumOptions(); i != e; ++i) {
       size_t NumSpaces = GlobalWidth - getOption(i).size() - 8;
@@ -1558,8 +1563,8 @@ void generic_parser_base::printOptionInfo(const Option &O,
       outs().indent(NumSpaces) << " -   " << getDescription(i) << '\n';
     }
   } else {
-    if (!O.HelpStr.empty())
-      outs() << "  " << O.HelpStr << '\n';
+    if (!HelpStr.empty())
+      outs() << "  " << HelpStr << '\n';
     for (unsigned i = 0, e = getNumOptions(); i != e; ++i) {
       auto Option = getOption(i);
       outs() << "    -" << Option;
@@ -1576,8 +1581,9 @@ static const size_t MaxOptWidth = 8; // arbitrary spacing for printOptionDiff
 void generic_parser_base::printGenericOptionDiff(
     const Option &O, const GenericOptionValue &Value,
     const GenericOptionValue &Default, size_t GlobalWidth) const {
-  outs() << "  -" << O.ArgStr;
-  outs().indent(GlobalWidth - O.ArgStr.size());
+  StringRef ArgStr = O.getArgStr();
+  outs() << "  -" << ArgStr;
+  outs().indent(GlobalWidth - ArgStr.size());
 
   unsigned NumOpts = getNumOptions();
   for (unsigned i = 0; i != NumOpts; ++i) {
@@ -1770,13 +1776,13 @@ public:
 
     for (auto Opt : PositionalOpts) {
       if (Opt->hasArgStr())
-        outs() << " --" << Opt->ArgStr;
-      outs() << " " << Opt->HelpStr;
+        outs() << " --" << Opt->getArgStr();
+      outs() << " " << Opt->getHelpStr();
     }
 
     // Print the consume after option info if it exists...
     if (ConsumeAfterOpt)
-      outs() << " " << ConsumeAfterOpt->HelpStr;
+      outs() << " " << ConsumeAfterOpt->getHelpStr();
 
     if (Sub == &*TopLevelSubCommand && !Subs.empty()) {
       // Compute the maximum subcommand length...
@@ -1858,9 +1864,10 @@ protected:
     // options within categories will also be alphabetically sorted.
     for (size_t I = 0, E = Opts.size(); I != E; ++I) {
       Option *Opt = Opts[I].second;
-      assert(CategorizedOptions.count(Opt->Category) > 0 &&
+      OptionCategory *Category = Opt->getCategory();
+      assert(CategorizedOptions.count(Category) > 0 &&
              "Option has an unregistered category");
-      CategorizedOptions[Opt->Category].push_back(Opt);
+      CategorizedOptions[Category].push_back(Opt);
     }
 
     // Now do printing.
@@ -2118,8 +2125,8 @@ cl::getRegisteredSubcommands() {
 
 void cl::HideUnrelatedOptions(cl::OptionCategory &Category, SubCommand &Sub) {
   for (auto &I : Sub.OptionsMap) {
-    if (I.second->Category != &Category &&
-        I.second->Category != &GenericCategory)
+    OptionCategory *OptCategory = I.second->getCategory();
+    if (OptCategory != &Category && OptCategory != &GenericCategory)
       I.second->setHiddenFlag(cl::ReallyHidden);
   }
 }
@@ -2129,9 +2136,10 @@ void cl::HideUnrelatedOptions(ArrayRef<const cl::OptionCategory *> Categories,
   auto CategoriesBegin = Categories.begin();
   auto CategoriesEnd = Categories.end();
   for (auto &I : Sub.OptionsMap) {
-    if (std::find(CategoriesBegin, CategoriesEnd, I.second->Category) ==
+    OptionCategory *OptCategory = I.second->getCategory();
+    if (std::find(CategoriesBegin, CategoriesEnd, OptCategory) ==
             CategoriesEnd &&
-        I.second->Category != &GenericCategory)
+        OptCategory != &GenericCategory)
       I.second->setHiddenFlag(cl::ReallyHidden);
   }
 }

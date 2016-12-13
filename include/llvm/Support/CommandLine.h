@@ -219,6 +219,63 @@ extern ManagedStatic<SubCommand> TopLevelSubCommand;
 // A special subcommand that can be used to put an option into all subcommands.
 extern ManagedStatic<SubCommand> AllSubCommands;
 
+class OptionInfo {
+public:
+  // Occurrences, HiddenFlag, and Formatting are all enum types but to avoid
+  // problems with signed enums in bitfields.
+  unsigned Occurrences : 3; // enum NumOccurrencesFlag
+  // not using the enum type for 'Value' because zero is an implementation
+  // detail representing the non-value
+  unsigned Value : 2;
+  unsigned HiddenFlag : 2; // enum OptionHidden
+  unsigned Formatting : 2; // enum FormattingFlags
+  unsigned Misc : 3;
+  unsigned AdditionalVals; // Greater than 0 for multi-valued option.
+
+  StringRef ArgStr;   // The argument string itself (ex: "help", "o")
+  StringRef HelpStr;  // The descriptive text message for -help
+  StringRef ValueStr; // String describing what the value of this option is
+  OptionCategory *Category = nullptr; // The Category this option belongs to
+
+  constexpr OptionInfo()
+    : Occurrences(0), Value(0), HiddenFlag(0), Formatting(NormalFormatting),
+      Misc(0), AdditionalVals(0) {}
+  constexpr OptionInfo(const OptionInfo &O) = default;
+  constexpr OptionInfo(unsigned Occurrences, unsigned Value,
+                       unsigned HiddenFlag, unsigned Formatting, unsigned Misc,
+                       unsigned AdditionalVals, StringRef ArgStr,
+                       StringRef HelpStr, StringRef ValueStr,
+                       OptionCategory *Category)
+    : Occurrences(Occurrences), Value(Value), HiddenFlag(HiddenFlag),
+      Formatting(Formatting), Misc(Misc), AdditionalVals(AdditionalVals),
+      ArgStr(ArgStr), HelpStr(HelpStr), ValueStr(ValueStr),
+      Category(Category) {}
+
+  static constexpr OptionInfo setArgStr(const OptionInfo &I, StringRef ArgStr) {
+    return OptionInfo(I.Occurrences, I.Value, I.HiddenFlag, I.Formatting,
+                      I.Misc, I.AdditionalVals, ArgStr, I.HelpStr, I.ValueStr,
+                      I.Category);
+  }
+  static constexpr OptionInfo setHelpStr(const OptionInfo &I,
+                                         StringRef HelpStr) {
+    return OptionInfo(I.Occurrences, I.Value, I.HiddenFlag, I.Formatting,
+                      I.Misc, I.AdditionalVals, I.ArgStr, HelpStr, I.ValueStr,
+                      I.Category);
+  }
+  static constexpr OptionInfo
+  setOccurrences(const OptionInfo &I, enum NumOccurrencesFlag Occurrences) {
+    return OptionInfo(Occurrences, I.Value, I.HiddenFlag, I.Formatting,
+                      I.Misc, I.AdditionalVals, I.ArgStr, I.HelpStr, I.ValueStr,
+                      I.Category);
+  }
+  static constexpr OptionInfo
+  setHiddenFlag(const OptionInfo &I, enum OptionHidden HiddenFlag) {
+    return OptionInfo(I.Occurrences, I.Value, HiddenFlag, I.Formatting,
+                      I.Misc, I.AdditionalVals, I.ArgStr, I.HelpStr, I.ValueStr,
+                      I.Category);
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // Option Base class
 //
@@ -239,48 +296,41 @@ class Option {
   // Out of line virtual function to provide home for the class.
   virtual void anchor();
 
-  int NumOccurrences; // The number of times specified
-  // Occurrences, HiddenFlag, and Formatting are all enum types but to avoid
-  // problems with signed enums in bitfields.
-  unsigned Occurrences : 3; // enum NumOccurrencesFlag
-  // not using the enum type for 'Value' because zero is an implementation
-  // detail representing the non-value
-  unsigned Value : 2;
-  unsigned HiddenFlag : 2; // enum OptionHidden
-  unsigned Formatting : 2; // enum FormattingFlags
-  unsigned Misc : 3;
-  unsigned Position;       // Position of last occurrence of the option
-  unsigned AdditionalVals; // Greater than 0 for multi-valued option.
+  int NumOccurrences = 0; // The number of times specified
+  unsigned Position = 0;   // Position of last occurrence of the option
+  OptionInfo Info;
 
 public:
-  StringRef ArgStr;   // The argument string itself (ex: "help", "o")
-  StringRef HelpStr;  // The descriptive text message for -help
-  StringRef ValueStr; // String describing what the value of this option is
-  OptionCategory *Category; // The Category this option belongs to
-  bool FullyInitialized;    // Has addArguemnt been called?
+  bool FullyInitialized = false; // Has addArguemnt been called?
+
+  StringRef getArgStr() const { return Info.ArgStr; }
+  StringRef getHelpStr() const { return Info.HelpStr; }
+  StringRef getValueStr() const { return Info.ValueStr; }
+  OptionCategory *getCategory() const { return Info.Category; }
 
   inline enum NumOccurrencesFlag getNumOccurrencesFlag() const {
-    return (enum NumOccurrencesFlag)Occurrences;
+    return (enum NumOccurrencesFlag)Info.Occurrences;
   }
 
   inline enum ValueExpected getValueExpectedFlag() const {
-    return Value ? ((enum ValueExpected)Value) : getValueExpectedFlagDefault();
+    return Info.Value ? ((enum ValueExpected)Info.Value)
+                      : getValueExpectedFlagDefault();
   }
 
   inline enum OptionHidden getOptionHiddenFlag() const {
-    return (enum OptionHidden)HiddenFlag;
+    return (enum OptionHidden)Info.HiddenFlag;
   }
 
   inline enum FormattingFlags getFormattingFlag() const {
-    return (enum FormattingFlags)Formatting;
+    return (enum FormattingFlags)Info.Formatting;
   }
 
-  inline unsigned getMiscFlags() const { return Misc; }
   inline unsigned getPosition() const { return Position; }
-  inline unsigned getNumAdditionalVals() const { return AdditionalVals; }
+  inline unsigned getNumAdditionalVals() const { return Info.AdditionalVals; }
+  inline unsigned getMiscFlags() const { return Info.Misc; }
 
   // hasArgStr - Return true if the argstr != ""
-  bool hasArgStr() const { return !ArgStr.empty(); }
+  bool hasArgStr() const { return !getArgStr().empty(); }
   bool isPositional() const { return getFormattingFlag() == cl::Positional; }
   bool isSink() const { return getMiscFlags() & cl::Sink; }
 
@@ -292,25 +342,26 @@ public:
   // Accessor functions set by OptionModifiers
   //
   void setArgStr(StringRef S);
-  void setDescription(StringRef S) { HelpStr = S; }
-  void setValueStr(StringRef S) { ValueStr = S; }
-  void setNumOccurrencesFlag(enum NumOccurrencesFlag Val) { Occurrences = Val; }
-  void setValueExpectedFlag(enum ValueExpected Val) { Value = Val; }
-  void setHiddenFlag(enum OptionHidden Val) { HiddenFlag = Val; }
-  void setFormattingFlag(enum FormattingFlags V) { Formatting = V; }
-  void setMiscFlag(enum MiscFlags M) { Misc |= M; }
+  void setDescription(StringRef S) { Info.HelpStr = S; }
+  void setValueStr(StringRef S) { Info.ValueStr = S; }
+  void setNumOccurrencesFlag(enum NumOccurrencesFlag Val) {
+    Info.Occurrences = Val;
+  }
+  void setValueExpectedFlag(enum ValueExpected Val) { Info.Value = Val; }
+  void setHiddenFlag(enum OptionHidden Val) { Info.HiddenFlag = Val; }
+  void setFormattingFlag(enum FormattingFlags V) { Info.Formatting = V; }
+  void setMiscFlag(enum MiscFlags M) { Info.Misc |= M; }
   void setPosition(unsigned pos) { Position = pos; }
-  void setCategory(OptionCategory &C) { Category = &C; }
+  void setCategory(OptionCategory &C) { Info.Category = &C; }
 
 protected:
-  explicit Option(enum NumOccurrencesFlag OccurrencesFlag,
-                  enum OptionHidden Hidden)
-      : NumOccurrences(0), Occurrences(OccurrencesFlag), Value(0),
-        HiddenFlag(Hidden), Formatting(NormalFormatting), Misc(0), Position(0),
-        AdditionalVals(0), Category(&GeneralCategory), FullyInitialized(false) {
-  }
+  explicit constexpr Option(enum NumOccurrencesFlag OccurrencesFlag,
+                            enum OptionHidden Hidden)
+      : Info(OptionInfo::setOccurrences(
+               OptionInfo::setHiddenFlag(OptionInfo(), Hidden),
+               OccurrencesFlag)) {}
 
-  inline void setNumAdditionalVals(unsigned n) { AdditionalVals = n; }
+  inline void setNumAdditionalVals(unsigned n) { Info.AdditionalVals = n; }
 
 public:
   virtual ~Option() = default;
@@ -358,7 +409,7 @@ public:
 struct desc {
   StringRef Desc;
 
-  desc(StringRef Str) : Desc(Str) {}
+  constexpr desc(StringRef Str) : Desc(Str) {}
 
   void apply(Option &O) const { O.setDescription(Desc); }
 };
@@ -1631,12 +1682,12 @@ class alias : public Option {
 
   bool handleOccurrence(unsigned pos, StringRef /*ArgName*/,
                         StringRef Arg) override {
-    return AliasFor->handleOccurrence(pos, AliasFor->ArgStr, Arg);
+    return AliasFor->handleOccurrence(pos, AliasFor->getArgStr(), Arg);
   }
 
   bool addOccurrence(unsigned pos, StringRef /*ArgName*/, StringRef Value,
                      bool MultiArg = false) override {
-    return AliasFor->addOccurrence(pos, AliasFor->ArgStr, Value, MultiArg);
+    return AliasFor->addOccurrence(pos, AliasFor->getArgStr(), Value, MultiArg);
   }
 
   // Handle printing stuff...
