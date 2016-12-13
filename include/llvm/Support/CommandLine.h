@@ -257,7 +257,6 @@ public:
   StringRef HelpStr;  // The descriptive text message for -help
   StringRef ValueStr; // String describing what the value of this option is
   OptionCategory *Category; // The Category this option belongs to
-  SmallPtrSet<SubCommand *, 4> Subs; // The subcommands this option belongs to.
   bool FullyInitialized;    // Has addArguemnt been called?
 
   inline enum NumOccurrencesFlag getNumOccurrencesFlag() const {
@@ -289,12 +288,6 @@ public:
     return getNumOccurrencesFlag() == cl::ConsumeAfter;
   }
 
-  bool isInAllSubCommands() const {
-    return any_of(Subs, [](const SubCommand *SC) {
-      return SC == &*AllSubCommands;
-    });
-  }
-
   //-------------------------------------------------------------------------===
   // Accessor functions set by OptionModifiers
   //
@@ -308,7 +301,6 @@ public:
   void setMiscFlag(enum MiscFlags M) { Misc |= M; }
   void setPosition(unsigned pos) { Position = pos; }
   void setCategory(OptionCategory &C) { Category = &C; }
-  void addSubCommand(SubCommand &S) { Subs.insert(&S); }
 
 protected:
   explicit Option(enum NumOccurrencesFlag OccurrencesFlag,
@@ -420,15 +412,6 @@ struct cat {
   cat(OptionCategory &c) : Category(c) {}
 
   template <class Opt> void apply(Opt &O) const { O.setCategory(Category); }
-};
-
-// sub - Specify the subcommand that this option belongs to.
-struct sub {
-  SubCommand &Sub;
-
-  sub(SubCommand &S) : Sub(S) {}
-
-  template <class Opt> void apply(Opt &O) const { O.addSubCommand(Sub); }
 };
 
 //===----------------------------------------------------------------------===//
@@ -1673,7 +1656,6 @@ class alias : public Option {
       error("cl::alias must have argument name specified!");
     if (!AliasFor)
       error("cl::alias must have an cl::aliasopt(option) specified!");
-    Subs = AliasFor->Subs;
     addArgument();
   }
 

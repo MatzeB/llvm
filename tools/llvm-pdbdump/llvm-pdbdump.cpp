@@ -92,65 +92,63 @@ cl::OptionCategory OtherOptions("Other Options");
 namespace pretty {
 cl::list<std::string> InputFilenames(cl::Positional,
                                      cl::desc("<input PDB files>"),
-                                     cl::OneOrMore, cl::sub(PrettySubcommand));
+                                     cl::OneOrMore);
 
 cl::opt<bool> Compilands("compilands", cl::desc("Display compilands"),
-                         cl::cat(TypeCategory), cl::sub(PrettySubcommand));
+                         cl::cat(TypeCategory));
 cl::opt<bool> Symbols("symbols", cl::desc("Display symbols for each compiland"),
-                      cl::cat(TypeCategory), cl::sub(PrettySubcommand));
+                      cl::cat(TypeCategory));
 cl::opt<bool> Globals("globals", cl::desc("Dump global symbols"),
-                      cl::cat(TypeCategory), cl::sub(PrettySubcommand));
+                      cl::cat(TypeCategory));
 cl::opt<bool> Externals("externals", cl::desc("Dump external symbols"),
-                        cl::cat(TypeCategory), cl::sub(PrettySubcommand));
-cl::opt<bool> Types("types", cl::desc("Display types"), cl::cat(TypeCategory),
-                    cl::sub(PrettySubcommand));
-cl::opt<bool> Lines("lines", cl::desc("Line tables"), cl::cat(TypeCategory),
-                    cl::sub(PrettySubcommand));
+                        cl::cat(TypeCategory));
+cl::opt<bool> Types("types", cl::desc("Display types"), cl::cat(TypeCategory));
+cl::opt<bool> Lines("lines", cl::desc("Line tables"), cl::cat(TypeCategory));
 cl::opt<bool>
     All("all", cl::desc("Implies all other options in 'Symbol Types' category"),
-        cl::cat(TypeCategory), cl::sub(PrettySubcommand));
+        cl::cat(TypeCategory));
 
 cl::opt<uint64_t> LoadAddress(
     "load-address",
     cl::desc("Assume the module is loaded at the specified address"),
-    cl::cat(OtherOptions), cl::sub(PrettySubcommand));
+    cl::cat(OtherOptions));
 cl::list<std::string> ExcludeTypes(
     "exclude-types", cl::desc("Exclude types by regular expression"),
-    cl::ZeroOrMore, cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::ZeroOrMore, cl::cat(FilterCategory));
 cl::list<std::string> ExcludeSymbols(
     "exclude-symbols", cl::desc("Exclude symbols by regular expression"),
-    cl::ZeroOrMore, cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::ZeroOrMore, cl::cat(FilterCategory));
 cl::list<std::string> ExcludeCompilands(
     "exclude-compilands", cl::desc("Exclude compilands by regular expression"),
-    cl::ZeroOrMore, cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::ZeroOrMore, cl::cat(FilterCategory));
 
 cl::list<std::string> IncludeTypes(
     "include-types",
     cl::desc("Include only types which match a regular expression"),
-    cl::ZeroOrMore, cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::ZeroOrMore, cl::cat(FilterCategory));
 cl::list<std::string> IncludeSymbols(
     "include-symbols",
     cl::desc("Include only symbols which match a regular expression"),
-    cl::ZeroOrMore, cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::ZeroOrMore, cl::cat(FilterCategory));
 cl::list<std::string> IncludeCompilands(
     "include-compilands",
     cl::desc("Include only compilands those which match a regular expression"),
-    cl::ZeroOrMore, cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::ZeroOrMore, cl::cat(FilterCategory));
 
 cl::opt<bool> ExcludeCompilerGenerated(
     "no-compiler-generated",
     cl::desc("Don't show compiler generated types and symbols"),
-    cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+    cl::cat(FilterCategory));
 cl::opt<bool>
     ExcludeSystemLibraries("no-system-libs",
                            cl::desc("Don't show symbols from system libraries"),
-                           cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+                           cl::cat(FilterCategory));
 cl::opt<bool> NoClassDefs("no-class-definitions",
                           cl::desc("Don't display full class definitions"),
-                          cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+                          cl::cat(FilterCategory));
 cl::opt<bool> NoEnumDefs("no-enum-definitions",
                          cl::desc("Don't display full enum definitions"),
-                         cl::cat(FilterCategory), cl::sub(PrettySubcommand));
+                         cl::cat(FilterCategory));
 }
 
 namespace raw {
@@ -163,147 +161,140 @@ cl::OptionCategory MiscOptions("Miscellaneous Options");
 
 // MSF OPTIONS
 cl::opt<bool> DumpHeaders("headers", cl::desc("dump PDB headers"),
-                          cl::cat(MsfOptions), cl::sub(RawSubcommand));
+                          cl::cat(MsfOptions));
 cl::opt<bool> DumpStreamBlocks("stream-blocks",
                                cl::desc("dump PDB stream blocks"),
-                               cl::cat(MsfOptions), cl::sub(RawSubcommand));
+                               cl::cat(MsfOptions));
 cl::opt<bool> DumpStreamSummary("stream-summary",
                                 cl::desc("dump summary of the PDB streams"),
-                                cl::cat(MsfOptions), cl::sub(RawSubcommand));
+                                cl::cat(MsfOptions));
 cl::opt<bool> DumpPageStats(
     "page-stats",
     cl::desc("dump allocation stats of the pages in the MSF file"),
-    cl::cat(MsfOptions), cl::sub(RawSubcommand));
+    cl::cat(MsfOptions));
 cl::opt<std::string>
     DumpBlockRangeOpt("block-data", cl::value_desc("start[-end]"),
                       cl::desc("Dump binary data from specified range."),
-                      cl::cat(MsfOptions), cl::sub(RawSubcommand));
+                      cl::cat(MsfOptions));
 llvm::Optional<BlockRange> DumpBlockRange;
 
 cl::list<uint32_t>
     DumpStreamData("stream-data", cl::CommaSeparated, cl::ZeroOrMore,
                    cl::desc("Dump binary data from specified streams."),
-                   cl::cat(MsfOptions), cl::sub(RawSubcommand));
+                   cl::cat(MsfOptions));
 
 // TYPE OPTIONS
 cl::opt<bool>
     DumpTpiRecords("tpi-records",
                    cl::desc("dump CodeView type records from TPI stream"),
-                   cl::cat(TypeOptions), cl::sub(RawSubcommand));
+                   cl::cat(TypeOptions));
 cl::opt<bool> DumpTpiRecordBytes(
     "tpi-record-bytes",
     cl::desc("dump CodeView type record raw bytes from TPI stream"),
-    cl::cat(TypeOptions), cl::sub(RawSubcommand));
+    cl::cat(TypeOptions));
 cl::opt<bool> DumpTpiHash("tpi-hash", cl::desc("dump CodeView TPI hash stream"),
-                          cl::cat(TypeOptions), cl::sub(RawSubcommand));
+                          cl::cat(TypeOptions));
 cl::opt<bool>
     DumpIpiRecords("ipi-records",
                    cl::desc("dump CodeView type records from IPI stream"),
-                   cl::cat(TypeOptions), cl::sub(RawSubcommand));
+                   cl::cat(TypeOptions));
 cl::opt<bool> DumpIpiRecordBytes(
     "ipi-record-bytes",
     cl::desc("dump CodeView type record raw bytes from IPI stream"),
-    cl::cat(TypeOptions), cl::sub(RawSubcommand));
+    cl::cat(TypeOptions));
 
 // MODULE & FILE OPTIONS
 cl::opt<bool> DumpModules("modules", cl::desc("dump compiland information"),
-                          cl::cat(FileOptions), cl::sub(RawSubcommand));
+                          cl::cat(FileOptions));
 cl::opt<bool> DumpModuleFiles("module-files", cl::desc("dump file information"),
-                              cl::cat(FileOptions), cl::sub(RawSubcommand));
+                              cl::cat(FileOptions));
 cl::opt<bool> DumpLineInfo("line-info",
                            cl::desc("dump file and line information"),
-                           cl::cat(FileOptions), cl::sub(RawSubcommand));
+                           cl::cat(FileOptions));
 
 // SYMBOL OPTIONS
 cl::opt<bool> DumpGlobals("globals", cl::desc("dump globals stream data"),
-                          cl::cat(SymbolOptions), cl::sub(RawSubcommand));
+                          cl::cat(SymbolOptions));
 cl::opt<bool> DumpModuleSyms("module-syms", cl::desc("dump module symbols"),
-                             cl::cat(SymbolOptions), cl::sub(RawSubcommand));
+                             cl::cat(SymbolOptions));
 cl::opt<bool> DumpPublics("publics", cl::desc("dump Publics stream data"),
-                          cl::cat(SymbolOptions), cl::sub(RawSubcommand));
+                          cl::cat(SymbolOptions));
 cl::opt<bool>
     DumpSymRecordBytes("sym-record-bytes",
                        cl::desc("dump CodeView symbol record raw bytes"),
-                       cl::cat(SymbolOptions), cl::sub(RawSubcommand));
+                       cl::cat(SymbolOptions));
 
 // MISCELLANEOUS OPTIONS
 cl::opt<bool> DumpSectionContribs("section-contribs",
                                   cl::desc("dump section contributions"),
-                                  cl::cat(MiscOptions), cl::sub(RawSubcommand));
+                                  cl::cat(MiscOptions));
 cl::opt<bool> DumpSectionMap("section-map", cl::desc("dump section map"),
-                             cl::cat(MiscOptions), cl::sub(RawSubcommand));
+                             cl::cat(MiscOptions));
 cl::opt<bool> DumpSectionHeaders("section-headers",
                                  cl::desc("dump section headers"),
-                                 cl::cat(MiscOptions), cl::sub(RawSubcommand));
-cl::opt<bool> DumpFpo("fpo", cl::desc("dump FPO records"), cl::cat(MiscOptions),
-                      cl::sub(RawSubcommand));
+                                 cl::cat(MiscOptions));
+cl::opt<bool> DumpFpo("fpo", cl::desc("dump FPO records"), cl::cat(MiscOptions));
 
 cl::opt<bool> RawAll("all", cl::desc("Implies most other options."),
-                     cl::cat(MiscOptions), cl::sub(RawSubcommand));
+                     cl::cat(MiscOptions));
 
 cl::list<std::string> InputFilenames(cl::Positional,
                                      cl::desc("<input PDB files>"),
-                                     cl::OneOrMore, cl::sub(RawSubcommand));
+                                     cl::OneOrMore);
 }
 
 namespace yaml2pdb {
 cl::opt<std::string>
-    YamlPdbOutputFile("pdb", cl::desc("the name of the PDB file to write"),
-                      cl::sub(YamlToPdbSubcommand));
+    YamlPdbOutputFile("pdb", cl::desc("the name of the PDB file to write"));
 
 cl::list<std::string> InputFilename(cl::Positional,
-                                    cl::desc("<input YAML file>"), cl::Required,
-                                    cl::sub(YamlToPdbSubcommand));
+                                    cl::desc("<input YAML file>"), cl::Required);
 }
 
 namespace pdb2yaml {
 cl::opt<bool>
     NoFileHeaders("no-file-headers",
                   cl::desc("Do not dump MSF file headers (you will not be able "
-                           "to generate a fresh PDB from the resulting YAML)"),
-                  cl::sub(PdbToYamlSubcommand), cl::init(false));
+                           "to generate a fresh PDB from the resulting YAML)"));
 
 cl::opt<bool> StreamMetadata(
     "stream-metadata",
-    cl::desc("Dump the number of streams and each stream's size"),
-    cl::sub(PdbToYamlSubcommand), cl::init(false));
+    cl::desc("Dump the number of streams and each stream's size"));
 cl::opt<bool> StreamDirectory(
     "stream-directory",
-    cl::desc("Dump each stream's block map (implies -stream-metadata)"),
-    cl::sub(PdbToYamlSubcommand), cl::init(false));
+    cl::desc("Dump each stream's block map (implies -stream-metadata)"));
 cl::opt<bool> PdbStream("pdb-stream",
                         cl::desc("Dump the PDB Stream (Stream 1)"),
-                        cl::sub(PdbToYamlSubcommand), cl::init(false));
+                        cl::init(false));
 cl::opt<bool> DbiStream("dbi-stream",
                         cl::desc("Dump the DBI Stream (Stream 2)"),
-                        cl::sub(PdbToYamlSubcommand), cl::init(false));
+                        cl::init(false));
 cl::opt<bool>
     DbiModuleInfo("dbi-module-info",
                   cl::desc("Dump DBI Module Information (implies -dbi-stream)"),
-                  cl::sub(PdbToYamlSubcommand), cl::init(false));
+                  cl::init(false));
 
 cl::opt<bool> DbiModuleSyms(
     "dbi-module-syms",
     cl::desc("Dump DBI Module Information (implies -dbi-module-info)"),
-    cl::sub(PdbToYamlSubcommand), cl::init(false));
+    cl::init(false));
 
 cl::opt<bool> DbiModuleSourceFileInfo(
     "dbi-module-source-info",
     cl::desc(
         "Dump DBI Module Source File Information (implies -dbi-module-info"),
-    cl::sub(PdbToYamlSubcommand), cl::init(false));
+    cl::init(false));
 
 cl::opt<bool> TpiStream("tpi-stream",
                         cl::desc("Dump the TPI Stream (Stream 3)"),
-                        cl::sub(PdbToYamlSubcommand), cl::init(false));
+                        cl::init(false));
 
 cl::opt<bool> IpiStream("ipi-stream",
                         cl::desc("Dump the IPI Stream (Stream 5)"),
-                        cl::sub(PdbToYamlSubcommand), cl::init(false));
+                        cl::init(false));
 
 cl::list<std::string> InputFilename(cl::Positional,
-                                    cl::desc("<input PDB file>"), cl::Required,
-                                    cl::sub(PdbToYamlSubcommand));
+                                    cl::desc("<input PDB file>"), cl::Required);
 }
 }
 

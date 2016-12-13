@@ -135,12 +135,7 @@ public:
   }
 
   void addLiteralOption(Option &Opt, StringRef Name) {
-    if (Opt.Subs.empty())
-      addLiteralOption(Opt, &*TopLevelSubCommand, Name);
-    else {
-      for (auto SC : Opt.Subs)
-        addLiteralOption(Opt, SC, Name);
-    }
+    addLiteralOption(Opt, &*TopLevelSubCommand, Name);
   }
 
   void addOption(Option *O, SubCommand *SC) {
@@ -186,12 +181,7 @@ public:
   }
 
   void addOption(Option *O) {
-    if (O->Subs.empty()) {
-      addOption(O, &*TopLevelSubCommand);
-    } else {
-      for (auto SC : O->Subs)
-        addOption(O, SC);
-    }
+    addOption(O, &*TopLevelSubCommand);
   }
 
   void removeOption(Option *O, SubCommand *SC) {
@@ -224,17 +214,7 @@ public:
   }
 
   void removeOption(Option *O) {
-    if (O->Subs.empty())
-      removeOption(O, &*TopLevelSubCommand);
-    else {
-      if (O->isInAllSubCommands()) {
-        for (auto SC : RegisteredSubCommands)
-          removeOption(O, SC);
-      } else {
-        for (auto SC : O->Subs)
-          removeOption(O, SC);
-      }
-    }
+    removeOption(O, &*TopLevelSubCommand);
   }
 
   bool hasOptions(const SubCommand &Sub) const {
@@ -263,12 +243,7 @@ public:
   }
 
   void updateArgStr(Option *O, StringRef NewName) {
-    if (O->Subs.empty())
-      updateArgStr(O, NewName, &*TopLevelSubCommand);
-    else {
-      for (auto SC : O->Subs)
-        updateArgStr(O, NewName, SC);
-    }
+    updateArgStr(O, NewName, &*TopLevelSubCommand);
   }
 
   void printOptionValues();
@@ -1965,13 +1940,12 @@ static cl::opt<HelpPrinter, true, parser<bool>> HLOp(
     "help-list",
     cl::desc("Display list of available options (-help-list-hidden for more)"),
     cl::location(UncategorizedNormalPrinter), cl::Hidden, cl::ValueDisallowed,
-    cl::cat(GenericCategory), cl::sub(*AllSubCommands));
+    cl::cat(GenericCategory));
 
 static cl::opt<HelpPrinter, true, parser<bool>>
     HLHOp("help-list-hidden", cl::desc("Display list of all available options"),
           cl::location(UncategorizedHiddenPrinter), cl::Hidden,
-          cl::ValueDisallowed, cl::cat(GenericCategory),
-          cl::sub(*AllSubCommands));
+          cl::ValueDisallowed);
 
 // Define uncategorized/categorized help printers. These printers change their
 // behaviour at runtime depending on whether one or more Option categories have
@@ -1979,23 +1953,22 @@ static cl::opt<HelpPrinter, true, parser<bool>>
 static cl::opt<HelpPrinterWrapper, true, parser<bool>>
     HOp("help", cl::desc("Display available options (-help-hidden for more)"),
         cl::location(WrappedNormalPrinter), cl::ValueDisallowed,
-        cl::cat(GenericCategory), cl::sub(*AllSubCommands));
+        cl::cat(GenericCategory));
 
 static cl::opt<HelpPrinterWrapper, true, parser<bool>>
     HHOp("help-hidden", cl::desc("Display all available options"),
          cl::location(WrappedHiddenPrinter), cl::Hidden, cl::ValueDisallowed,
-         cl::cat(GenericCategory), cl::sub(*AllSubCommands));
+         cl::cat(GenericCategory));
 
 static cl::opt<bool> PrintOptions(
     "print-options",
     cl::desc("Print non-default options after command line parsing"),
-    cl::Hidden, cl::init(false), cl::cat(GenericCategory),
-    cl::sub(*AllSubCommands));
+    cl::Hidden, cl::init(false), cl::cat(GenericCategory));
 
 static cl::opt<bool> PrintAllOptions(
     "print-all-options",
     cl::desc("Print all option values after command line parsing"), cl::Hidden,
-    cl::init(false), cl::cat(GenericCategory), cl::sub(*AllSubCommands));
+    cl::init(false), cl::cat(GenericCategory));
 
 void HelpPrinterWrapper::operator=(bool Value) {
   if (!Value)

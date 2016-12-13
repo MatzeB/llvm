@@ -39,15 +39,12 @@ using namespace llvm::yaml;
 // ----------------------------------------------------------------------------
 static cl::SubCommand Extract("extract", "Extract instrumentation maps");
 static cl::opt<std::string> ExtractInput(cl::Positional,
-                                         cl::desc("<input file>"), cl::Required,
-                                         cl::sub(Extract));
+                                         cl::desc("<input file>"), cl::Required);
 static cl::opt<std::string>
     ExtractOutput("output", cl::value_desc("output file"), cl::init("-"),
-                  cl::desc("output file; use '-' for stdout"),
-                  cl::sub(Extract));
+                  cl::desc("output file; use '-' for stdout"));
 static cl::alias ExtractOutput2("o", cl::aliasopt(ExtractOutput),
-                                cl::desc("Alias for -output"),
-                                cl::sub(Extract));
+                                cl::desc("Alias for -output"));
 
 struct YAMLXRaySledEntry {
   int32_t FuncId;
