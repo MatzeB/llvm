@@ -42,7 +42,7 @@ public:
   const char *Name;
   const char *Desc;
   std::atomic<unsigned> Value;
-  bool Initialized;
+  bool Initialized = false;
 
   unsigned getValue() const { return Value.load(std::memory_order_relaxed); }
   const char *getDebugType() const { return DebugType; }
@@ -62,28 +62,31 @@ public:
   operator unsigned() const { return getValue(); }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_STATS)
-   const Statistic &operator=(unsigned Val) {
+  Statistic(const char *DebugType, const char *Name, const char *Desc)
+      : DebugType(DebugType), Name(Name), Desc(Desc) {
+    init();
+  }
+
+  const Statistic &operator=(unsigned Val) {
     Value.store(Val, std::memory_order_relaxed);
-    return init();
+    return *this;
   }
 
   const Statistic &operator++() {
     Value.fetch_add(1, std::memory_order_relaxed);
-    return init();
+    return *this;
   }
 
   unsigned operator++(int) {
-    init();
     return Value.fetch_add(1, std::memory_order_relaxed);
   }
 
   const Statistic &operator--() {
     Value.fetch_sub(1, std::memory_order_relaxed);
-    return init();
+    return *this;
   }
 
   unsigned operator--(int) {
-    init();
     return Value.fetch_sub(1, std::memory_order_relaxed);
   }
 
@@ -91,17 +94,19 @@ public:
     if (V == 0)
       return *this;
     Value.fetch_add(V, std::memory_order_relaxed);
-    return init();
+    return *this;
   }
 
   const Statistic &operator-=(unsigned V) {
     if (V == 0)
       return *this;
     Value.fetch_sub(V, std::memory_order_relaxed);
-    return init();
+    return *this;
   }
 
 #else  // Statistics are disabled in release builds.
+  Statistic(const char *, const char *, const char *)
+      : DebugType(nullptr), Name(nullptr), Desc(nullptr) {}
 
   const Statistic &operator=(unsigned Val) {
     return *this;
@@ -148,7 +153,7 @@ protected:
 // STATISTIC - A macro to make definition of statistics really simple.  This
 // automatically passes the DEBUG_TYPE of the file into the statistic.
 #define STATISTIC(VARNAME, DESC)                                               \
-  static llvm::Statistic VARNAME = {DEBUG_TYPE, #VARNAME, DESC, {0}, false}
+  static llvm::Statistic VARNAME = {DEBUG_TYPE, #VARNAME, DESC}
 
 /// \brief Enable the collection and printing of statistics.
 void EnableStatistics(bool PrintOnExit = true);
