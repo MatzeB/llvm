@@ -12,6 +12,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -105,6 +106,93 @@ bool FinalizeMachineBundles::runOnMachineFunction(MachineFunction &MF) {
   return llvm::finalizeBundles(MF);
 }
 
+static MachineOperand getImplicitMO(MachineOperand MO) {
+  MachineOperand Result = MO;
+  Result.setImplicit(true);
+  return Result;
+}
+
+MachineInstr &llvm::finalizeBundle(MachineInstr &FirstMI) {
+  assert(FirstMI.isBundledWithSucc() && !FirstMI.isBundledWithPred() &&
+         "have bundle start");
+
+  MachineBasicBlock &MBB = *FirstMI.getParent();
+  MachineFunction &MF = *MBB.getParent();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  const MCInstrDesc &Desc = TII.get(TargetOpcode::BUNDLE);
+  MachineInstrBuilder Bundle = BuildMI(MBB, FirstMI.getIterator(), DebugLoc(),
+                                       Desc);
+  Bundle->bundleWithSucc();
+
+  SmallVector<unsigned, 8> Defs;
+  SmallVector<unsigned, 8> PossibleDeadRegs;
+  for (MachineBasicBlock::instr_iterator I = FirstMI.getIterator(),
+       E = MBB.instr_end(); I != E && I->isBundledWithPred(); ++I) {
+    MachineInstr &MI = *I;
+
+    // Add internal read flags as necessary.
+    for (MachineOperand &MO : MI.uses()) {
+      if (!MO.isReg())
+        continue;
+      unsigned Reg = MO.getReg();
+      if (!Reg)
+        continue;
+      if (MO.isKill()) {
+        // If we kill a previous def it is a dead def on the bundle.
+        // Note that if we late redefine the same reg get a new possibly
+        // not-dead operand on the BUNDLE.
+        for (unsigned DefReg : PossibleDeadRegs) {
+          if (DefReg == Reg || TRI.isSuperRegisterEq(DefReg, Reg))
+            Bundle->addRegisterDead(DefReg, &TRI);
+        }
+      }
+      if (!MO.readsReg())
+        continue;
+      for (unsigned DefReg : Defs) {
+        if (TRI.regsOverlap(DefReg, Reg)) {
+          MO.setIsInternalRead(true);
+          break;
+        }
+      }
+    }
+
+    for (const MachineOperand &MO : MI.operands()) {
+      if (MO.isRegMask()) {
+        Bundle.add(MO);
+      } else if (MO.isReg()) {
+        unsigned Reg = MO.getReg();
+        if (!Reg)
+          continue;
+        if (MO.isDef()) {
+          Defs.push_back(Reg);
+          if (!MO.isDead())
+            PossibleDeadRegs.push_back(Reg);
+          Bundle.add(getImplicitMO(MO));
+        } else if (!MO.isInternalRead())
+          Bundle.add(getImplicitMO(MO));
+      }
+    }
+  }
+
+  // We sometimes have missing KILL flags on virtual reg uses but can still
+  // determine a def as dead.
+  for (unsigned Reg : PossibleDeadRegs) {
+    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+      continue;
+    bool HasExternalRead = false;
+    for (const MachineOperand &MO : MRI.use_nodbg_operands(Reg)) {
+      if (MO.readsReg()) {
+        HasExternalRead = true;
+        break;
+      }
+    }
+    if (!HasExternalRead)
+      Bundle->addRegisterDead(Reg, nullptr);
+  }
+  return *Bundle;
+}
 
 /// finalizeBundle - Finalize a machine instruction bundle which includes
 /// a sequence of instructions starting from FirstMI to LastMI (exclusive).
@@ -115,106 +203,9 @@ bool FinalizeMachineBundles::runOnMachineFunction(MachineFunction &MF) {
 void llvm::finalizeBundle(MachineBasicBlock &MBB,
                           MachineBasicBlock::instr_iterator FirstMI,
                           MachineBasicBlock::instr_iterator LastMI) {
-  assert(FirstMI != LastMI && "Empty bundle?");
-  MIBundleBuilder Bundle(MBB, FirstMI, LastMI);
-
-  MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-
-  MachineInstrBuilder MIB =
-      BuildMI(MF, FirstMI->getDebugLoc(), TII->get(TargetOpcode::BUNDLE));
-  Bundle.prepend(MIB);
-
-  SmallVector<unsigned, 32> LocalDefs;
-  SmallSet<unsigned, 32> LocalDefSet;
-  SmallSet<unsigned, 8> DeadDefSet;
-  SmallSet<unsigned, 16> KilledDefSet;
-  SmallVector<unsigned, 8> ExternUses;
-  SmallSet<unsigned, 8> ExternUseSet;
-  SmallSet<unsigned, 8> KilledUseSet;
-  SmallSet<unsigned, 8> UndefUseSet;
-  SmallVector<MachineOperand*, 4> Defs;
-  for (; FirstMI != LastMI; ++FirstMI) {
-    for (unsigned i = 0, e = FirstMI->getNumOperands(); i != e; ++i) {
-      MachineOperand &MO = FirstMI->getOperand(i);
-      if (!MO.isReg())
-        continue;
-      if (MO.isDef()) {
-        Defs.push_back(&MO);
-        continue;
-      }
-
-      unsigned Reg = MO.getReg();
-      if (!Reg)
-        continue;
-      assert(TargetRegisterInfo::isPhysicalRegister(Reg));
-      if (LocalDefSet.count(Reg)) {
-        MO.setIsInternalRead();
-        if (MO.isKill())
-          // Internal def is now killed.
-          KilledDefSet.insert(Reg);
-      } else {
-        if (ExternUseSet.insert(Reg).second) {
-          ExternUses.push_back(Reg);
-          if (MO.isUndef())
-            UndefUseSet.insert(Reg);
-        }
-        if (MO.isKill())
-          // External def is now killed.
-          KilledUseSet.insert(Reg);
-      }
-    }
-
-    for (unsigned i = 0, e = Defs.size(); i != e; ++i) {
-      MachineOperand &MO = *Defs[i];
-      unsigned Reg = MO.getReg();
-      if (!Reg)
-        continue;
-
-      if (LocalDefSet.insert(Reg).second) {
-        LocalDefs.push_back(Reg);
-        if (MO.isDead()) {
-          DeadDefSet.insert(Reg);
-        }
-      } else {
-        // Re-defined inside the bundle, it's no longer killed.
-        KilledDefSet.erase(Reg);
-        if (!MO.isDead())
-          // Previously defined but dead.
-          DeadDefSet.erase(Reg);
-      }
-
-      if (!MO.isDead()) {
-        for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs) {
-          unsigned SubReg = *SubRegs;
-          if (LocalDefSet.insert(SubReg).second)
-            LocalDefs.push_back(SubReg);
-        }
-      }
-    }
-
-    Defs.clear();
-  }
-
-  SmallSet<unsigned, 32> Added;
-  for (unsigned i = 0, e = LocalDefs.size(); i != e; ++i) {
-    unsigned Reg = LocalDefs[i];
-    if (Added.insert(Reg).second) {
-      // If it's not live beyond end of the bundle, mark it dead.
-      bool isDead = DeadDefSet.count(Reg) || KilledDefSet.count(Reg);
-      MIB.addReg(Reg, getDefRegState(true) | getDeadRegState(isDead) |
-                 getImplRegState(true));
-    }
-  }
-
-  for (unsigned i = 0, e = ExternUses.size(); i != e; ++i) {
-    unsigned Reg = ExternUses[i];
-    bool isKill = KilledUseSet.count(Reg);
-    bool isUndef = UndefUseSet.count(Reg);
-    MIB.addReg(Reg, getKillRegState(isKill) | getUndefRegState(isUndef) |
-               getImplRegState(true));
-  }
+  for (MachineInstr &MI : make_range(std::next(FirstMI), LastMI))
+    MI.bundleWithPred();
+  finalizeBundle(*FirstMI);
 }
 
 /// finalizeBundle - Same functionality as the previous finalizeBundle except
@@ -225,12 +216,9 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
 MachineBasicBlock::instr_iterator
 llvm::finalizeBundle(MachineBasicBlock &MBB,
                      MachineBasicBlock::instr_iterator FirstMI) {
-  MachineBasicBlock::instr_iterator E = MBB.instr_end();
-  MachineBasicBlock::instr_iterator LastMI = std::next(FirstMI);
-  while (LastMI != E && LastMI->isInsideBundle())
-    ++LastMI;
-  finalizeBundle(MBB, FirstMI, LastMI);
-  return LastMI;
+  assert(FirstMI->getParent() == &MBB && "matching basic block");
+  MachineInstr &Bundle = finalizeBundle(*FirstMI);
+  return getBundleEnd(Bundle.getIterator());
 }
 
 /// finalizeBundles - Finalize instruction bundles in the specified
