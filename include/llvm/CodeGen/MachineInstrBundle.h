@@ -19,6 +19,8 @@
 
 namespace llvm {
 
+MachineInstr &finalizeBundle(MachineInstr &FirstMI);
+
 /// finalizeBundle - Finalize a machine instruction bundle which includes
 /// a sequence of instructions starting from FirstMI to LastMI (exclusive).
 /// This routine adds a BUNDLE instruction to represent the bundle, it adds
