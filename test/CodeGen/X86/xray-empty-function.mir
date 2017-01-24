@@ -6,8 +6,7 @@ name: empty
 tracksRegLiveness: true
 liveins:
   - { reg: '%edi'}
-body:            |
+body: |
   bb.0:
     ; CHECK-NOT: PATCHABLE_FUNCTION_ENTER
 ...
-

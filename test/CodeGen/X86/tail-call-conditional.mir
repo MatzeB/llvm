@@ -3,27 +3,10 @@
 # Check the TCRETURNdi64cc optimization.
 
 --- |
-  target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
-
-  define i64 @test(i64 %arg, i8* %arg1) optsize {
-    %tmp = icmp ult i64 %arg, 100
-    br i1 %tmp, label %1, label %4
-
-    %tmp3 = icmp ult i64 %arg, 10
-    br i1 %tmp3, label %2, label %3
-
-    %tmp5 = tail call i64 @f1(i8* %arg1, i64 %arg)
-    ret i64 %tmp5
-
-    %tmp7 = tail call i64 @f2(i8* %arg1, i64 %arg)
-    ret i64 %tmp7
-
-    ret i64 123
-  }
+  define void @test() optsize { ret void }
 
   declare i64 @f1(i8*, i64)
   declare i64 @f2(i8*, i64)
-
 ...
 ---
 name: test
@@ -31,7 +14,7 @@ tracksRegLiveness: true
 liveins:
   - { reg: '%rdi' }
   - { reg: '%rsi' }
-body:             |
+body: |
   bb.0:
     successors: %bb.1, %bb.4
     liveins: %rdi, %rsi
@@ -81,5 +64,4 @@ body:             |
   bb.4:
     dead %eax = MOV32ri64 123, implicit-def %rax
     RET 0, %rax
-
 ...

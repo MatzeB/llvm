@@ -1,8 +1,5 @@
 # RUN: llc -o /dev/null %s -mtriple=aarch64-darwin-ios -run-pass=liveintervals -debug-only=regalloc -precompute-phys-liveness 2>&1 | FileCheck %s
 # REQUIRES: asserts
---- |
-  define void @reserved_reg_liveness() { ret void }
-...
 ---
 # CHECK-LABEL: ********** INTERVALS **********
 # W29 is reserved, so we should only see dead defs

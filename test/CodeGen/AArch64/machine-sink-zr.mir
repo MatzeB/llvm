@@ -1,7 +1,4 @@
 # RUN: llc -mtriple=aarch64-none-linux-gnu -run-pass machine-sink -o - %s | FileCheck %s
---- |
-  define void @sinkwzr() { ret void }
-...
 ---
 name:            sinkwzr
 tracksRegLiveness: true
@@ -44,5 +41,4 @@ body:             |
 
   bb.3:
     RET_ReallyLR
-
 ...

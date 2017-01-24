@@ -4,8 +4,7 @@
 # CHECK: IMAGE_SAMPLE_C_D_O_V1_V16 %[[REG]]
 
 ---
-name:            main
-alignment:       0
+name: main
 tracksRegLiveness: true
 registers:
   - { id: 0, class: sreg_64 }
@@ -39,7 +38,7 @@ frameInfo:
   hasOpaqueSPAdjustment: false
   hasVAStart:      false
   hasMustTailInVarArgFunc: false
-body:             |
+body: |
   bb.0:
     liveins: %sgpr2_sgpr3, %vgpr2, %vgpr3
 
@@ -71,5 +70,4 @@ body:             |
     %20.sub7 = COPY %2
     %20.sub8 = COPY %2
     dead %27 = IMAGE_SAMPLE_C_D_O_V1_V16 %20, %5, %6, 1, 0, 0, 0, 0, 0, 0, -1, implicit %exec
-
 ...

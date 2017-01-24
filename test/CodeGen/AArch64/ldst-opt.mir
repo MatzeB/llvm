@@ -1,10 +1,4 @@
 # RUN: llc -mtriple=aarch64--linux-gnu -run-pass=aarch64-ldst-opt %s -verify-machineinstrs -o - 2>&1 | FileCheck %s
---- |
-  define void @promote-load-from-store() { ret void }
-  define void @store-pair() { ret void }
-  define void @store-pair-clearkill0() { ret void }
-  define void @store-pair-clearkill1() { ret void }
-...
 ---
 name: promote-load-from-store
 tracksRegLiveness: true

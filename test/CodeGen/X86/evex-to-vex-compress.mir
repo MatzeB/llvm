@@ -1,15 +1,6 @@
 # RUN: llc -march=x86-64 -run-pass x86-evex-to-vex-compress -verify-machineinstrs -mcpu=skx -o - %s | FileCheck %s
 # This test verifies VEX encdoing for AVX-512 instructions that use registers of low inedexes and
 # do not use zmm or mask registers and have a corresponding AVX/AVX2 opcode
-
---- |
-   define void @evex_z256_to_vex_test() { ret void }
-   define void @evex_z128_to_vex_test() { ret void }   
-   define void @evex_scalar_to_vex_test() { ret void }   
-   define void @evex_z256_to_evex_test() { ret void }
-   define void @evex_z128_to_evex_test() { ret void }
-   define void @evex_scalar_to_evex_test() { ret void }
-...
 ---
   # CHECK-LABEL: name: evex_z256_to_vex_test
   # CHECK: bb.0:
@@ -4480,6 +4471,6 @@ body: |
   VUCOMISSZrm                                  %xmm16, %rdi, _, _, _, _, implicit-def %eflags             
   ; CHECK: VUCOMISSZrr                         %xmm16, %xmm1, implicit-def %eflags 
   VUCOMISSZrr                                  %xmm16, %xmm1, implicit-def %eflags 
-  
+
       RET 0, %zmm0, %zmm1
 ...

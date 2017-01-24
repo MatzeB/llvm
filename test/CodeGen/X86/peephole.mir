@@ -1,7 +1,4 @@
 # RUN: llc -mtriple=x86_64-- -run-pass=peephole-opt %s -o - | FileCheck %s
---- |
-  define void @func() { ret void }
-...
 ---
 # Check that instructions with MI.isBitcast() are only replaced by COPY if there
 # are no SUBREG_TO_REG users.
