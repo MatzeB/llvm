@@ -1248,7 +1248,8 @@ private:
 ///
 class Output : public IO {
 public:
-  Output(llvm::raw_ostream &, void *Ctxt = nullptr, int WrapColumn = 70);
+  Output(llvm::raw_ostream &, void *Ctxt = nullptr, int WrapColumn = 70,
+         bool PadKeys = true);
   ~Output() override;
 
   bool outputting() override;
@@ -1314,6 +1315,7 @@ private:
   bool                     NeedFlowSequenceComma;
   bool                     EnumerationMatchFound;
   bool                     NeedsNewLine;
+  const bool               PadKeys;
 };
 
 /// YAML I/O does conversion based on types. But often native data types

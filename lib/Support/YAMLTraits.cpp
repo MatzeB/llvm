@@ -397,7 +397,7 @@ bool Input::canElideEmptySequence() {
 //  Output
 //===----------------------------------------------------------------------===//
 
-Output::Output(raw_ostream &yout, void *context, int WrapColumn)
+Output::Output(raw_ostream &yout, void *context, int WrapColumn, bool PadKeys)
     : IO(context),
       Out(yout),
       WrapColumn(WrapColumn),
@@ -407,7 +407,8 @@ Output::Output(raw_ostream &yout, void *context, int WrapColumn)
       NeedBitValueComma(false),
       NeedFlowSequenceComma(false),
       EnumerationMatchFound(false),
-      NeedsNewLine(false) {
+      NeedsNewLine(false),
+      PadKeys(PadKeys) {
 }
 
 Output::~Output() {
@@ -729,11 +730,14 @@ void Output::newLineCheck() {
 void Output::paddedKey(StringRef key) {
   output(key);
   output(":");
-  const char *spaces = "                ";
-  if (key.size() < strlen(spaces))
-    output(&spaces[key.size()]);
-  else
-    output(" ");
+  if (PadKeys) {
+    const char *spaces = "                ";
+    if (key.size() < strlen(spaces)) {
+      output(&spaces[key.size()]);
+      return;
+    }
+  }
+  output(" ");
 }
 
 void Output::flowKey(StringRef Key) {
