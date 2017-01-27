@@ -468,12 +468,6 @@ public:
 protected:
   // Top-Level entry points for the schedule() driver...
 
-  /// Call ScheduleDAGInstrs::buildSchedGraph with register pressure tracking
-  /// enabled. This sets up three trackers. RPTracker will cover the entire DAG
-  /// region, TopTracker and BottomTracker will be initialized to the top and
-  /// bottom of the DAG region without covereing any unscheduled instruction.
-  void buildDAGWithRegPressure();
-
   /// Release ExitSU predecessors and setup scheduler queues. Re-position
   /// the Top RP tracker in case the region beginning has changed.
   void initQueues(ArrayRef<SUnit*> TopRoots, ArrayRef<SUnit*> BotRoots);

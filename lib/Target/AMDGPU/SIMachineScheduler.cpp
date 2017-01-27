@@ -1779,7 +1779,9 @@ void SIScheduleDAGMI::schedule()
   SIScheduleBlockResult Best, Temp;
   DEBUG(dbgs() << "Preparing Scheduling\n");
 
-  buildDAGWithRegPressure();
+  buildSchedGraph(AA, nullptr, nullptr, nullptr, ShouldTrackLaneMasks);
+  initRegPressure();
+
   DEBUG(
     for(SUnit& SU : SUnits)
        SU.dumpAll(this)
