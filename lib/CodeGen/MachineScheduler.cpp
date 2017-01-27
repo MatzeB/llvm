@@ -27,13 +27,14 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachinePassRegistry.h"
-#include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/MachineValueType.h"
+#include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
@@ -562,6 +563,21 @@ bool ScheduleDAGMI::canAddEdge(SUnit *SuccSU, SUnit *PredSU) {
   return SuccSU == &ExitSU || !Topo.IsReachable(PredSU, SuccSU);
 }
 
+bool ScheduleDAGMI::canScheduleAdjacent(const SUnit &SU0, const SUnit &SU1) {
+  // Shortcut if instructions are already scheduled next to each other.
+  if (std::next(SU0.getInstr()->getIterator()) == SU1.getInstr()->getIterator())
+    return true;
+
+  for (const SDep &SuccDep : SU0.Succs) {
+    const SUnit &Succ = *SuccDep.getSUnit();
+    if (&Succ == &SU1)
+      continue;
+    if (&SU1 == &ExitSU || Topo.IsReachable(&Succ, &SU1))
+      return false;
+  }
+  return true;
+}
+
 bool ScheduleDAGMI::addEdge(SUnit *SuccSU, const SDep &PredDep) {
   if (SuccSU != &ExitSU) {
     // Do not use WillCreateCycle, it assumes SD scheduling.
@@ -573,6 +589,10 @@ bool ScheduleDAGMI::addEdge(SUnit *SuccSU, const SDep &PredDep) {
   SuccSU->addPred(PredDep, /*Required=*/!PredDep.isArtificial());
   // Return true regardless of whether a new edge needed to be inserted.
   return true;
+}
+
+void ScheduleDAGMI::updated() {
+  Topo.InitDAGTopologicalSorting();
 }
 
 /// ReleaseSucc - Decrement the NumPredsLeft count of a successor. When
@@ -712,6 +732,10 @@ void ScheduleDAGMI::schedule() {
   Topo.InitDAGTopologicalSorting();
 
   postprocessDAG();
+
+  // Early return if there is nothing left to schedule now.
+  if (RegionBegin == RegionEnd || RegionBegin == std::prev(RegionEnd))
+    return;
 
   SmallVector<SUnit*, 8> TopRoots, BotRoots;
   findRootsAndBiasEdges(TopRoots, BotRoots);
@@ -1602,6 +1626,60 @@ void BaseMemOpClusterMutation::apply(ScheduleDAGInstrs *DAGInstrs) {
   // Iterate over the store chains.
   for (unsigned Idx = 0, End = StoreChainDependents.size(); Idx != End; ++Idx)
     clusterNeighboringMemOps(StoreChainDependents[Idx], DAG);
+}
+
+//===----------------------------------------------------------------------===//
+
+void llvm::bundleSUnits(ScheduleDAGMI &DAG, SUnit &SU0, SUnit &SU1) {
+  MachineInstr &MI0 = *SU0.getInstr();
+  MachineInstr &MI1 = *SU1.getInstr();
+  // Move MI0 in front of MI1.
+  MachineBasicBlock::iterator MI0Iter = MI0.getIterator();
+  MachineBasicBlock::iterator MI1Iter = MI1.getIterator();
+  LiveIntervals *LIS = DAG.getLIS();
+  MachineBasicBlock &MBB = *MI0.getParent();
+  if (std::next(MI0Iter) != MI1Iter) {
+    MBB.splice(MI1Iter, &MBB, MI0Iter);
+    if (LIS)
+      LIS->handleMove(MI0, true);
+  }
+
+  MI0.bundleWithSucc();
+  MachineInstr &Bundle = finalizeBundle(MI0);
+  if (LIS)
+    LIS->handleFinalizedBundle(Bundle);
+  SU0.setInstr(nullptr);
+  SU1.setInstr(&Bundle);
+  DAG.MISUnitMap.erase(&MI0);
+  DAG.MISUnitMap.erase(&MI1);
+  DAG.MISUnitMap[&Bundle] = &SU1;
+  if (DAG.end() != MBB.end() && &*DAG.end() == &MI1)
+    DAG.setEnd(Bundle.getIterator());
+  if (&*DAG.begin() == &MI0)
+    DAG.setBegin(Bundle.getIterator());
+
+  for (unsigned I = SU1.Preds.size(); I > 0; --I) {
+    SDep &Dep = SU1.Preds[I - 1];
+    if (Dep.getSUnit() == &SU0)
+      SU1.removePred(Dep);
+  }
+
+  // We merge SU0 into SU1; transfer preds+succs of SU0 to SU1.
+  //Transfer predecessors SU0 to SU1.
+  while (!SU0.Preds.empty()) {
+    SDep &Dep = SU0.Preds.back();
+    SU0.removePred(Dep);
+    SU1.addPred(Dep);
+  }
+  while (!SU0.Succs.empty()) {
+    SDep &Dep = SU0.Succs.back();
+    Dep.getSUnit()->removePred(Dep);
+    SU0.removeSucc(Dep);
+    SU1.addSucc(Dep);
+  }
+
+  SU0.skip = true;
+  DAG.updated();
 }
 
 //===----------------------------------------------------------------------===//

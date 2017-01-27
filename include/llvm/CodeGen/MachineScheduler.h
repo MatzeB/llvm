@@ -299,12 +299,22 @@ public:
   /// a cycle.
   bool canAddEdge(SUnit *SuccSU, SUnit *PredSU);
 
+  /// \brief Returns true if scheduling \p SU0 immediately in front of \p SU1
+  /// does not violate any scheduling constraints. \p SU1 may (transitively)
+  /// depend on \p SU0; the behaviour is undefined if \p SU0 depends on \p SU1.
+  bool canScheduleAdjacent(const SUnit &SU0, const SUnit &SU1);
+
   /// \brief Add a DAG edge to the given SU with the given predecessor
   /// dependence data.
   ///
   /// \returns true if the edge may be added without creating a cycle OR if an
   /// equivalent edge already existed (false indicates failure).
   bool addEdge(SUnit *SuccSU, const SDep &PredDep);
+
+  /// Recompute the internal topological sort.
+  /// This should be called after the changing the graph so that functions like
+  /// canAddEdge(), addEdge or canScheduleAdjacent() keep working correctly.
+  void updated();
 
   MachineBasicBlock::iterator top() const { return CurrentTop; }
   MachineBasicBlock::iterator bottom() const { return CurrentBottom; }
@@ -1001,6 +1011,8 @@ protected:
   void pickNodeFromQueue(SchedCandidate &Cand);
 };
 
+void bundleSUnits(ScheduleDAGMI &DAG, SUnit &SU0, SUnit &SU1);
+
 /// Create the standard converging machine scheduler. This will be used as the
 /// default scheduler if the target does not set a default.
 /// Adds default DAG mutations.
@@ -1016,6 +1028,9 @@ createLoadClusterDAGMutation(const TargetInstrInfo *TII,
 std::unique_ptr<ScheduleDAGMutation>
 createStoreClusterDAGMutation(const TargetInstrInfo *TII,
                               const TargetRegisterInfo *TRI);
+
+std::unique_ptr<ScheduleDAGMutation>
+createMacroFusionBundleDAGMutation(const TargetInstrInfo *TII);
 
 std::unique_ptr<ScheduleDAGMutation>
 createCopyConstrainDAGMutation(const TargetInstrInfo *TII,

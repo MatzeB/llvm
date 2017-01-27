@@ -133,10 +133,12 @@ namespace llvm {
     /// Instructions in this region (distance(RegionBegin, RegionEnd)).
     unsigned NumRegionInstrs;
 
+  public:
     /// After calling BuildSchedGraph, each machine instruction in the current
     /// scheduling region is mapped to an SUnit.
     DenseMap<MachineInstr*, SUnit*> MISUnitMap;
 
+  protected:
     // State internal to DAG building.
     // -------------------------------
 

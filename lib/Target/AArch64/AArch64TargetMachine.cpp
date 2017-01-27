@@ -358,6 +358,7 @@ public:
   void addPostRegAlloc() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
+  void addMachineLateOptimization() override;
 };
 
 } // end anonymous namespace
@@ -515,6 +516,16 @@ void AArch64PassConfig::addPreSched2() {
 }
 
 void AArch64PassConfig::addPreEmitPass() {
+  // Unpack the instruction bundles we used to keep macrofusion opportunities
+  // bundled together.
+  addPass(createUnpackMachineBundles([](const MachineFunction &MF) {
+    const AArch64Subtarget &STI = MF.getSubtarget<AArch64Subtarget>();
+    // TODO: It would be nice to add an extra check here to whether PostRA
+    // scheduling is actually enabled, however the exact logic is only within
+    // PostMachineScheduler::runOnMachineFunction() for now.
+    return STI.enablePostRAScheduler() && STI.hasMacroFusion();
+  }));
+
   if (EnableA53Fix835769)
     addPass(createAArch64A53Fix835769());
   // Relax conditional branch instructions if they're otherwise out of
@@ -525,4 +536,15 @@ void AArch64PassConfig::addPreEmitPass() {
   if (TM->getOptLevel() != CodeGenOpt::None && EnableCollectLOH &&
       TM->getTargetTriple().isOSBinFormatMachO())
     addPass(createAArch64CollectLOHPass());
+}
+
+void AArch64PassConfig::addMachineLateOptimization() {
+  // Unpack the instruction bundles we used to keep macrofusion opportunities
+  // bundled together.
+  addPass(createUnpackMachineBundles([](const MachineFunction &MF) {
+    const AArch64Subtarget &STI = MF.getSubtarget<AArch64Subtarget>();
+    return STI.hasMacroFusion();
+  }));
+
+  TargetPassConfig::addMachineLateOptimization();
 }

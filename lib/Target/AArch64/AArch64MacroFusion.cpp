@@ -184,35 +184,24 @@ static bool scheduleAdjacentImpl(ScheduleDAGMI *DAG, SUnit *ASU,
 
     SUnit *BSU = BDep.getSUnit();
     const MachineInstr *BMI = BSU->getInstr();
-    if (!BMI || BMI->isPseudo() || BMI->isTransient() ||
-        (Preds && !shouldScheduleAdjacent(*TII, ST, BMI, AMI)) ||
-        (!Preds && !shouldScheduleAdjacent(*TII, ST, AMI, BMI)))
+    if (!BMI || BMI->isPseudo() || BMI->isTransient())
       continue;
 
-    // Create a single weak edge between the adjacent instrs. The only
-    // effect is to cause bottom-up scheduling to heavily prioritize the
-    // clustered instrs.
-    if (Preds)
-      DAG->addEdge(ASU, SDep(BSU, SDep::Cluster));
-    else
-      DAG->addEdge(BSU, SDep(ASU, SDep::Cluster));
+    SUnit &Pred = Preds ? *BSU : *ASU;
+    SUnit &Succ = Preds ? *ASU : *BSU;
 
-    // Adjust the latency between the 1st instr and its predecessors/successors.
-    for (SDep &Dep : APreds)
-      if (Dep.getSUnit() == BSU)
-        Dep.setLatency(0);
+    if (!shouldScheduleAdjacent(*TII, ST, Pred.getInstr(), Succ.getInstr()))
+      continue;
+    if (!DAG->canScheduleAdjacent(Pred, Succ))
+      continue;
 
-    // Adjust the latency between the 2nd instr and its successors/predecessors.
-    auto &BSuccs = Preds ? BSU->Succs : BSU->Preds;
-    for (SDep &Dep : BSuccs)
-      if (Dep.getSUnit() == ASU)
-        Dep.setLatency(0);
+    bundleSUnits(*DAG, Pred, Succ);
 
     ++NumFused;
     DEBUG(dbgs() << "Macro fuse ";
-          Preds ? BSU->print(dbgs(), DAG) : ASU->print(dbgs(), DAG);
+          Pred.print(dbgs(), DAG);
           dbgs() << " - ";
-          Preds ? ASU->print(dbgs(), DAG) : BSU->print(dbgs(), DAG);
+          Succ.print(dbgs(), DAG);
           dbgs() << '\n');
 
     return true;
