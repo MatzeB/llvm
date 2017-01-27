@@ -782,9 +782,6 @@ void ScheduleDAGInstrs::insertBarrierChain(Value2SUsMap &map) {
 }
 
 void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
-                                        RegPressureTracker *RPTracker,
-                                        PressureDiffs *PDiffs,
-                                        LiveIntervals *LIS,
                                         bool TrackLaneMasks) {
   const TargetSubtargetInfo &ST = MF.getSubtarget();
   bool UseAA = EnableAASchedMI.getNumOccurrences() > 0 ? EnableAASchedMI
@@ -799,9 +796,6 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
 
   // Create an SUnit for each real instruction.
   initSUnits();
-
-  if (PDiffs)
-    PDiffs->init(SUnits.size());
 
   // We build scheduling units by walking a block's instruction list
   // from bottom to top.
@@ -859,21 +853,6 @@ void ScheduleDAGInstrs::buildSchedGraph(AliasAnalysis *AA,
     }
     SUnit *SU = MISUnitMap[&MI];
     assert(SU && "No SUnit mapped to this MI");
-
-    if (RPTracker) {
-      RegisterOperands RegOpers;
-      RegOpers.collect(MI, *TRI, MRI, TrackLaneMasks, false);
-      if (TrackLaneMasks) {
-        SlotIndex SlotIdx = LIS->getInstructionIndex(MI);
-        RegOpers.adjustLaneLiveness(*LIS, MRI, SlotIdx);
-      }
-      if (PDiffs != nullptr)
-        PDiffs->addInstruction(SU->NodeNum, RegOpers, MRI);
-
-      RPTracker->recedeSkipDebugValues();
-      assert(&*RPTracker->getPos() == &MI && "RPTracker in sync");
-      RPTracker->recede(RegOpers);
-    }
 
     assert(
         (CanHandleTerminators || (!MI.isTerminator() && !MI.isPosition())) &&

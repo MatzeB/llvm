@@ -1188,7 +1188,7 @@ void ScheduleDAGMILive::updatePressureDiffs(
 void ScheduleDAGMILive::schedule() {
   DEBUG(dbgs() << "ScheduleDAGMILive::schedule starting\n");
   DEBUG(SchedImpl->dumpPolicy());
-  buildSchedGraph(AA, nullptr, nullptr, nullptr, ShouldTrackLaneMasks);
+  buildSchedGraph(AA, ShouldTrackLaneMasks);
 
   Topo.InitDAGTopologicalSorting();
 

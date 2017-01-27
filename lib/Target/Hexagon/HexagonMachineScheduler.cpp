@@ -261,7 +261,7 @@ void VLIWMachineScheduler::schedule() {
         << " at loop depth "  << MLI->getLoopDepth(BB)
         << " \n");
 
-  buildSchedGraph(AA, nullptr, nullptr, nullptr, ShouldTrackLaneMasks);
+  buildSchedGraph(AA, ShouldTrackLaneMasks);
   initRegPressure();
 
   SmallVector<SUnit*, 8> TopRoots, BotRoots;

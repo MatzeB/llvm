@@ -284,14 +284,7 @@ namespace llvm {
     virtual void exitRegion();
 
     /// Builds SUnits for the current region.
-    /// If \p RPTracker is non-null, compute register pressure as a side effect.
-    /// The DAG builder is an efficient place to do it because it already visits
-    /// operands.
-    void buildSchedGraph(AliasAnalysis *AA,
-                         RegPressureTracker *RPTracker = nullptr,
-                         PressureDiffs *PDiffs = nullptr,
-                         LiveIntervals *LIS = nullptr,
-                         bool TrackLaneMasks = false);
+    void buildSchedGraph(AliasAnalysis *AA, bool TrackLaneMasks = false);
 
     /// \brief Adds dependencies from instructions in the current list of
     /// instructions being scheduled to scheduling barrier. We want to make sure

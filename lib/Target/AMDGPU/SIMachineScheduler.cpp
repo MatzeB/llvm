@@ -1779,7 +1779,7 @@ void SIScheduleDAGMI::schedule()
   SIScheduleBlockResult Best, Temp;
   DEBUG(dbgs() << "Preparing Scheduling\n");
 
-  buildSchedGraph(AA, nullptr, nullptr, nullptr, ShouldTrackLaneMasks);
+  buildSchedGraph(AA, ShouldTrackLaneMasks);
   initRegPressure();
 
   DEBUG(
