@@ -151,7 +151,7 @@ private:
   };
   /// A vector of all debug/EH info emitters we should use. This vector
   /// maintains ownership of the emitters.
-  SmallVector<HandlerInfo, 1> Handlers;
+  SmallVector<HandlerInfo, 2> Handlers;
 
 public:
   struct SrcMgrDiagInfo {
