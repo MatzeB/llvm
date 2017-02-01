@@ -303,13 +303,14 @@ bool AsmPrinter::doInitialization(Module &M) {
       Handlers.push_back(HandlerInfo(new CodeViewDebug(this),
                                      DbgTimerName, DbgTimerDescription,
                                      CodeViewLineTablesGroupName,
-                                     CodeViewLineTablesGroupDescription));
+                                     CodeViewLineTablesGroupDescription, true));
     }
     if (!EmitCodeView || MMI->getModule()->getDwarfVersion()) {
       DD = new DwarfDebug(this, &M);
       DD->beginModule();
       Handlers.push_back(HandlerInfo(DD, DbgTimerName, DbgTimerDescription,
-                                     DWARFGroupName, DWARFGroupDescription));
+                                     DWARFGroupName, DWARFGroupDescription,
+                                     true));
     }
   }
 
@@ -1296,15 +1297,14 @@ bool AsmPrinter::doFinalization(Module &M) {
     }
   }
 
-  // Finalize debug and EH information.
+  // Called endModule on handlers (exception info).
   for (const HandlerInfo &HI : Handlers) {
+    if (HI.EmitLate)
+      continue;
     NamedRegionTimer T(HI.TimerName, HI.TimerDescription, HI.TimerGroupName,
                        HI.TimerGroupDescription, TimePassesIsEnabled);
     HI.Handler->endModule();
-    delete HI.Handler;
   }
-  Handlers.clear();
-  DD = nullptr;
 
   // If the target wants to know about weak references, print them all.
   if (MAI->getWeakRefDirective()) {
@@ -1379,6 +1379,20 @@ bool AsmPrinter::doFinalization(Module &M) {
   // Allow the target to emit any magic that it wants at the end of the file,
   // after everything else has gone out.
   EmitEndOfAsmFile(M);
+
+  // Finalize late handlers (debug info).
+  for (const HandlerInfo &HI : Handlers) {
+    if (HI.EmitLate) {
+      NamedRegionTimer T(HI.TimerName, HI.TimerDescription, HI.TimerGroupName,
+                         HI.TimerGroupDescription, TimePassesIsEnabled);
+      HI.Handler->endModule();
+    }
+    delete HI.Handler;
+  }
+  Handlers.clear();
+  DD = nullptr;
+
+  // Emit late handlers (debug info).
 
   MMI = nullptr;
 

@@ -4,7 +4,7 @@
 ; CHECK-NOT: .section
 ; CHECK: .L_ZTId.DW.stub:
 
-; CHECK:  .data
+; CHECK:  .data{{$}}
 ; CHECK-NEXT: .Lsec_end0:
 
 source_filename = "test/DebugInfo/X86/arange-and-stub.ll"

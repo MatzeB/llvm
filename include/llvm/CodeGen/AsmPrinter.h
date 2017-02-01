@@ -141,13 +141,14 @@ private:
     const char *TimerDescription;
     const char *TimerGroupName;
     const char *TimerGroupDescription;
+    bool EmitLate; ///< Handlers endModule() is called after EmitEndOfAsmFile().
 
     HandlerInfo(AsmPrinterHandler *Handler, const char *TimerName,
                 const char *TimerDescription, const char *TimerGroupName,
-                const char *TimerGroupDescription)
+                const char *TimerGroupDescription, bool EmitLate = false)
         : Handler(Handler), TimerName(TimerName),
           TimerDescription(TimerDescription), TimerGroupName(TimerGroupName),
-          TimerGroupDescription(TimerGroupDescription) {}
+          TimerGroupDescription(TimerGroupDescription), EmitLate(EmitLate) {}
   };
   /// A vector of all debug/EH info emitters we should use. This vector
   /// maintains ownership of the emitters.
