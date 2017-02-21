@@ -378,9 +378,14 @@ class TargetRegisterInfo;
       return Instr;
     }
 
-    /// Adds the specified edge as a pred of the current node if not already.
-    /// It also adds the current node as a successor of the specified node.
-    bool addPred(const SDep &D, bool Required = true);
+    /// Adds edge \p E as a predecessor of the current node if it does not exist
+    /// yet. It also adds the current node as a successor of the specified node.
+    bool addPred(const SDep &E, bool Required = true);
+
+    /// Adds edge \p E as a successor of the current node if it does not exist
+    /// yet. It also adds the current node as a predecessor of the specified
+    /// node.
+    bool addSucc(const SDep &E, bool Required = true);
 
     /// \brief Adds a barrier edge to SU by calling addPred(), with latency 0
     /// generally or latency 1 for a store followed by a load.
@@ -392,9 +397,13 @@ class TargetRegisterInfo;
       return addPred(Dep);
     }
 
-    /// Removes the specified edge as a pred of the current node if it exists.
+    /// Removes edge \p D as a predecessor of the current node if it exists.
     /// It also removes the current node as a successor of the specified node.
     void removePred(const SDep &D);
+
+    /// Removes edge \p D as a successor of the current node if it exists.
+    /// It also removes the current node as a predecessor of the specified node.
+    void removeSucc(const SDep &D);
 
     /// Returns the depth of this node, which is the length of the maximum path
     /// up to any node which has no predecessors.

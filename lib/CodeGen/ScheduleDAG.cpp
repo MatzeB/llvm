@@ -135,6 +135,13 @@ bool SUnit::addPred(const SDep &D, bool Required) {
   return true;
 }
 
+bool SUnit::addSucc(const SDep &S, bool Required) {
+  SUnit &Succ = *S.getSUnit();
+  SDep P = S;
+  P.setSUnit(this);
+  return Succ.addPred(P, Required);
+}
+
 void SUnit::removePred(const SDep &D) {
   // Find the matching predecessor.
   SmallVectorImpl<SDep>::iterator I = llvm::find(Preds, D);
@@ -175,6 +182,13 @@ void SUnit::removePred(const SDep &D) {
     this->setDepthDirty();
     N->setHeightDirty();
   }
+}
+
+void SUnit::removeSucc(const SDep &S) {
+  SUnit &Succ = *S.getSUnit();
+  SDep P = S;
+  P.setSUnit(this);
+  Succ.removePred(P);
 }
 
 void SUnit::setDepthDirty() {
