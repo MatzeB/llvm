@@ -313,6 +313,8 @@ void MachineBasicBlock::print(raw_ostream &OS, ModuleSlotTracker &MST,
     if (Indexes) {
       if (Indexes->hasIndex(I))
         OS << Indexes->getInstructionIndex(I);
+      else
+        OS << "    ";
       OS << '\t';
     }
     OS << '\t';
