@@ -1,0 +1,15 @@
+... |
+  define void @func0() #0 {
+    ret void
+  }
+  attributes #0 = { "llc-test-handlemove"="2,1" }
+---
+...
+name: func0
+body: |
+  bb.0:
+    S_NOP 0
+    S_NOP 0
+    early-clobber %0 : sreg_64 = IMPLICIT_DEF
+    S_NOP 0, implicit %0
+...
