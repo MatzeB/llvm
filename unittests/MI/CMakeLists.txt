@@ -9,5 +9,7 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_llvm_unittest(MITests
+  MITests.cpp
   LiveIntervalTest.cpp
+  FinalizeBundleTest.cpp
   )

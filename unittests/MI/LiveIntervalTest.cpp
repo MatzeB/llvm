@@ -1,3 +1,4 @@
+#include "MITests.h"
 #include "gtest/gtest.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
@@ -17,93 +18,7 @@
 
 using namespace llvm;
 
-namespace llvm {
-  void initializeTestPassPass(PassRegistry &);
-}
-
 namespace {
-
-void initLLVM() {
-  InitializeAllTargets();
-  InitializeAllTargetMCs();
-  InitializeAllAsmPrinters();
-  InitializeAllAsmParsers();
-
-  PassRegistry *Registry = PassRegistry::getPassRegistry();
-  initializeCore(*Registry);
-  initializeCodeGen(*Registry);
-}
-
-/// Create a TargetMachine. As we lack a dedicated always available target for
-/// unittests, we go for "AMDGPU" to be able to test normal and subregister
-/// liveranges.
-std::unique_ptr<TargetMachine> createTargetMachine() {
-  Triple TargetTriple("amdgcn--");
-  std::string Error;
-  const Target *T = TargetRegistry::lookupTarget("", TargetTriple, Error);
-  if (!T)
-    return nullptr;
-
-  TargetOptions Options;
-  return std::unique_ptr<TargetMachine>(
-      T->createTargetMachine("AMDGPU", "", "", Options, None,
-                             CodeModel::Default, CodeGenOpt::Aggressive));
-}
-
-std::unique_ptr<Module> parseMIR(LLVMContext &Context,
-    legacy::PassManagerBase &PM, std::unique_ptr<MIRParser> &MIR,
-    const TargetMachine &TM, StringRef MIRCode, const char *FuncName) {
-  SMDiagnostic Diagnostic;
-  std::unique_ptr<MemoryBuffer> MBuffer = MemoryBuffer::getMemBuffer(MIRCode);
-  MIR = createMIRParser(std::move(MBuffer), Context);
-  if (!MIR)
-    return nullptr;
-
-  std::unique_ptr<Module> M = MIR->parseLLVMModule();
-  if (!M)
-    return nullptr;
-
-  M->setDataLayout(TM.createDataLayout());
-
-  Function *F = M->getFunction(FuncName);
-  if (!F)
-    return nullptr;
-
-  MachineModuleInfo *MMI = new MachineModuleInfo(&TM);
-  MMI->setMachineFunctionInitializer(MIR.get());
-  PM.add(MMI);
-
-  return M;
-}
-
-typedef std::function<void(MachineFunction&,LiveIntervals&)> LiveIntervalTest;
-
-struct TestPass : public MachineFunctionPass {
-  static char ID;
-  TestPass() : MachineFunctionPass(ID) {
-    // We should never call this but always use PM.add(new TestPass(...))
-    abort();
-  }
-  TestPass(LiveIntervalTest T) : MachineFunctionPass(ID), T(T) {
-    initializeTestPassPass(*PassRegistry::getPassRegistry());
-  }
-
-  bool runOnMachineFunction(MachineFunction &MF) override {
-    LiveIntervals &LIS = getAnalysis<LiveIntervals>();
-    T(MF, LIS);
-    EXPECT_TRUE(MF.verify(this));
-    return true;
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.setPreservesAll();
-    AU.addRequired<LiveIntervals>();
-    AU.addPreserved<LiveIntervals>();
-    MachineFunctionPass::getAnalysisUsage(AU);
-  }
-private:
-  LiveIntervalTest T;
-};
 
 static MachineInstr &getMI(MachineFunction &MF, unsigned At,
                            unsigned BlockNum) {
@@ -132,9 +47,11 @@ static void testHandleMove(MachineFunction &MF, LiveIntervals &LIS,
   LIS.handleMove(FromInstr, true);
 }
 
-static void liveIntervalTest(StringRef MIRFunc, LiveIntervalTest T) {
+static void liveIntervalTest(StringRef MIRFunc, TestFunction T) {
   LLVMContext Context;
-  std::unique_ptr<TargetMachine> TM = createTargetMachine();
+  // As we lack a dedicated always available target for unittests, we go for
+  // "AMDGPU" to be able to test normal and subregister liveranges.
+  std::unique_ptr<TargetMachine> TM = createTargetMachine("amdgcn--");
   // This test is designed for the X86 backend; stop if it is not available.
   if (!TM)
     return;
@@ -146,8 +63,6 @@ static void liveIntervalTest(StringRef MIRFunc, LiveIntervalTest T) {
 ---
 ...
 name: func
-registers:
-  - { id: 0, class: sreg_64 }
 body: |
   bb.0:
 )MIR") + Twine(MIRFunc) + Twine("...\n")).toNullTerminatedStringRef(S);
@@ -155,31 +70,28 @@ body: |
   std::unique_ptr<Module> M = parseMIR(Context, PM, MIR, *TM, MIRString,
                                        "func");
 
-  PM.add(new TestPass(T));
+  PM.add(createTestPass(T));
 
   PM.run(*M);
 }
 
 } // End of anonymous namespace.
 
-char TestPass::ID = 0;
-INITIALIZE_PASS(TestPass, "testpass", "testpass", false, false)
-
-TEST(LiveIntervalTest, MoveUpDef) {
+TEST(TestFunction, MoveUpDef) {
   // Value defined.
   liveIntervalTest(R"MIR(
     S_NOP 0
     S_NOP 0
-    early-clobber %0 = IMPLICIT_DEF
+    early-clobber %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0, implicit %0
 )MIR", [](MachineFunction &MF, LiveIntervals &LIS) {
     testHandleMove(MF, LIS, 2, 1);
   });
 }
 
-TEST(LiveIntervalTest, MoveUpRedef) {
+TEST(TestFunction, MoveUpRedef) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     %0 = IMPLICIT_DEF implicit %0(tied-def 0)
     S_NOP 0, implicit %0
@@ -188,20 +100,20 @@ TEST(LiveIntervalTest, MoveUpRedef) {
   });
 }
 
-TEST(LiveIntervalTest, MoveUpEarlyDef) {
+TEST(TestFunction, MoveUpEarlyDef) {
   liveIntervalTest(R"MIR(
     S_NOP 0
     S_NOP 0
-    early-clobber %0 = IMPLICIT_DEF
+    early-clobber %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0, implicit %0
 )MIR", [](MachineFunction &MF, LiveIntervals &LIS) {
     testHandleMove(MF, LIS, 2, 1);
   });
 }
 
-TEST(LiveIntervalTest, MoveUpEarlyRedef) {
+TEST(TestFunction, MoveUpEarlyRedef) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     early-clobber %0 = IMPLICIT_DEF implicit %0(tied-def 0)
     S_NOP 0, implicit %0
@@ -210,9 +122,9 @@ TEST(LiveIntervalTest, MoveUpEarlyRedef) {
   });
 }
 
-TEST(LiveIntervalTest, MoveUpKill) {
+TEST(TestFunction, MoveUpKill) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     S_NOP 0, implicit %0
 )MIR", [](MachineFunction &MF, LiveIntervals &LIS) {
@@ -220,9 +132,9 @@ TEST(LiveIntervalTest, MoveUpKill) {
   });
 }
 
-TEST(LiveIntervalTest, MoveUpKillFollowing) {
+TEST(TestFunction, MoveUpKillFollowing) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     S_NOP 0, implicit %0
     S_NOP 0, implicit %0
@@ -234,11 +146,11 @@ TEST(LiveIntervalTest, MoveUpKillFollowing) {
 // TODO: Construct a situation where we have intervals following a hole
 // while still having connected components.
 
-TEST(LiveIntervalTest, MoveDownDef) {
+TEST(TestFunction, MoveDownDef) {
   // Value defined.
   liveIntervalTest(R"MIR(
     S_NOP 0
-    early-clobber %0 = IMPLICIT_DEF
+    early-clobber %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     S_NOP 0, implicit %0
 )MIR", [](MachineFunction &MF, LiveIntervals &LIS) {
@@ -246,9 +158,9 @@ TEST(LiveIntervalTest, MoveDownDef) {
   });
 }
 
-TEST(LiveIntervalTest, MoveDownRedef) {
+TEST(TestFunction, MoveDownRedef) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     %0 = IMPLICIT_DEF implicit %0(tied-def 0)
     S_NOP 0
     S_NOP 0, implicit %0
@@ -257,10 +169,10 @@ TEST(LiveIntervalTest, MoveDownRedef) {
   });
 }
 
-TEST(LiveIntervalTest, MoveDownEarlyDef) {
+TEST(TestFunction, MoveDownEarlyDef) {
   liveIntervalTest(R"MIR(
     S_NOP 0
-    early-clobber %0 = IMPLICIT_DEF
+    early-clobber %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     S_NOP 0, implicit %0
 )MIR", [](MachineFunction &MF, LiveIntervals &LIS) {
@@ -268,9 +180,9 @@ TEST(LiveIntervalTest, MoveDownEarlyDef) {
   });
 }
 
-TEST(LiveIntervalTest, MoveDownEarlyRedef) {
+TEST(TestFunction, MoveDownEarlyRedef) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     early-clobber %0 = IMPLICIT_DEF implicit %0(tied-def 0)
     S_NOP 0
     S_NOP 0, implicit %0
@@ -279,9 +191,9 @@ TEST(LiveIntervalTest, MoveDownEarlyRedef) {
   });
 }
 
-TEST(LiveIntervalTest, MoveDownKill) {
+TEST(TestFunction, MoveDownKill) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0, implicit %0
     S_NOP 0
 )MIR", [](MachineFunction &MF, LiveIntervals &LIS) {
@@ -289,9 +201,9 @@ TEST(LiveIntervalTest, MoveDownKill) {
   });
 }
 
-TEST(LiveIntervalTest, MoveDownKillFollowing) {
+TEST(TestFunction, MoveDownKillFollowing) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     S_NOP 0, implicit %0
     S_NOP 0, implicit %0
@@ -300,9 +212,9 @@ TEST(LiveIntervalTest, MoveDownKillFollowing) {
   });
 }
 
-TEST(LiveIntervalTest, MoveUndefUse) {
+TEST(TestFunction, MoveUndefUse) {
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0, implicit undef %0
     S_NOP 0, implicit %0
     S_NOP 0
@@ -311,13 +223,13 @@ TEST(LiveIntervalTest, MoveUndefUse) {
   });
 }
 
-TEST(LiveIntervalTest, MoveUpValNos) {
+TEST(TestFunction, MoveUpValNos) {
   // handleMoveUp() had a bug where it would reuse the value number of the
   // destination segment, even though we have no guarntee that this valno wasn't
   // used in other segments.
   liveIntervalTest(R"MIR(
     successors: %bb.1, %bb.2
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_CBRANCH_VCCNZ %bb.2, implicit undef %vcc
     S_BRANCH %bb.1
   bb.2:
@@ -333,10 +245,10 @@ TEST(LiveIntervalTest, MoveUpValNos) {
   });
 }
 
-TEST(LiveIntervalTest, MoveOverUndefUse0) {
+TEST(TestFunction, MoveOverUndefUse0) {
   // findLastUseBefore() used by handleMoveUp() must ignore undef operands.
   liveIntervalTest(R"MIR(
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_NOP 0
     S_NOP 0, implicit undef %0
     %0 = IMPLICIT_DEF implicit %0(tied-def 0)
@@ -345,7 +257,7 @@ TEST(LiveIntervalTest, MoveOverUndefUse0) {
   });
 }
 
-TEST(LiveIntervalTest, MoveOverUndefUse1) {
+TEST(TestFunction, MoveOverUndefUse1) {
   // findLastUseBefore() used by handleMoveUp() must ignore undef operands.
   liveIntervalTest(R"MIR(
     %sgpr0 = IMPLICIT_DEF
@@ -357,12 +269,12 @@ TEST(LiveIntervalTest, MoveOverUndefUse1) {
   });
 }
 
-TEST(LiveIntervalTest, SubRegMoveDown) {
+TEST(TestFunction, SubRegMoveDown) {
   // Subregister ranges can have holes inside a basic block. Check for a
   // movement of the form 32->150 in a liverange [16, 32) [100,200).
   liveIntervalTest(R"MIR(
     successors: %bb.1, %bb.2
-    %0 = IMPLICIT_DEF
+    %0 : sreg_64 = IMPLICIT_DEF
     S_CBRANCH_VCCNZ %bb.2, implicit undef %vcc
     S_BRANCH %bb.1
   bb.2:
@@ -380,10 +292,4 @@ TEST(LiveIntervalTest, SubRegMoveDown) {
     MI.getOperand(0).setIsUndef(false);
     testHandleMove(MF, LIS, 1, 4, /*BlockNum=*/1);
   });
-}
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  initLLVM();
-  return RUN_ALL_TESTS();
 }
