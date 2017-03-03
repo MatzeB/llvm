@@ -57,6 +57,35 @@ static void DistributeRange(LiveRangeT &LR, LiveRangeT *SplitLRs[],
   LR.valnos.resize(j);
 }
 
+/// Matches either \p VRegInterval itself or one of its SubRange objects to each
+/// register unit of \p PhysReg and calls \p Func with the (RegUnit, LiveRange)
+/// parameters for it. If Func returns true the whole function aborts early
+/// and returns true.
+template <typename Callable>
+static bool foreachUnit(const TargetRegisterInfo *TRI,
+                        const LiveInterval &VRegInterval, unsigned PhysReg,
+                        Callable Func) {
+  if (VRegInterval.hasSubRanges()) {
+    for (MCRegUnitMaskIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
+      unsigned Unit = (*Units).first;
+      LaneBitmask Mask = (*Units).second;
+      for (const LiveInterval::SubRange &SR : VRegInterval.subranges()) {
+        if ((SR.LaneMask & Mask).any()) {
+          if (Func(Unit, SR))
+            return true;
+          break;
+        }
+      }
+    }
+  } else {
+    for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
+      if (Func(*Units, VRegInterval))
+        return true;
+    }
+  }
+  return false;
+}
+
 } // End llvm namespace
 
 #endif

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "LiveRangeUtils.h"
 #include "RegisterCoalescer.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveInterval.h"
@@ -74,31 +75,6 @@ void LiveRegMatrix::releaseMemory() {
     // have anything important to clear and LiveRegMatrix's runOnFunction()
     // does a std::unique_ptr::reset anyways.
   }
-}
-
-template <typename Callable>
-static bool foreachUnit(const TargetRegisterInfo *TRI,
-                        LiveInterval &VRegInterval, unsigned PhysReg,
-                        Callable Func) {
-  if (VRegInterval.hasSubRanges()) {
-    for (MCRegUnitMaskIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-      unsigned Unit = (*Units).first;
-      LaneBitmask Mask = (*Units).second;
-      for (LiveInterval::SubRange &S : VRegInterval.subranges()) {
-        if ((S.LaneMask & Mask).any()) {
-          if (Func(Unit, S))
-            return true;
-          break;
-        }
-      }
-    }
-  } else {
-    for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-      if (Func(*Units, VRegInterval))
-        return true;
-    }
-  }
-  return false;
 }
 
 void LiveRegMatrix::assign(LiveInterval &VirtReg, unsigned PhysReg) {
@@ -178,7 +154,11 @@ bool LiveRegMatrix::checkRegUnitInterference(LiveInterval &VirtReg,
 LiveIntervalUnion::Query &LiveRegMatrix::query(const LiveRange &LR,
                                                unsigned RegUnit) {
   LiveIntervalUnion::Query &Q = Queries[RegUnit];
+  bool PrevSeenAllIntfs = Q.seenAllInterferences();
   Q.init(UserTag, LR, Matrix[RegUnit]);
+  if (!Q.seenAllInterferences() && PrevSeenAllIntfs) {
+    errs() << "Reset seenallIntfs for " << PrintRegUnit(RegUnit, TRI) << '\n';
+  }
   return Q;
 }
 

@@ -15,6 +15,7 @@
 #include "AllocationOrder.h"
 #include "InterferenceCache.h"
 #include "LiveDebugVariables.h"
+#include "LiveRangeUtils.h"
 #include "RegAllocBase.h"
 #include "SpillPlacement.h"
 #include "Spiller.h"
@@ -695,15 +696,13 @@ unsigned RAGreedy::canReassign(LiveInterval &VirtReg, unsigned PrevReg) {
     if (PhysReg == PrevReg)
       continue;
 
-    MCRegUnitIterator Units(PhysReg, TRI);
-    for (; Units.isValid(); ++Units) {
-      // Instantiate a "subquery", not to be confused with the Queries array.
-      LiveIntervalUnion::Query subQ(VirtReg, Matrix->getLiveUnions()[*Units]);
-      if (subQ.checkInterference())
-        break;
-    }
+    bool Interference = foreachUnit(TRI, VirtReg, PhysReg,
+                                    [&](unsigned Unit, const LiveRange &LR) {
+      LiveIntervalUnion::Query subQ(LR, Matrix->getLiveUnions()[Unit]);
+      return subQ.checkInterference();
+    });
     // If no units have interference, break out with the current PhysReg.
-    if (!Units.isValid())
+    if (!Interference)
       break;
   }
   if (PhysReg)
@@ -771,11 +770,12 @@ bool RAGreedy::canEvictInterference(LiveInterval &VirtReg, unsigned PhysReg,
     Cascade = NextCascade;
 
   EvictionCost Cost;
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    LiveIntervalUnion::Query &Q = Matrix->query(VirtReg, *Units);
+  bool cannotEvict = foreachUnit(TRI, VirtReg, PhysReg,
+      [&](unsigned Unit, const LiveRange &LR) {
+    LiveIntervalUnion::Query &Q = Matrix->query(LR, Unit);
     // If there is 10 or more interferences, chances are one is heavier.
     if (Q.collectInterferingVRegs(10) >= 10)
-      return false;
+      return true;
 
     // Check if any interfering live range is heavier than MaxWeight.
     for (unsigned i = Q.interferingVRegs().size(); i; --i) {
@@ -784,7 +784,7 @@ bool RAGreedy::canEvictInterference(LiveInterval &VirtReg, unsigned PhysReg,
              "Only expecting virtual register interference from query");
       // Never evict spill products. They cannot split or spill.
       if (getStage(*Intf) == RS_Done)
-        return false;
+        return true;
       // Once a live range becomes small enough, it is urgent that we find a
       // register for it. This is indicated by an infinite spill weight. These
       // urgent live ranges get to evict almost anything.
@@ -799,7 +799,7 @@ bool RAGreedy::canEvictInterference(LiveInterval &VirtReg, unsigned PhysReg,
       unsigned IntfCascade = ExtraRegInfo[Intf->reg].Cascade;
       if (Cascade <= IntfCascade) {
         if (!Urgent)
-          return false;
+          return true;
         // We permit breaking cascades for urgent evictions. It should be the
         // last resort, though, so make it really expensive.
         Cost.BrokenHints += 10;
@@ -811,21 +811,24 @@ bool RAGreedy::canEvictInterference(LiveInterval &VirtReg, unsigned PhysReg,
       Cost.MaxWeight = std::max(Cost.MaxWeight, Intf->weight);
       // Abort if this would be too expensive.
       if (!(Cost < MaxCost))
-        return false;
+        return true;
       if (Urgent)
         continue;
       // Apply the eviction policy for non-urgent evictions.
       if (!shouldEvict(VirtReg, IsHint, *Intf, BreaksHint))
-        return false;
+        return true;
       // If !MaxCost.isMax(), then we're just looking for a cheap register.
       // Evicting another local live range in this case could lead to suboptimal
       // coloring.
       if (!MaxCost.isMax() && IsLocal && LIS->intervalIsInOneMBB(*Intf) &&
           (!EnableLocalReassign || !canReassign(*Intf, PhysReg))) {
-        return false;
+        return true;
       }
     }
-  }
+    return false;
+  });
+  if (cannotEvict)
+    return false;
   MaxCost = Cost;
   return true;
 }
@@ -847,8 +850,8 @@ void RAGreedy::evictInterference(LiveInterval &VirtReg, unsigned PhysReg,
 
   // Collect all interfering virtregs first.
   SmallVector<LiveInterval*, 8> Intfs;
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    LiveIntervalUnion::Query &Q = Matrix->query(VirtReg, *Units);
+  foreachUnit(TRI, VirtReg, PhysReg, [&](unsigned Unit, const LiveRange &LR) {
+    LiveIntervalUnion::Query &Q = Matrix->query(LR, Unit);
     // We usually have the interfering VRegs cached so collectInterferingVRegs()
     // should be fast, we may need to recalculate if when different physregs
     // overlap the same register unit so we had different SubRanges queried
@@ -856,7 +859,8 @@ void RAGreedy::evictInterference(LiveInterval &VirtReg, unsigned PhysReg,
     Q.collectInterferingVRegs();
     ArrayRef<LiveInterval*> IVR = Q.interferingVRegs();
     Intfs.append(IVR.begin(), IVR.end());
-  }
+    return false;
+  });
 
   // Evict them second. This will invalidate the queries.
   for (unsigned i = 0, e = Intfs.size(); i != e; ++i) {
@@ -1694,10 +1698,10 @@ void RAGreedy::calcGapWeights(unsigned PhysReg,
   GapWeight.assign(NumGaps, 0.0f);
 
   // Add interference from each overlapping register.
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    if (!Matrix->query(const_cast<LiveInterval&>(SA->getParent()), *Units)
-          .checkInterference())
-      continue;
+  foreachUnit(TRI, SA->getParent(), PhysReg,
+              [&](unsigned Unit, const LiveRange &LR) {
+    if (!Matrix->query(LR, Unit).checkInterference())
+      return false;
 
     // We know that VirtReg is a continuous interval from FirstInstr to
     // LastInstr, so we don't need InterferenceQuery.
@@ -1707,7 +1711,7 @@ void RAGreedy::calcGapWeights(unsigned PhysReg,
     // StartIdx and after StopIdx.
     //
     LiveIntervalUnion::SegmentIter IntI =
-      Matrix->getLiveUnions()[*Units] .find(StartIdx);
+      Matrix->getLiveUnions()[Unit] .find(StartIdx);
     for (unsigned Gap = 0; IntI.valid() && IntI.start() < StopIdx; ++IntI) {
       // Skip the gaps before IntI.
       while (Uses[Gap+1].getBoundaryIndex() < IntI.start())
@@ -1726,7 +1730,8 @@ void RAGreedy::calcGapWeights(unsigned PhysReg,
       if (Gap == NumGaps)
         break;
     }
-  }
+    return false;
+  });
 
   // Add fixed interference.
   for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
@@ -2047,15 +2052,16 @@ RAGreedy::mayRecolorAllInterferences(unsigned PhysReg, LiveInterval &VirtReg,
                                      const SmallVirtRegSet &FixedRegisters) {
   const TargetRegisterClass *CurRC = MRI->getRegClass(VirtReg.reg);
 
-  for (MCRegUnitIterator Units(PhysReg, TRI); Units.isValid(); ++Units) {
-    LiveIntervalUnion::Query &Q = Matrix->query(VirtReg, *Units);
+  bool Interference = foreachUnit(TRI, VirtReg, PhysReg,
+                                  [&](unsigned Unit, const LiveRange &LR) {
+    LiveIntervalUnion::Query &Q = Matrix->query(LR, Unit);
     // If there is LastChanceRecoloringMaxInterference or more interferences,
     // chances are one would not be recolorable.
     if (Q.collectInterferingVRegs(LastChanceRecoloringMaxInterference) >=
         LastChanceRecoloringMaxInterference && !ExhaustiveSearch) {
       DEBUG(dbgs() << "Early abort: too many interferences.\n");
       CutOffInfo |= CO_Interf;
-      return false;
+      return true;
     }
     for (unsigned i = Q.interferingVRegs().size(); i; --i) {
       LiveInterval *Intf = Q.interferingVRegs()[i - 1];
@@ -2065,12 +2071,13 @@ RAGreedy::mayRecolorAllInterferences(unsigned PhysReg, LiveInterval &VirtReg,
            MRI->getRegClass(Intf->reg) == CurRC) ||
           FixedRegisters.count(Intf->reg)) {
         DEBUG(dbgs() << "Early abort: the inteference is not recolorable.\n");
-        return false;
+        return true;
       }
       RecoloringCandidates.insert(Intf);
     }
-  }
-  return true;
+    return false;
+  });
+  return !Interference;
 }
 
 /// tryLastChanceRecoloring - Try to assign a color to \p VirtReg by recoloring
