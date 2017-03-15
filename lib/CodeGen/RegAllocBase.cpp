@@ -52,9 +52,9 @@ bool RegAllocBase::VerifyEnabled = false;
 // Pin the vtable to this file.
 void RegAllocBase::anchor() {}
 
-void RegAllocBase::init(VirtRegMap &vrm,
-                        LiveIntervals &lis,
-                        LiveRegMatrix &mat) {
+void RegAllocBase::init(LLVMContext &NewContext, VirtRegMap &vrm,
+                        LiveIntervals &lis, LiveRegMatrix &mat) {
+  Context = &NewContext;
   TRI = &vrm.getTargetRegInfo();
   MRI = &vrm.getRegInfo();
   VRM = &vrm;
@@ -68,8 +68,8 @@ void RegAllocBase::init(VirtRegMap &vrm,
 // register, unify them with the corresponding LiveIntervalUnion, otherwise push
 // them on the priority queue for later assignment.
 void RegAllocBase::seedLiveRegs() {
-  NamedRegionTimer T("seed", "Seed Live Regs", TimerGroupName,
-                     TimerGroupDescription, TimePassesIsEnabled);
+  TimeRegion T = Context->timeRegion("seed", "Seed Live Regs", TimerGroupName,
+                                    TimerGroupDescription, TimePassesIsEnabled);
   for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
     if (MRI->reg_nodbg_empty(Reg))

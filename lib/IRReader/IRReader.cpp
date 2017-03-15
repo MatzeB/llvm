@@ -69,9 +69,9 @@ std::unique_ptr<Module> llvm::getLazyIRFileModule(StringRef Filename,
 
 std::unique_ptr<Module> llvm::parseIR(MemoryBufferRef Buffer, SMDiagnostic &Err,
                                       LLVMContext &Context) {
-  NamedRegionTimer T(TimeIRParsingName, TimeIRParsingDescription,
-                     TimeIRParsingGroupName, TimeIRParsingGroupDescription,
-                     TimePassesIsEnabled);
+  TimeRegion T = Context.timeRegion(TimeIRParsingName, TimeIRParsingDescription,
+      TimeIRParsingGroupName, TimeIRParsingGroupDescription,
+      TimePassesIsEnabled);
   if (isBitcode((const unsigned char *)Buffer.getBufferStart(),
                 (const unsigned char *)Buffer.getBufferEnd())) {
     Expected<std::unique_ptr<Module>> ModuleOrErr =

@@ -892,8 +892,8 @@ unsigned RAGreedy::tryEvict(LiveInterval &VirtReg,
                             AllocationOrder &Order,
                             SmallVectorImpl<unsigned> &NewVRegs,
                             unsigned CostPerUseLimit) {
-  NamedRegionTimer T("evict", "Evict", TimerGroupName, TimerGroupDescription,
-                     TimePassesIsEnabled);
+  TimeRegion T = Context->timeRegion("evict", "Evict", TimerGroupName,
+      TimerGroupDescription, TimePassesIsEnabled);
 
   // Keep track of the cheapest interference seen so far.
   EvictionCost BestCost;
@@ -1991,8 +1991,8 @@ unsigned RAGreedy::trySplit(LiveInterval &VirtReg, AllocationOrder &Order,
 
   // Local intervals are handled separately.
   if (LIS->intervalIsInOneMBB(VirtReg)) {
-    NamedRegionTimer T("local_split", "Local Splitting", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
+    TimeRegion T = Context->timeRegion("local_split", "Local Splitting",
+        TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
     SA->analyze(&VirtReg);
     unsigned PhysReg = tryLocalSplit(VirtReg, Order, NewVRegs);
     if (PhysReg || !NewVRegs.empty())
@@ -2000,8 +2000,8 @@ unsigned RAGreedy::trySplit(LiveInterval &VirtReg, AllocationOrder &Order,
     return tryInstructionSplit(VirtReg, Order, NewVRegs);
   }
 
-  NamedRegionTimer T("global_split", "Global Splitting", TimerGroupName,
-                     TimerGroupDescription, TimePassesIsEnabled);
+  TimeRegion T = Context->timeRegion("global_split", "Global Splitting",
+      TimerGroupName, TimerGroupDescription, TimePassesIsEnabled);
 
   SA->analyze(&VirtReg);
 
@@ -2619,8 +2619,8 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
     DEBUG(dbgs() << "Do as if this register is in memory\n");
     NewVRegs.push_back(VirtReg.reg);
   } else {
-    NamedRegionTimer T("spill", "Spiller", TimerGroupName,
-                       TimerGroupDescription, TimePassesIsEnabled);
+    TimeRegion T = Context->timeRegion("spill", "Spiller", TimerGroupName,
+        TimerGroupDescription, TimePassesIsEnabled);
     LiveRangeEdit LRE(&VirtReg, NewVRegs, *MF, *LIS, VRM, this, &DeadRemats);
     spiller().spill(LRE);
     setStage(NewVRegs.begin(), NewVRegs.end(), RS_Done);
@@ -2713,7 +2713,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   if (VerifyEnabled)
     MF->verify(this, "Before greedy register allocator");
 
-  RegAllocBase::init(getAnalysis<VirtRegMap>(),
+  RegAllocBase::init(mf.getLLVMContext(), getAnalysis<VirtRegMap>(),
                      getAnalysis<LiveIntervals>(),
                      getAnalysis<LiveRegMatrix>());
   Indexes = &getAnalysis<SlotIndexes>();

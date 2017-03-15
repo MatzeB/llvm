@@ -475,10 +475,11 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   // sections and expected to be contiguous (e.g. ObjC metadata).
   unsigned AlignLog = getGVAlignmentLog2(GV, DL);
 
+  LLVMContext &C = MMI->getLLVMContext();
   for (const HandlerInfo &HI : Handlers) {
-    NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
-                       HI.TimerGroupName, HI.TimerGroupDescription,
-                       TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+                                HI.TimerGroupName, HI.TimerGroupDescription,
+                                TimePassesIsEnabled);
     HI.Handler->setSymbolSize(GVSym, Size);
   }
 
@@ -690,9 +691,10 @@ void AsmPrinter::EmitFunctionHeader() {
   }
 
   // Emit pre-function debug and/or EH information.
+  LLVMContext &C = MMI->getLLVMContext();
   for (const HandlerInfo &HI : Handlers) {
-    NamedRegionTimer T(HI.TimerName, HI.TimerDescription, HI.TimerGroupName,
-                       HI.TimerGroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+        HI.TimerGroupName, HI.TimerGroupDescription, TimePassesIsEnabled);
     HI.Handler->beginFunction(MF);
   }
 
@@ -939,6 +941,7 @@ void AsmPrinter::EmitFunctionBody() {
   EmitFunctionBodyStart();
 
   bool ShouldPrintDebugScopes = MMI->hasDebugInfo();
+  LLVMContext &C = MMI->getLLVMContext();
 
   // Print out code for the function.
   bool HasAnyRealCode = false;
@@ -957,9 +960,8 @@ void AsmPrinter::EmitFunctionBody() {
 
       if (ShouldPrintDebugScopes) {
         for (const HandlerInfo &HI : Handlers) {
-          NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
-                             HI.TimerGroupName, HI.TimerGroupDescription,
-                             TimePassesIsEnabled);
+          TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+              HI.TimerGroupName, HI.TimerGroupDescription, TimePassesIsEnabled);
           HI.Handler->beginInstruction(&MI);
         }
       }
@@ -1002,9 +1004,8 @@ void AsmPrinter::EmitFunctionBody() {
 
       if (ShouldPrintDebugScopes) {
         for (const HandlerInfo &HI : Handlers) {
-          NamedRegionTimer T(HI.TimerName, HI.TimerDescription,
-                             HI.TimerGroupName, HI.TimerGroupDescription,
-                             TimePassesIsEnabled);
+          TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+              HI.TimerGroupName, HI.TimerGroupDescription, TimePassesIsEnabled);
           HI.Handler->endInstruction();
         }
       }
@@ -1068,8 +1069,8 @@ void AsmPrinter::EmitFunctionBody() {
   }
 
   for (const HandlerInfo &HI : Handlers) {
-    NamedRegionTimer T(HI.TimerName, HI.TimerDescription, HI.TimerGroupName,
-                       HI.TimerGroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+        HI.TimerGroupName, HI.TimerGroupDescription, TimePassesIsEnabled);
     HI.Handler->markFunctionEnd();
   }
 
@@ -1078,8 +1079,8 @@ void AsmPrinter::EmitFunctionBody() {
 
   // Emit post-function debug and/or EH information.
   for (const HandlerInfo &HI : Handlers) {
-    NamedRegionTimer T(HI.TimerName, HI.TimerDescription, HI.TimerGroupName,
-                       HI.TimerGroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+        HI.TimerGroupName, HI.TimerGroupDescription, TimePassesIsEnabled);
     HI.Handler->endFunction(MF);
   }
 
@@ -1267,9 +1268,10 @@ bool AsmPrinter::doFinalization(Module &M) {
   }
 
   // Finalize debug and EH information.
+  LLVMContext &C = MMI->getLLVMContext();
   for (const HandlerInfo &HI : Handlers) {
-    NamedRegionTimer T(HI.TimerName, HI.TimerDescription, HI.TimerGroupName,
-                       HI.TimerGroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion(HI.TimerName, HI.TimerDescription,
+        HI.TimerGroupName, HI.TimerGroupDescription, TimePassesIsEnabled);
     HI.Handler->endModule();
     delete HI.Handler;
   }

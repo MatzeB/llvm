@@ -35,20 +35,21 @@
 
 namespace llvm {
 
-class Value;
 class Function;
 class GCModuleInfo;
-class MachineRegisterInfo;
-class MachineFrameInfo;
+class LLVMContext;
+class MCContext;
 class MachineConstantPool;
+class MachineFrameInfo;
 class MachineJumpTableInfo;
 class MachineModuleInfo;
-class MCContext;
+class MachineRegisterInfo;
 class Pass;
 class PseudoSourceValueManager;
 class TargetMachine;
-class TargetSubtargetInfo;
 class TargetRegisterClass;
+class TargetSubtargetInfo;
+class Value;
 struct MachinePointerInfo;
 struct WinEHFuncInfo;
 
@@ -343,6 +344,8 @@ public:
 
   MachineModuleInfo &getMMI() const { return MMI; }
   MCContext &getContext() const { return Ctx; }
+
+  LLVMContext &getLLVMContext() const;
 
   PseudoSourceValueManager &getPSVManager() const { return *PSVManager; }
 

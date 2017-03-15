@@ -1519,9 +1519,10 @@ bool HexagonGenInsert::runOnMachineFunction(MachineFunction &MF) {
   const char *const TGName = "hexinsert";
   const char *const TGDesc = "Generate Insert Instructions";
 
+  LLVMContext &C = MF.getLLVMContext();
   {
-    NamedRegionTimer _T("collection", "collection", TGName, TGDesc,
-                        TimingDetail);
+    TimeRegion _T = C.timeRegion("collection", "collection", TGName, TGDesc,
+                                 TimingDetail);
     collectInBlock(RootB, AvailR);
     // Complete the information gathered in IFMap.
     computeRemovableRegisters();
@@ -1536,7 +1537,8 @@ bool HexagonGenInsert::runOnMachineFunction(MachineFunction &MF) {
     return Changed;
 
   {
-    NamedRegionTimer _T("pruning", "pruning", TGName, TGDesc, TimingDetail);
+    TimeRegion _T = C.timeRegion("pruning", "pruning", TGName, TGDesc,
+                                 TimingDetail);
     pruneCandidates();
   }
 
@@ -1549,7 +1551,8 @@ bool HexagonGenInsert::runOnMachineFunction(MachineFunction &MF) {
     return Changed;
 
   {
-    NamedRegionTimer _T("selection", "selection", TGName, TGDesc, TimingDetail);
+    TimeRegion _T = C.timeRegion("selection", "selection", TGName, TGDesc,
+                                 TimingDetail);
     selectCandidates();
   }
 
@@ -1575,8 +1578,8 @@ bool HexagonGenInsert::runOnMachineFunction(MachineFunction &MF) {
     return Changed;
 
   {
-    NamedRegionTimer _T("generation", "generation", TGName, TGDesc,
-                        TimingDetail);
+    TimeRegion _T = C.timeRegion("generation", "generation", TGName, TGDesc,
+                                 TimingDetail);
     generateInserts();
   }
 

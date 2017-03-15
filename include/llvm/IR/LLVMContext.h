@@ -34,6 +34,8 @@ class OptBisect;
 template <typename T> class SmallVectorImpl;
 class SMDiagnostic;
 class StringRef;
+class Timer;
+class TimeRegion;
 class Twine;
 
 namespace yaml {
@@ -264,6 +266,14 @@ public:
   /// \brief Access the object which manages optimization bisection for failure
   /// analysis.
   OptBisect &getOptBisect();
+
+  Timer &getTimer(StringRef Name, StringRef Description, StringRef GroupName,
+                  StringRef GroupDescription);
+
+  TimeRegion timeRegion(StringRef Name, StringRef Description,
+                        StringRef GroupName, StringRef GroupDescription,
+                        bool Enabled = true);
+
 private:
   // Module needs access to the add/removeModule methods.
   friend class Module;

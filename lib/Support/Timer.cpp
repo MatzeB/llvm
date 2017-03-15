@@ -164,51 +164,6 @@ void TimeRecord::print(const TimeRecord &Total, raw_ostream &OS) const {
     OS << format("%9" PRId64 "  ", (int64_t)getMemUsed());
 }
 
-
-//===----------------------------------------------------------------------===//
-//   NamedRegionTimer Implementation
-//===----------------------------------------------------------------------===//
-
-namespace {
-
-typedef StringMap<Timer> Name2TimerMap;
-
-class Name2PairMap {
-  StringMap<std::pair<TimerGroup*, Name2TimerMap> > Map;
-public:
-  ~Name2PairMap() {
-    for (StringMap<std::pair<TimerGroup*, Name2TimerMap> >::iterator
-         I = Map.begin(), E = Map.end(); I != E; ++I)
-      delete I->second.first;
-  }
-
-  Timer &get(StringRef Name, StringRef Description, StringRef GroupName,
-             StringRef GroupDescription) {
-    sys::SmartScopedLock<true> L(*TimerLock);
-
-    std::pair<TimerGroup*, Name2TimerMap> &GroupEntry = Map[GroupName];
-
-    if (!GroupEntry.first)
-      GroupEntry.first = new TimerGroup(GroupName, GroupDescription);
-
-    Timer &T = GroupEntry.second[Name];
-    if (!T.isInitialized())
-      T.init(Name, Description, *GroupEntry.first);
-    return T;
-  }
-};
-
-}
-
-static ManagedStatic<Name2PairMap> NamedGroupedTimers;
-
-NamedRegionTimer::NamedRegionTimer(StringRef Name, StringRef Description,
-                                   StringRef GroupName,
-                                   StringRef GroupDescription, bool Enabled)
-  : TimeRegion(!Enabled ? nullptr
-                 : &NamedGroupedTimers->get(Name, Description, GroupName,
-                                            GroupDescription)) {}
-
 //===----------------------------------------------------------------------===//
 //   TimerGroup Implementation
 //===----------------------------------------------------------------------===//
@@ -220,6 +175,7 @@ static TimerGroup *TimerGroupList = nullptr;
 TimerGroup::TimerGroup(StringRef Name, StringRef Description)
   : Name(Name.begin(), Name.end()),
     Description(Description.begin(), Description.end()) {
+#if 0
   // Add the group to TimerGroupList.
   sys::SmartScopedLock<true> L(*TimerLock);
   if (TimerGroupList)
@@ -227,6 +183,7 @@ TimerGroup::TimerGroup(StringRef Name, StringRef Description)
   Next = TimerGroupList;
   Prev = &TimerGroupList;
   TimerGroupList = this;
+#endif
 }
 
 TimerGroup::~TimerGroup() {
@@ -235,11 +192,13 @@ TimerGroup::~TimerGroup() {
   while (FirstTimer)
     removeTimer(*FirstTimer);
 
+#if 0
   // Remove the group from the TimerGroupList.
   sys::SmartScopedLock<true> L(*TimerLock);
   *Prev = Next;
   if (Next)
     Next->Prev = Prev;
+#endif
 }
 
 
@@ -348,12 +307,14 @@ void TimerGroup::print(raw_ostream &OS) {
     PrintQueuedTimers(OS);
 }
 
+#if 0
 void TimerGroup::printAll(raw_ostream &OS) {
   sys::SmartScopedLock<true> L(*TimerLock);
 
   for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
     TG->print(OS);
 }
+#endif
 
 void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
                                 const char *suffix, double Value) {
@@ -379,13 +340,17 @@ const char *TimerGroup::printJSONValues(raw_ostream &OS, const char *delim) {
   return delim;
 }
 
+#if 0
 const char *TimerGroup::printAllJSONValues(raw_ostream &OS, const char *delim) {
   sys::SmartScopedLock<true> L(*TimerLock);
   for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
     delim = TG->printJSONValues(OS, delim);
   return delim;
 }
+#endif
 
 void TimerGroup::ConstructTimerLists() {
+#if 0
   (void)*NamedGroupedTimers;
+#endif
 }

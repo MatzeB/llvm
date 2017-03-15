@@ -504,8 +504,9 @@ sortGlobalExprs(SmallVectorImpl<DwarfCompileUnit::GlobalExpr> &GVEs) {
 // global DIEs and emit initial debug info sections. This is invoked by
 // the target AsmPrinter.
 void DwarfDebug::beginModule() {
-  NamedRegionTimer T(DbgTimerName, DbgTimerDescription, DWARFGroupName,
-                     DWARFGroupDescription, TimePassesIsEnabled);
+  LLVMContext &C = MMI->getLLVMContext();
+  TimeRegion T = C.timeRegion(DbgTimerName, DbgTimerDescription, DWARFGroupName,
+                              DWARFGroupDescription, TimePassesIsEnabled);
   if (DisableDebugInfoPrinting)
     return;
 

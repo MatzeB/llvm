@@ -33,6 +33,7 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/YAMLTraits.h"
 #include <vector>
@@ -1092,6 +1093,31 @@ public:
   void getAll(SmallVectorImpl<std::pair<unsigned, MDNode *>> &Result) const;
 };
 
+/// Maps a group name, timer name pairs to timer objects.
+class TimerMap {
+  typedef StringMap<Timer> Name2TimerMap;
+  StringMap<std::pair<TimerGroup*, Name2TimerMap> > Map;
+public:
+  ~TimerMap() {
+    for (StringMap<std::pair<TimerGroup*, Name2TimerMap> >::iterator
+         I = Map.begin(), E = Map.end(); I != E; ++I)
+      delete I->second.first;
+  }
+
+  Timer &get(StringRef Name, StringRef Description, StringRef GroupName,
+             StringRef GroupDescription) {
+    std::pair<TimerGroup*, Name2TimerMap> &GroupEntry = Map[GroupName];
+
+    if (!GroupEntry.first)
+      GroupEntry.first = new TimerGroup(GroupName, GroupDescription);
+
+    Timer &T = GroupEntry.second[Name];
+    if (!T.isInitialized())
+      T.init(Name, Description, *GroupEntry.first);
+    return T;
+  }
+};
+
 class LLVMContextImpl {
 public:
   /// OwnedModules - The set of modules instantiated in this context, and which
@@ -1243,6 +1269,8 @@ public:
   /// Flag to indicate if Value (other than GlobalValue) retains their name or
   /// not.
   bool DiscardValueNames = false;
+
+  TimerMap Timers;
 
   LLVMContextImpl(LLVMContext &C);
   ~LLVMContextImpl();

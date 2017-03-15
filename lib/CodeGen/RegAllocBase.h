@@ -64,6 +64,7 @@ protected:
   LiveIntervals *LIS;
   LiveRegMatrix *Matrix;
   RegisterClassInfo RegClassInfo;
+  LLVMContext *Context;
 
   /// Inst which is a def of an original reg and whose defs are already all
   /// dead after remat is saved in DeadRemats. The deletion of such inst is
@@ -77,7 +78,8 @@ protected:
   virtual ~RegAllocBase() {}
 
   // A RegAlloc pass should call this before allocatePhysRegs.
-  void init(VirtRegMap &vrm, LiveIntervals &lis, LiveRegMatrix &mat);
+  void init(LLVMContext &Context, VirtRegMap &vrm, LiveIntervals &lis,
+            LiveRegMatrix &mat);
 
   // The top-level driver. The output is a VirtRegMap that us updated with
   // physical register assignments.

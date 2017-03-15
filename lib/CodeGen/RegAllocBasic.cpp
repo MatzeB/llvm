@@ -273,7 +273,7 @@ bool RABasic::runOnMachineFunction(MachineFunction &mf) {
                << mf.getName() << '\n');
 
   MF = &mf;
-  RegAllocBase::init(getAnalysis<VirtRegMap>(),
+  RegAllocBase::init(mf.getLLVMContext(), getAnalysis<VirtRegMap>(),
                      getAnalysis<LiveIntervals>(),
                      getAnalysis<LiveRegMatrix>());
 

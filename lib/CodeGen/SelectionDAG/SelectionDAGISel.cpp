@@ -775,6 +775,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   int BlockNumber = -1;
   (void)BlockNumber;
   bool MatchFilterBB = false; (void)MatchFilterBB;
+  LLVMContext &C = MF->getLLVMContext();
 
   // Pre-type legalization allow creation of any node types.
   CurDAG->NewNodesMustHaveLegalTypes = false;
@@ -802,8 +803,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
   // Run the DAG combiner in pre-legalize mode.
   {
-    NamedRegionTimer T("combine1", "DAG Combining 1", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("combine1", "DAG Combining 1", GroupName,
+                                GroupDescription, TimePassesIsEnabled);
     CurDAG->Combine(BeforeLegalizeTypes, *AA, OptLevel);
   }
 
@@ -817,8 +818,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
   bool Changed;
   {
-    NamedRegionTimer T("legalize_types", "Type Legalization", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("legalize_types", "Type Legalization",
+        GroupName, GroupDescription, TimePassesIsEnabled);
     Changed = CurDAG->LegalizeTypes();
   }
 
@@ -834,8 +835,9 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
     // Run the DAG combiner in post-type-legalize mode.
     {
-      NamedRegionTimer T("combine_lt", "DAG Combining after legalize types",
-                         GroupName, GroupDescription, TimePassesIsEnabled);
+      TimeRegion T = C.timeRegion("combine_lt",
+          "DAG Combining after legalize types", GroupName, GroupDescription,
+          TimePassesIsEnabled);
       CurDAG->Combine(AfterLegalizeTypes, *AA, OptLevel);
     }
 
@@ -845,8 +847,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   }
 
   {
-    NamedRegionTimer T("legalize_vec", "Vector Legalization", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("legalize_vec", "Vector Legalization",
+        GroupName, GroupDescription, TimePassesIsEnabled);
     Changed = CurDAG->LegalizeVectors();
   }
 
@@ -855,8 +857,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
           << " '" << BlockName << "'\n"; CurDAG->dump());
 
     {
-      NamedRegionTimer T("legalize_types2", "Type Legalization 2", GroupName,
-                         GroupDescription, TimePassesIsEnabled);
+      TimeRegion T = C.timeRegion("legalize_types2", "Type Legalization 2",
+          GroupName, GroupDescription, TimePassesIsEnabled);
       CurDAG->LegalizeTypes();
     }
 
@@ -868,8 +870,9 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
     // Run the DAG combiner in post-type-legalize mode.
     {
-      NamedRegionTimer T("combine_lv", "DAG Combining after legalize vectors",
-                         GroupName, GroupDescription, TimePassesIsEnabled);
+      TimeRegion T = C.timeRegion("combine_lv",
+          "DAG Combining after legalize vectors", GroupName, GroupDescription,
+          TimePassesIsEnabled);
       CurDAG->Combine(AfterLegalizeVectorOps, *AA, OptLevel);
     }
 
@@ -881,8 +884,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->viewGraph("legalize input for " + BlockName);
 
   {
-    NamedRegionTimer T("legalize", "DAG Legalization", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("legalize", "DAG Legalization", GroupName,
+                                GroupDescription, TimePassesIsEnabled);
     CurDAG->Legalize();
   }
 
@@ -894,8 +897,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
   // Run the DAG combiner in post-legalize mode.
   {
-    NamedRegionTimer T("combine2", "DAG Combining 2", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("combine2", "DAG Combining 2", GroupName,
+                                GroupDescription, TimePassesIsEnabled);
     CurDAG->Combine(AfterLegalizeDAG, *AA, OptLevel);
   }
 
@@ -911,8 +914,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   // Third, instruction select all of the operations to machine code, adding the
   // code to the MachineBasicBlock.
   {
-    NamedRegionTimer T("isel", "Instruction Selection", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("isel", "Instruction Selection", GroupName,
+                                GroupDescription, TimePassesIsEnabled);
     DoInstructionSelection();
   }
 
@@ -925,8 +928,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   // Schedule machine code.
   ScheduleDAGSDNodes *Scheduler = CreateScheduler();
   {
-    NamedRegionTimer T("sched", "Instruction Scheduling", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("sched", "Instruction Scheduling", GroupName,
+                                GroupDescription, TimePassesIsEnabled);
     Scheduler->Run(CurDAG, FuncInfo->MBB);
   }
 
@@ -937,8 +940,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   // inserted into.
   MachineBasicBlock *FirstMBB = FuncInfo->MBB, *LastMBB;
   {
-    NamedRegionTimer T("emit", "Instruction Creation", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("emit", "Instruction Creation", GroupName,
+                                GroupDescription, TimePassesIsEnabled);
 
     // FuncInfo->InsertPt is passed by reference and set to the end of the
     // scheduled instructions.
@@ -952,8 +955,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
   // Free the scheduler state.
   {
-    NamedRegionTimer T("cleanup", "Instruction Scheduling Cleanup", GroupName,
-                       GroupDescription, TimePassesIsEnabled);
+    TimeRegion T = C.timeRegion("cleanup", "Instruction Scheduling Cleanup",
+        GroupName, GroupDescription, TimePassesIsEnabled);
     delete Scheduler;
   }
 

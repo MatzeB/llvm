@@ -148,19 +148,12 @@ public:
   explicit TimeRegion(Timer *t) : T(t) {
     if (T) T->startTimer();
   }
+  TimeRegion(TimeRegion &&Other) : T(Other.T) {
+    Other.T = nullptr;
+  }
   ~TimeRegion() {
     if (T) T->stopTimer();
   }
-};
-
-/// This class is basically a combination of TimeRegion and Timer.  It allows
-/// you to declare a new timer, AND specify the region to time, all in one
-/// statement.  All timers with the same name are merged.  This is primarily
-/// used for debugging and for hunting performance problems.
-struct NamedRegionTimer : public TimeRegion {
-  explicit NamedRegionTimer(StringRef Name, StringRef Description,
-                            StringRef GroupName,
-                            StringRef GroupDescription, bool Enabled = true);
 };
 
 /// The TimerGroup class is used to group together related timers into a single
@@ -204,6 +197,7 @@ public:
   /// Print any started timers in this group and zero them.
   void print(raw_ostream &OS);
 
+#if 0
   /// This static method prints all timers and clears them all out.
   static void printAll(raw_ostream &OS);
 
@@ -211,6 +205,7 @@ public:
   /// used by the Statistic code to influence the construction and destruction
   /// order of the global timer lists.
   static void ConstructTimerLists();
+#endif
 private:
   friend class Timer;
   friend void PrintStatisticsJSON(raw_ostream &OS);
@@ -221,7 +216,9 @@ private:
   void printJSONValue(raw_ostream &OS, const PrintRecord &R,
                       const char *suffix, double Value);
   const char *printJSONValues(raw_ostream &OS, const char *delim);
+#if 0
   static const char *printAllJSONValues(raw_ostream &OS, const char *delim);
+#endif
 };
 
 } // end namespace llvm

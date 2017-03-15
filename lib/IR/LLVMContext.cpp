@@ -288,3 +288,17 @@ void LLVMContext::setDiscardValueNames(bool Discard) {
 OptBisect &LLVMContext::getOptBisect() {
   return pImpl->getOptBisect();
 }
+
+Timer &LLVMContext::getTimer(StringRef Name, StringRef Description,
+                             StringRef GroupName, StringRef GroupDescription) {
+  return pImpl->Timers.get(Name, Description, GroupName, GroupDescription);
+}
+
+TimeRegion LLVMContext::timeRegion(StringRef Name, StringRef Description,
+                                   StringRef GroupName,
+                                   StringRef GroupDescription, bool Enabled) {
+  Timer *T = nullptr;
+  if (Enabled)
+    T = &getTimer(Name, Description, GroupName, GroupDescription);
+  return TimeRegion(T);
+}

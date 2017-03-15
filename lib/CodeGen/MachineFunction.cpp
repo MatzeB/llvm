@@ -200,6 +200,10 @@ const DataLayout &MachineFunction::getDataLayout() const {
   return Fn->getParent()->getDataLayout();
 }
 
+LLVMContext &MachineFunction::getLLVMContext() const {
+  return Fn->getContext();
+}
+
 /// Get the JumpTableInfo for this function.
 /// If it does not already exist, allocate one.
 MachineJumpTableInfo *MachineFunction::

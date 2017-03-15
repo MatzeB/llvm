@@ -158,6 +158,8 @@ public:
   void setModule(const Module *M) { TheModule = M; }
   const Module *getModule() const { return TheModule; }
 
+  LLVMContext &getLLVMContext() const;
+
   void setMachineFunctionInitializer(MachineFunctionInitializer *MFInit) {
     MFInitializer = MFInit;
   }

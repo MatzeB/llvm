@@ -199,6 +199,10 @@ MachineModuleInfo::MachineModuleInfo(const TargetMachine *TM)
 MachineModuleInfo::~MachineModuleInfo() {
 }
 
+LLVMContext &MachineModuleInfo::getLLVMContext() const {
+  return TheModule->getContext();
+}
+
 bool MachineModuleInfo::doInitialization(Module &M) {
 
   ObjFileMMI = nullptr;
