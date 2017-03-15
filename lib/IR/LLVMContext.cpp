@@ -302,3 +302,12 @@ TimeRegion LLVMContext::timeRegion(StringRef Name, StringRef Description,
     T = &getTimer(Name, Description, GroupName, GroupDescription);
   return TimeRegion(T);
 }
+
+void LLVMContext::getTimerGroups(SmallVectorImpl<TimerGroup*> &Result) const {
+  typedef StringMapEntry<std::pair<TimerGroup*, TimerMap::Name2TimerMap>>
+    MapEntry;
+  for (MapEntry &Entry : pImpl->Timers.Map) {
+    TimerGroup *Group = Entry.getValue().first;
+    Result.push_back(Group);
+  }
+}

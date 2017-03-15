@@ -36,6 +36,7 @@ class SMDiagnostic;
 class StringRef;
 class Timer;
 class TimeRegion;
+class TimerGroup;
 class Twine;
 
 namespace yaml {
@@ -273,6 +274,8 @@ public:
   TimeRegion timeRegion(StringRef Name, StringRef Description,
                         StringRef GroupName, StringRef GroupDescription,
                         bool Enabled = true);
+
+  void getTimerGroups(SmallVectorImpl<TimerGroup*> &Result) const;
 
 private:
   // Module needs access to the add/removeModule methods.

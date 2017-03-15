@@ -26,6 +26,7 @@
 #ifndef LLVM_ADT_STATISTIC_H
 #define LLVM_ADT_STATISTIC_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Atomic.h"
 #include "llvm/Support/Compiler.h"
 #include <atomic>
@@ -33,8 +34,9 @@
 
 namespace llvm {
 
-class raw_ostream;
+class TimerGroup;
 class raw_fd_ostream;
+class raw_ostream;
 
 class Statistic {
 public:
@@ -169,7 +171,7 @@ void PrintStatistics(raw_ostream &OS);
 /// Timer, TimerGroup). Note that the timers are cleared after printing and will
 /// not be printed in human readable form or in a second call of
 /// PrintStatisticsJSON().
-void PrintStatisticsJSON(raw_ostream &OS);
+void PrintStatisticsJSON(raw_ostream &OS, ArrayRef<TimerGroup*> Timers);
 
 } // end namespace llvm
 

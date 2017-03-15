@@ -180,8 +180,6 @@ class TimerGroup {
   Timer *FirstTimer = nullptr; ///< First timer in the group.
   std::vector<PrintRecord> TimersToPrint;
 
-  TimerGroup **Prev; ///< Pointer to Next field of previous timergroup in list.
-  TimerGroup *Next;  ///< Pointer to next timergroup in list.
   TimerGroup(const TimerGroup &TG) = delete;
   void operator=(const TimerGroup &TG) = delete;
 
@@ -197,28 +195,16 @@ public:
   /// Print any started timers in this group and zero them.
   void print(raw_ostream &OS);
 
-#if 0
-  /// This static method prints all timers and clears them all out.
-  static void printAll(raw_ostream &OS);
+  const char *printJSONValues(raw_ostream &OS, const char *delim);
 
-  /// Ensure global timer group lists are initialized. This function is mostly
-  /// used by the Statistic code to influence the construction and destruction
-  /// order of the global timer lists.
-  static void ConstructTimerLists();
-#endif
 private:
   friend class Timer;
-  friend void PrintStatisticsJSON(raw_ostream &OS);
   void addTimer(Timer &T);
   void removeTimer(Timer &T);
   void prepareToPrintList();
   void PrintQueuedTimers(raw_ostream &OS);
   void printJSONValue(raw_ostream &OS, const PrintRecord &R,
                       const char *suffix, double Value);
-  const char *printJSONValues(raw_ostream &OS, const char *delim);
-#if 0
-  static const char *printAllJSONValues(raw_ostream &OS, const char *delim);
-#endif
 };
 
 } // end namespace llvm

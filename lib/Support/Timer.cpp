@@ -18,7 +18,6 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/Mutex.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/YAMLTraits.h"
@@ -35,8 +34,6 @@ static ManagedStatic<std::string> LibSupportInfoOutputFilename;
 static std::string &getLibSupportInfoOutputFilename() {
   return *LibSupportInfoOutputFilename;
 }
-
-static ManagedStatic<sys::SmartMutex<true> > TimerLock;
 
 namespace {
   static cl::opt<bool>
@@ -168,22 +165,9 @@ void TimeRecord::print(const TimeRecord &Total, raw_ostream &OS) const {
 //   TimerGroup Implementation
 //===----------------------------------------------------------------------===//
 
-/// This is the global list of TimerGroups, maintained by the TimerGroup
-/// ctor/dtor and is protected by the TimerLock lock.
-static TimerGroup *TimerGroupList = nullptr;
-
 TimerGroup::TimerGroup(StringRef Name, StringRef Description)
   : Name(Name.begin(), Name.end()),
     Description(Description.begin(), Description.end()) {
-#if 0
-  // Add the group to TimerGroupList.
-  sys::SmartScopedLock<true> L(*TimerLock);
-  if (TimerGroupList)
-    TimerGroupList->Prev = &Next;
-  Next = TimerGroupList;
-  Prev = &TimerGroupList;
-  TimerGroupList = this;
-#endif
 }
 
 TimerGroup::~TimerGroup() {
@@ -191,20 +175,10 @@ TimerGroup::~TimerGroup() {
   // print the timing data.
   while (FirstTimer)
     removeTimer(*FirstTimer);
-
-#if 0
-  // Remove the group from the TimerGroupList.
-  sys::SmartScopedLock<true> L(*TimerLock);
-  *Prev = Next;
-  if (Next)
-    Next->Prev = Prev;
-#endif
 }
 
 
 void TimerGroup::removeTimer(Timer &T) {
-  sys::SmartScopedLock<true> L(*TimerLock);
-
   // If the timer was started, move its data to TimersToPrint.
   if (T.hasTriggered())
     TimersToPrint.emplace_back(T.Time, T.Name, T.Description);
@@ -226,8 +200,6 @@ void TimerGroup::removeTimer(Timer &T) {
 }
 
 void TimerGroup::addTimer(Timer &T) {
-  sys::SmartScopedLock<true> L(*TimerLock);
-
   // Add the timer to our list.
   if (FirstTimer)
     FirstTimer->Prev = &T.Next;
@@ -298,23 +270,12 @@ void TimerGroup::prepareToPrintList() {
 }
 
 void TimerGroup::print(raw_ostream &OS) {
-  sys::SmartScopedLock<true> L(*TimerLock);
-
   prepareToPrintList();
 
   // If any timers were started, print the group.
   if (!TimersToPrint.empty())
     PrintQueuedTimers(OS);
 }
-
-#if 0
-void TimerGroup::printAll(raw_ostream &OS) {
-  sys::SmartScopedLock<true> L(*TimerLock);
-
-  for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
-    TG->print(OS);
-}
-#endif
 
 void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
                                 const char *suffix, double Value) {
@@ -338,19 +299,4 @@ const char *TimerGroup::printJSONValues(raw_ostream &OS, const char *delim) {
   }
   TimersToPrint.clear();
   return delim;
-}
-
-#if 0
-const char *TimerGroup::printAllJSONValues(raw_ostream &OS, const char *delim) {
-  sys::SmartScopedLock<true> L(*TimerLock);
-  for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
-    delim = TG->printJSONValues(OS, delim);
-  return delim;
-}
-#endif
-
-void TimerGroup::ConstructTimerLists() {
-#if 0
-  (void)*NamedGroupedTimers;
-#endif
 }

@@ -1095,9 +1095,10 @@ public:
 
 /// Maps a group name, timer name pairs to timer objects.
 class TimerMap {
+public:
   typedef StringMap<Timer> Name2TimerMap;
   StringMap<std::pair<TimerGroup*, Name2TimerMap> > Map;
-public:
+
   ~TimerMap() {
     for (StringMap<std::pair<TimerGroup*, Name2TimerMap> >::iterator
          I = Map.begin(), E = Map.end(); I != E; ++I)

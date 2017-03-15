@@ -57,7 +57,8 @@ class StatisticInfo {
   std::vector<const Statistic*> Stats;
   friend void llvm::PrintStatistics();
   friend void llvm::PrintStatistics(raw_ostream &OS);
-  friend void llvm::PrintStatisticsJSON(raw_ostream &OS);
+  friend void llvm::PrintStatisticsJSON(raw_ostream &OS,
+                                        ArrayRef<TimerGroup*> Timers);
 
   /// Sort statistics by debugtype,name,description.
   void sort();
@@ -94,8 +95,6 @@ void Statistic::RegisterStatistic() {
 }
 
 StatisticInfo::StatisticInfo() {
-  // Ensure timergroup lists are created first so they are destructed after us.
-  TimerGroup::ConstructTimerLists();
 }
 
 // Print information when destroyed, iff command line option is specified.
@@ -156,7 +155,7 @@ void llvm::PrintStatistics(raw_ostream &OS) {
   OS.flush();
 }
 
-void llvm::PrintStatisticsJSON(raw_ostream &OS) {
+void llvm::PrintStatisticsJSON(raw_ostream &OS, ArrayRef<TimerGroup*> Timers) {
   StatisticInfo &Stats = *StatInfo;
 
   Stats.sort();
@@ -173,8 +172,10 @@ void llvm::PrintStatisticsJSON(raw_ostream &OS) {
        << Stat->getValue();
     delim = ",\n";
   }
+
   // Print timers.
-  TimerGroup::printAllJSONValues(OS, delim);
+  for (TimerGroup *TG : Timers)
+    delim = TG->printJSONValues(OS, delim);
 
   OS << "\n}\n";
   OS.flush();
@@ -190,7 +191,7 @@ void llvm::PrintStatistics() {
   // Get the stream to write to.
   std::unique_ptr<raw_ostream> OutStream = CreateInfoOutputFile();
   if (StatsAsJSON)
-    PrintStatisticsJSON(*OutStream);
+    PrintStatisticsJSON(*OutStream, ArrayRef<TimerGroup*>());
   else
     PrintStatistics(*OutStream);
 
