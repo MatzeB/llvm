@@ -1,0 +1,117 @@
+# RUN: llc -mtriple=x86_64-- -run-pass=shrink-wrap2 %s -enable-shrink-wrap2=true -debug-only=shrink-wrap2 -o /dev/null 2>&1 | FileCheck %s
+# REQUIRES: asserts
+---
+name:            fun
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.8
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.8, implicit killed %eflags
+    JMP_1 %bb.1
+
+  bb.1:
+    successors: %bb.2, %bb.7
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.7, implicit killed %eflags
+    JMP_1 %bb.2
+
+  bb.2:
+    successors: %bb.3, %bb.5
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.5, implicit killed %eflags
+    JMP_1 %bb.3
+
+  bb.3:
+    successors: %bb.4, %bb.5
+
+    %ebx = MOV32ri 9
+    NOOP implicit-def %eflags
+    JNE_1 %bb.5, implicit killed %eflags
+    JMP_1 %bb.4
+
+  bb.4:
+    successors: %bb.5
+
+    %ebx = MOV32ri 9
+    JMP_1 %bb.5
+
+  bb.5:
+    successors: %bb.6, %bb.7
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.7, implicit killed %eflags
+    JMP_1 %bb.6
+
+  bb.6:
+    successors: %bb.7
+
+    %ebx = MOV32ri 9
+    JMP_1 %bb.7
+
+  bb.7:
+    successors: %bb.15
+
+    JMP_1 %bb.15
+
+  bb.8:
+    successors: %bb.9, %bb.10
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.10, implicit killed %eflags
+    JMP_1 %bb.9
+
+  bb.9:
+    successors: %bb.11
+
+    JMP_1 %bb.11
+
+  bb.10:
+    successors: %bb.11
+
+    %ebx = MOV32ri 9
+    JMP_1 %bb.11
+
+  bb.11:
+    successors: %bb.12, %bb.13
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.13, implicit killed %eflags
+    JMP_1 %bb.12
+
+  bb.12:
+    successors: %bb.14
+
+    JMP_1 %bb.14
+
+  bb.13:
+    successors: %bb.14
+
+    %ebx = MOV32ri 9
+    JMP_1 %bb.14
+
+  bb.14:
+    successors: %bb.15
+    JMP_1 %bb.15
+
+
+  bb.15:
+    RET 0
+...
+#CHECK-LABEL: fun
+
+#CHECK: BB#3 uses : %RBX
+#CHECK-NEXT: BB#4 uses : %RBX
+#CHECK-NEXT: BB#6 uses : %RBX
+#CHECK-NEXT: BB#10 uses : %RBX
+#CHECK-NEXT: BB#13 uses : %RBX
+#CHECK: **** Shrink-wrapping results ****
+#CHECK-NEXT: BB#3: Saves: %RBX, | Restores:
+#CHECK-NEXT: BB#4: Saves: | Restores: %RBX,
+#CHECK-NEXT: BB#6: Saves: %RBX, | Restores: %RBX,
+#CHECK-NEXT: BB#10: Saves: %RBX, | Restores: %RBX,
+#CHECK-NEXT: BB#13: Saves: %RBX, | Restores: %RBX,
+#CHECK-NEXT: BB#18: Saves: | Restores: %RBX,

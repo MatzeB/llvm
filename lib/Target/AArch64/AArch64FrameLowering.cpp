@@ -44,7 +44,8 @@
 // | prev_fp, prev_lr                  |
 // | (a.k.a. "frame record")           |
 // |-----------------------------------| <- fp(=x29)
-// |                                   |
+// | FIXME: ShrinkWrap2: What about    |
+// |        shrink-wrapping?           |
 // | other callee-saved registers      |
 // |                                   |
 // |-----------------------------------|
@@ -337,6 +338,7 @@ bool AArch64FrameLowering::shouldCombineCSRLocalStackBump(
 // Convert callee-save register save/restore instruction to do stack pointer
 // decrement/increment to allocate/deallocate the callee-save stack area by
 // converting store/load to use pre/post increment version.
+LLVM_ATTRIBUTE_USED // FIXME: ShrinkWrap2: Remove attribute when we reuse this.
 static MachineBasicBlock::iterator convertCalleeSaveRestoreToSPPrePostIncDec(
     MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
     const DebugLoc &DL, const TargetInstrInfo *TII, int CSStackSizeInc) {
@@ -485,9 +487,9 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF,
                     MachineInstr::FrameSetup);
     NumBytes = 0;
   } else if (CSStackSize != 0) {
-    MBBI = convertCalleeSaveRestoreToSPPrePostIncDec(MBB, MBBI, DL, TII,
-                                                     -CSStackSize);
-    NumBytes -= CSStackSize;
+   // MBBI = convertCalleeSaveRestoreToSPPrePostIncDec(MBB, MBBI, DL, TII,
+   //                                                  -CSStackSize);
+    //NumBytes -= CSStackSize;
   }
   assert(NumBytes >= 0 && "Negative stack allocation size!?");
 
@@ -731,9 +733,9 @@ void AArch64FrameLowering::emitEpilogue(MachineFunction &MF,
   auto CSStackSize = AFI->getCalleeSavedStackSize();
   bool CombineSPBump = shouldCombineCSRLocalStackBump(MF, NumBytes);
 
-  if (!CombineSPBump && CSStackSize != 0)
-    convertCalleeSaveRestoreToSPPrePostIncDec(
-        MBB, std::prev(MBB.getFirstTerminator()), DL, TII, CSStackSize);
+  //if (!CombineSPBump && CSStackSize != 0)
+  //  convertCalleeSaveRestoreToSPPrePostIncDec(
+  //      MBB, std::prev(MBB.getFirstTerminator()), DL, TII, CSStackSize);
 
   // Move past the restores of the callee-saved registers.
   MachineBasicBlock::iterator LastPopI = MBB.getFirstTerminator();

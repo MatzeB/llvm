@@ -1,0 +1,50 @@
+# RUN: llc -mtriple=x86_64-- -run-pass=shrink-wrap2 %s -enable-shrink-wrap2=true -debug-only=shrink-wrap2 -o /dev/null 2>&1 | FileCheck %s
+# REQUIRES: asserts
+---
+name:            foo
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+
+    CMP32ri8 %edi, 40, implicit-def %eflags
+    JNE_1 %bb.2, implicit killed %eflags
+    JMP_1 %bb.1
+
+  bb.1:
+    successors: %bb.3
+    JMP_1 %bb.3
+
+  bb.2:
+    successors: %bb.3
+
+    %ebx = MOV32ri 89
+    JMP_1 %bb.3
+
+  bb.3:
+    successors: %bb.5, %bb.4
+
+    CMP32rr %esi, killed %eax, implicit-def %eflags
+    JE_1 %bb.5, implicit killed %eflags
+    JMP_1 %bb.4
+
+  bb.4:
+    successors: %bb.6
+
+    %ebx = MOV32ri 89
+    JMP_1 %bb.6
+
+  bb.5:
+    successors: %bb.6
+
+    JMP_1 %bb.6
+
+  bb.6:
+    RET 0, %eax
+...
+#CHECK-LABEL: foo
+
+#CHECK: BB#2 uses : %RBX
+#CHECK-NEXT: BB#4 uses : %RBX
+#CHECK: **** Shrink-wrapping results ****
+#CHECK-NEXT: BB#2: Saves: %RBX, | Restores: %RBX,
+#CHECK-NEXT: BB#4: Saves: %RBX, | Restores: %RBX,

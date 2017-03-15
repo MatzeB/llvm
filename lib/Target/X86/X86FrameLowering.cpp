@@ -1029,7 +1029,12 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
     if (X86FI->getRestoreBasePointer())
       FrameSize += SlotSize;
 
-    NumBytes = FrameSize - X86FI->getCalleeSavedFrameSize();
+    NumBytes = FrameSize;
+    // FIXME: ShrinkWrap2: Since we disabled the push / pop spilling, we now
+    // have to include the callee saves in our frame size, so that our sp
+    // displacement can be updated properly.
+    if (!MFI.getSaves().empty())
+      NumBytes -= X86FI->getCalleeSavedFrameSize();
 
     // Callee-saved registers are pushed on stack before the stack is realigned.
     if (TRI->needsStackRealignment(MF) && !IsWin64Prologue)
@@ -1106,6 +1111,10 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
   // Skip the callee-saved push instructions.
   bool PushedRegs = false;
   int StackOffset = 2 * stackGrowth;
+
+  // FIXME: Add CFI for all the callee saved registers. Since the saves /
+  // restores are not at the beginning of the function, we need to go through
+  // all the basic blocks.
 
   while (MBBI != MBB.end() &&
          MBBI->getFlag(MachineInstr::FrameSetup) &&
@@ -1538,7 +1547,12 @@ void X86FrameLowering::emitEpilogue(MachineFunction &MF,
   } else if (hasFP(MF)) {
     // Calculate required stack adjustment.
     uint64_t FrameSize = StackSize - SlotSize;
-    NumBytes = FrameSize - CSSize;
+    NumBytes = FrameSize;
+    // FIXME: ShrinkWrap2: Since we disabled the push / pop spilling, we now
+    // have to include the callee saves in our frame size, so that our sp
+    // displacement can be updated properly.
+    if (!MFI.getSaves().empty())
+      NumBytes -= CSSize;
 
     // Callee-saved registers were pushed on stack before the stack was
     // realigned.
@@ -1611,6 +1625,12 @@ void X86FrameLowering::emitEpilogue(MachineFunction &MF,
     unsigned SEHFrameOffset = calculateSetFPREG(SEHStackAllocAmt);
     uint64_t LEAAmount =
         IsWin64Prologue ? SEHStackAllocAmt - SEHFrameOffset : -CSSize;
+    // FIXME: ShrinkWrap2: Here, we can't assume we are going to pop all the
+    // callee saves (because we aren't, we actually move them back, then adjust
+    // the stack), so we just want to restore the stack pointer. This should go
+    // away at some point...
+    if (!MFI.getSaves().empty())
+      LEAAmount = 0;
 
     // There are only two legal forms of epilogue:
     // - add SEHAllocationSize, %rsp

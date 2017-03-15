@@ -1,0 +1,33 @@
+# RUN: llc -march=x86 -run-pass=shrink-wrap2 %s -enable-shrink-wrap2=true -debug-only=shrink-wrap2 -o /dev/null 2>&1 | FileCheck %s
+# REQUIRES: asserts
+# This is a reduced test case from test/CodeGen/X86/2007-08-09-IllegalX86-64Asm.ll
+---
+name:            ubyte_divmod
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.4, %bb.2
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.4, implicit killed %eflags
+    JMP_1 %bb.2
+
+  bb.2:
+    successors: %bb.3, %bb.4
+
+    %ebx = MOV32ri 30
+    NOOP implicit-def %eflags
+    JNE_1 %bb.4, implicit killed %eflags
+    JMP_1 %bb.3
+
+  bb.3:
+    RET 0
+
+  bb.4:
+    RET 0
+...
+#CHECK-LABEL: ubyte_divmod
+
+#CHECK: BB#1 uses : %EBX
+#CHECK: **** Shrink-wrapping results ****
+#CHECK-NEXT: BB#1: Saves: %EBX, | Restores: %EBX,

@@ -1,0 +1,68 @@
+# RUN: llc -mtriple=x86_64-- -run-pass=shrink-wrap2 %s -enable-shrink-wrap2=true -debug-only=shrink-wrap2 -o /dev/null 2>&1 | FileCheck %s
+# REQUIRES: asserts
+# This is a reduced test case from test/CodeGen/X86/2009-09-10-SpillComments.ll
+# FIXME: ShrinkWrap2: this crashes with regions enabled.
+---
+name:            walk_fixup_memory_subreg
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.6, %bb.1
+
+    %rbx = MOV64ri 30
+    NOOP implicit-def %eflags
+    JNE_1 %bb.6, implicit killed %eflags
+    JMP_1 %bb.1
+
+  bb.1:
+    successors: %bb.2, %bb.3
+    liveins: %rbx
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.3, implicit killed %eflags
+    JMP_1 %bb.2
+
+  bb.2:
+    RET 0
+
+  bb.3:
+    successors: %bb.4
+    liveins: %rbx
+
+    %ebp = MOV32r0 implicit-def dead %eflags
+
+  bb.4:
+    successors: %bb.5, %bb.4
+    liveins: %ebp, %rbx
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.4, implicit killed %eflags
+    JMP_1 %bb.5
+
+  bb.5:
+    successors: %bb.4
+    liveins: %ebp, %rbx
+
+    %rbx = ADD64rr %rbx, %rbx, implicit-def %eflags
+    JMP_1 %bb.4
+
+  bb.6:
+    RET 0
+...
+#CHECK-LABEL: walk_fixup_memory_subreg
+
+#CHECK: BB#0 uses : %RBX
+#CHECK-NEXT: BB#1 uses : %RBX
+#CHECK-NEXT: BB#3 uses : %RBP, %RBX
+#CHECK-NEXT: BB#4 uses : %RBP, %RBX
+#CHECK-NEXT: BB#5 uses : %RBP, %RBX
+#CHECK-NEXT: BB#7 uses : %RBP, %RBX
+#CHECK-NEXT: Remove uses from unterminable BB#3
+#CHECK-NEXT: Remove uses from unterminable BB#4
+#CHECK-NEXT: Remove uses from unterminable BB#5
+#CHECK-NEXT: Remove uses from unterminable BB#7
+#CHECK: **** Shrink-wrapping results ****
+#CHECK-NEXT: BB#0: Saves: %RBX, | Restores:
+#CHECK-NEXT: BB#2: Saves: | Restores: %RBX,
+#CHECK-NEXT: BB#3: Saves: | Restores: %RBX,
+#CHECK-NEXT: BB#6: Saves: | Restores: %RBX,

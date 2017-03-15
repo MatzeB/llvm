@@ -15,6 +15,7 @@
 #define LLVM_CODEGEN_MACHINEFRAMEINFO_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
 #include <vector>
@@ -25,7 +26,6 @@ class DataLayout;
 class TargetRegisterClass;
 class Type;
 class MachineFunction;
-class MachineBasicBlock;
 class TargetFrameLowering;
 class TargetMachine;
 class BitVector;
@@ -272,10 +272,30 @@ class MachineFrameInfo {
   /// stack objects like arguments so we can't treat them as immutable.
   bool HasTailCall = false;
 
+  // FIXME: ShrinkWrap2: Deprecate.
   /// Not null, if shrink-wrapping found a better place for the prologue.
   MachineBasicBlock *Save = nullptr;
   /// Not null, if shrink-wrapping found a better place for the epilogue.
   MachineBasicBlock *Restore = nullptr;
+
+public:
+  /// Map a set of registers to a basic block. This is a replacement for CSInfo
+  /// with extra information about the location of the saves / restores pinned
+  /// to a basic block. One register may appear more than once in the map, as
+  /// long as it is associated to a different basic block. The CSIs may share
+  /// frame indexes for different registers, for different basic blocks.
+  /// Similar to CSInfo, the frame indexes in the CalleeSavedInfo struct are
+  /// valid ony if CSIValid is true.
+  using CalleeSavedMap =
+      DenseMap<MachineBasicBlock *, std::vector<CalleeSavedInfo>>;
+
+private:
+  /// If any, contains better save points for the prologue found by
+  /// shrink-wrapping.
+  CalleeSavedMap Saves;
+  /// If any, contains better restore points for the epilogue found by
+  /// shrink-wrapping.
+  CalleeSavedMap Restores;
 
 public:
   explicit MachineFrameInfo(unsigned StackAlignment, bool StackRealignable,
@@ -647,10 +667,39 @@ public:
 
   void setCalleeSavedInfoValid(bool v) { CSIValid = v; }
 
+  // FIXME: ShrinkWrap2: Merge with multiple points.
   MachineBasicBlock *getSavePoint() const { return Save; }
-  void setSavePoint(MachineBasicBlock *NewSave) { Save = NewSave; }
+  void setSavePoint(MachineBasicBlock *NewSave) {
+    assert(Saves.empty() && Restores.empty() &&
+           "Mixing shrink-wrapping results.");
+    Save = NewSave;
+  }
   MachineBasicBlock *getRestorePoint() const { return Restore; }
-  void setRestorePoint(MachineBasicBlock *NewRestore) { Restore = NewRestore; }
+  void setRestorePoint(MachineBasicBlock *NewRestore) {
+    assert(Saves.empty() && Restores.empty() &&
+           "Mixing shrink-wrapping results.");
+    Restore = NewRestore;
+  }
+
+  // FIXME: ShrinkWrap2: Merge with old shrink-wrapping.
+  // FIXME: ShrinkWrap2: Provide setSaves / setRestores instead of non-const ref
+  // to the map?
+  CalleeSavedMap &getSaves() {
+    assert(!Save && !Restore && "Mixing shrink-wrapping results.");
+    return Saves;
+  }
+  CalleeSavedMap &getRestores() {
+    assert(!Save && !Restore && "Mixing shrink-wrapping results.");
+    return Restores;
+  }
+  const CalleeSavedMap &getSaves() const {
+    assert(!Save && !Restore && "Mixing shrink-wrapping results.");
+    return Saves;
+  }
+  const CalleeSavedMap &getRestores() const {
+    assert(!Save && !Restore && "Mixing shrink-wrapping results.");
+    return Restores;
+  }
 
   /// Return a set of physical registers that are pristine.
   ///

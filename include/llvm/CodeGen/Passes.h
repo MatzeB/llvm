@@ -125,6 +125,8 @@ namespace llvm {
   /// ShrinkWrap pass. Look for the best place to insert save and restore
   // instruction and update the MachineFunctionInfo with that information.
   extern char &ShrinkWrapID;
+  // FIXME: ShrinkWrap2: Merge.
+  extern char &ShrinkWrap2ID;
 
   /// Greedy register allocator.
   extern char &RAGreedyID;

@@ -1,0 +1,111 @@
+# RUN: llc -mtriple=x86_64-- -run-pass=shrink-wrap2 %s -enable-shrink-wrap2=true -debug-only=shrink-wrap2 -o /dev/null 2>&1 | FileCheck %s
+# REQUIRES: asserts
+# This is a reduced test case from test/CodeGen/X86/2008-09-29-ReMatBug.ll.
+---
+name:            stringRepresentation
+tracksRegLiveness: true
+body:             |
+  bb.0:
+    successors: %bb.1, %bb.2
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.2, implicit killed %eflags
+    JMP_1 %bb.1
+
+  bb.1:
+    successors: %bb.15
+
+    JMP_1 %bb.15
+
+  bb.2:
+    successors: %bb.11
+
+    %r15 = MOV64ri 33
+    %r14 = MOV64ri 33
+    %rbx = MOV64ri 33
+    JMP_1 %bb.11
+
+  bb.3:
+    successors: %bb.4, %bb.3
+
+    NOOP implicit-def %eflags
+    JNE_1 %bb.3, implicit killed %eflags
+    JMP_1 %bb.4
+
+  bb.4:
+    successors: %bb.6
+    liveins: %r14
+
+    %rdi = COPY %r14
+    JMP_1 %bb.6
+
+  bb.5:
+    successors: %bb.6
+
+    JMP_1 %bb.6
+
+  bb.6:
+    successors: %bb.7
+
+    JMP_1 %bb.7
+
+
+  bb.7:
+    successors: %bb.8, %bb.9
+
+    NOOP implicit-def %eflags
+    JA_1 %bb.8, implicit killed %eflags
+    JMP_1 %bb.9
+
+  bb.8:
+    successors: %bb.5, %bb.7
+
+    NOOP implicit-def %eflags
+    JE_1 %bb.5, implicit killed %eflags
+    JMP_1 %bb.7
+
+  bb.9:
+    successors: %bb.10, %bb.7
+    liveins: %rbx
+
+    NOOP implicit-def %eflags
+    JE_1 %bb.7, implicit killed %eflags
+    JMP_1 %bb.10
+
+  bb.10:
+    successors: %bb.11
+
+
+  bb.11:
+    successors: %bb.12, %bb.3
+
+    NOOP implicit-def %eflags
+    JE_1 %bb.12, implicit killed %eflags
+    JMP_1 %bb.3
+
+  bb.12:
+    successors: %bb.13, %bb.14
+
+    NOOP implicit-def %eflags
+    JE_1 %bb.14, implicit killed %eflags
+
+  bb.13:
+    successors: %bb.15
+
+    JMP_1 %bb.15
+
+  bb.14:
+    RET 0
+
+  bb.15:
+    RET 0
+...
+#CHECK-LABEL: stringRepresentation
+
+#CHECK: BB#2 uses : %RBX, %R14, %R15
+#CHECK-NEXT: BB#4 uses : %R14
+#CHECK-NEXT: BB#9 uses : %RBX
+#CHECK: **** Shrink-wrapping results ****
+#CHECK-NEXT: BB#2: Saves: %RBX, %R14, %R15, | Restores: %R15,
+#CHECK-NEXT: BB#13: Saves: | Restores: %RBX, %R14
+#CHECK-NEXT: BB#14: Saves: | Restores: %RBX, %R14
