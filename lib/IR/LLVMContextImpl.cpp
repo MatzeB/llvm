@@ -52,6 +52,17 @@ LLVMContextImpl::LLVMContextImpl(LLVMContext &C)
 }
 
 LLVMContextImpl::~LLVMContextImpl() {
+  // Send timers to global statistics system.
+  errs() << "Context destruct\n";
+#if 0
+  typedef StringMapEntry<std::pair<TimerGroup*, TimerMap::Name2TimerMap>>
+    MapEntry;
+  for (MapEntry &Entry : Timers.Map) {
+    TimerGroup *Group = Entry.getValue().first;
+    Group->sendStatistics();
+  }
+#endif
+
   // NOTE: We need to delete the contents of OwnedModules, but Module's dtor
   // will call LLVMContextImpl::removeModule, thus invalidating iterators into
   // the container. Avoid iterators during this operation:

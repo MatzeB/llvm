@@ -57,12 +57,12 @@ class StatisticInfo {
   std::vector<const Statistic*> Stats;
   friend void llvm::PrintStatistics();
   friend void llvm::PrintStatistics(raw_ostream &OS);
-  friend void llvm::PrintStatisticsJSON(raw_ostream &OS,
-                                        ArrayRef<TimerGroup*> Timers);
+  friend void llvm::PrintStatisticsJSON(raw_ostream &OS);
 
   /// Sort statistics by debugtype,name,description.
   void sort();
 public:
+  StringMap<TimeRecord> TimeRecords;
   StatisticInfo();
   ~StatisticInfo();
 
@@ -101,6 +101,13 @@ StatisticInfo::StatisticInfo() {
 StatisticInfo::~StatisticInfo() {
   if (::Stats || PrintOnExit)
     llvm::PrintStatistics();
+}
+
+void llvm::AddTimeStatistic(StringRef Name, const TimeRecord &Record) {
+  if (!Stats && !Enabled)
+    return;
+  sys::SmartScopedLock<true> Writer(*StatLock);
+  StatInfo->TimeRecords[Name] += Record;
 }
 
 void llvm::EnableStatistics(bool PrintOnExit) {
@@ -155,7 +162,7 @@ void llvm::PrintStatistics(raw_ostream &OS) {
   OS.flush();
 }
 
-void llvm::PrintStatisticsJSON(raw_ostream &OS, ArrayRef<TimerGroup*> Timers) {
+void llvm::PrintStatisticsJSON(raw_ostream &OS) {
   StatisticInfo &Stats = *StatInfo;
 
   Stats.sort();
@@ -173,9 +180,15 @@ void llvm::PrintStatisticsJSON(raw_ostream &OS, ArrayRef<TimerGroup*> Timers) {
     delim = ",\n";
   }
 
-  // Print timers.
-  for (TimerGroup *TG : Timers)
-    delim = TG->printJSONValues(OS, delim);
+  // Print time records.
+  for (const StringMapEntry<TimeRecord> &Entry : StatInfo->TimeRecords) {
+    OS << delim;
+
+    StringRef Name = Entry.getKey();
+    const TimeRecord &Record = Entry.getValue();
+    Record.printJSONFragment(OS, Name);
+    delim = ",\n";
+  }
 
   OS << "\n}\n";
   OS.flush();
@@ -191,7 +204,7 @@ void llvm::PrintStatistics() {
   // Get the stream to write to.
   std::unique_ptr<raw_ostream> OutStream = CreateInfoOutputFile();
   if (StatsAsJSON)
-    PrintStatisticsJSON(*OutStream, ArrayRef<TimerGroup*>());
+    PrintStatisticsJSON(*OutStream);
   else
     PrintStatistics(*OutStream);
 

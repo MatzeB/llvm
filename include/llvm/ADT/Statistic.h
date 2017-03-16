@@ -34,7 +34,7 @@
 
 namespace llvm {
 
-class TimerGroup;
+class TimeRecord;
 class raw_fd_ostream;
 class raw_ostream;
 
@@ -152,6 +152,8 @@ protected:
 #define STATISTIC(VARNAME, DESC)                                               \
   static llvm::Statistic VARNAME = {DEBUG_TYPE, #VARNAME, DESC, {0}, false}
 
+void AddTimeStatistic(StringRef Name, const TimeRecord &Record);
+
 /// \brief Enable the collection and printing of statistics.
 void EnableStatistics(bool PrintOnExit = true);
 
@@ -171,7 +173,7 @@ void PrintStatistics(raw_ostream &OS);
 /// Timer, TimerGroup). Note that the timers are cleared after printing and will
 /// not be printed in human readable form or in a second call of
 /// PrintStatisticsJSON().
-void PrintStatisticsJSON(raw_ostream &OS, ArrayRef<TimerGroup*> Timers);
+void PrintStatisticsJSON(raw_ostream &OS);
 
 } // end namespace llvm
 

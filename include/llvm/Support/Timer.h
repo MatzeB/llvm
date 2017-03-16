@@ -64,6 +64,8 @@ public:
   /// Print the current time record to \p OS, with a breakdown showing
   /// contributions to the \p Total time record.
   void print(const TimeRecord &Total, raw_ostream &OS) const;
+
+  void printJSONFragment(raw_ostream &OS, StringRef Name) const;
 };
 
 /// This class is used to track the amount of time spent between invocations of
@@ -195,7 +197,8 @@ public:
   /// Print any started timers in this group and zero them.
   void print(raw_ostream &OS);
 
-  const char *printJSONValues(raw_ostream &OS, const char *delim);
+  /// Send timer values to the global statistics system.
+  void sendStatistics();
 
 private:
   friend class Timer;
@@ -203,8 +206,6 @@ private:
   void removeTimer(Timer &T);
   void prepareToPrintList();
   void PrintQueuedTimers(raw_ostream &OS);
-  void printJSONValue(raw_ostream &OS, const PrintRecord &R,
-                      const char *suffix, double Value);
 };
 
 } // end namespace llvm

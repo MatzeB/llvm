@@ -275,8 +275,6 @@ public:
                         StringRef GroupName, StringRef GroupDescription,
                         bool Enabled = true);
 
-  void getTimerGroups(SmallVectorImpl<TimerGroup*> &Result) const;
-
 private:
   // Module needs access to the add/removeModule methods.
   friend class Module;

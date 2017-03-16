@@ -161,6 +161,20 @@ void TimeRecord::print(const TimeRecord &Total, raw_ostream &OS) const {
     OS << format("%9" PRId64 "  ", (int64_t)getMemUsed());
 }
 
+static void printJSONValue(raw_ostream &OS, StringRef Name, const char *suffix,
+                           double Value) {
+  assert(!yaml::needsQuotes(Name) && "Timer name needs no quotes");
+  OS << "\t\"time." << Name << suffix << "\": " << Value;
+}
+
+void TimeRecord::printJSONFragment(raw_ostream &OS, StringRef Name) const {
+    printJSONValue(OS, Name, ".wall", getWallTime());
+    OS << ",\n";
+    printJSONValue(OS, Name, ".user", getUserTime());
+    OS << ",\n";
+    printJSONValue(OS, Name, ".sys", getSystemTime());
+}
+
 //===----------------------------------------------------------------------===//
 //   TimerGroup Implementation
 //===----------------------------------------------------------------------===//
@@ -179,6 +193,10 @@ TimerGroup::~TimerGroup() {
 
 
 void TimerGroup::removeTimer(Timer &T) {
+  // Send result to statistic system.
+  std::string FullName = (Twine(Name) + Twine('.') + Twine(T.Name)).str();
+  AddTimeStatistic(FullName, T.Time);
+
   // If the timer was started, move its data to TimersToPrint.
   if (T.hasTriggered())
     TimersToPrint.emplace_back(T.Time, T.Name, T.Description);
@@ -270,6 +288,7 @@ void TimerGroup::prepareToPrintList() {
 }
 
 void TimerGroup::print(raw_ostream &OS) {
+  errs() << "PrintGroup\n";
   prepareToPrintList();
 
   // If any timers were started, print the group.
@@ -277,26 +296,13 @@ void TimerGroup::print(raw_ostream &OS) {
     PrintQueuedTimers(OS);
 }
 
-void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
-                                const char *suffix, double Value) {
-  assert(!yaml::needsQuotes(Name) && "TimerGroup name needs no quotes");
-  assert(!yaml::needsQuotes(R.Name) && "Timer name needs no quotes");
-  OS << "\t\"time." << Name << '.' << R.Name << suffix << "\": " << Value;
-}
-
-const char *TimerGroup::printJSONValues(raw_ostream &OS, const char *delim) {
+void TimerGroup::sendStatistics() {
   prepareToPrintList();
+  SmallString<80> FullName;
   for (const PrintRecord &R : TimersToPrint) {
-    OS << delim;
-    delim = ",\n";
-
-    const TimeRecord &T = R.Time;
-    printJSONValue(OS, R, ".wall", T.getWallTime());
-    OS << delim;
-    printJSONValue(OS, R, ".user", T.getUserTime());
-    OS << delim;
-    printJSONValue(OS, R, ".sys", T.getSystemTime());
+    FullName.clear();
+    (Twine(Name) + Twine('.') + Twine(R.Name)).toVector(FullName);
+    AddTimeStatistic(Name, R.Time);
   }
   TimersToPrint.clear();
-  return delim;
 }
