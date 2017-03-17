@@ -47,6 +47,7 @@ class DiagnosticInfoOptimizationRemarkMissed;
 class DiagnosticInfoOptimizationRemarkAnalysis;
 class GCStrategy;
 class LLVMContext;
+class StatisticEvent;
 class Type;
 class Value;
 
@@ -1282,6 +1283,8 @@ public:
   /// \brief Access the object which manages optimization bisection for failure
   /// analysis.
   OptBisect &getOptBisect();
+
+  void statisticEvent(const StatisticEvent &Event);
 };
 
 }

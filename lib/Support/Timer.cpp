@@ -89,6 +89,7 @@ void Timer::init(StringRef Name, StringRef Description, TimerGroup &tg) {
   Running = Triggered = false;
   TG = &tg;
   TG->addTimer(*this);
+  StatisticName = (Twine(tg.Name) + Twine('.') + Twine(Name)).str();
 }
 
 Timer::~Timer() {
@@ -130,8 +131,11 @@ void Timer::startTimer() {
 void Timer::stopTimer() {
   assert(Running && "Cannot stop a paused timer");
   Running = false;
-  Time += TimeRecord::getCurrentTime(false);
-  Time -= StartTime;
+
+  TimeRecord Delta = TimeRecord::getCurrentTime(false);
+  Delta -= StartTime;
+  Time += Delta;
+  AddTimeStatistic(StatisticName, Delta);
 }
 
 void Timer::clear() {
@@ -193,10 +197,6 @@ TimerGroup::~TimerGroup() {
 
 
 void TimerGroup::removeTimer(Timer &T) {
-  // Send result to statistic system.
-  std::string FullName = (Twine(Name) + Twine('.') + Twine(T.Name)).str();
-  AddTimeStatistic(FullName, T.Time);
-
   // If the timer was started, move its data to TimersToPrint.
   if (T.hasTriggered())
     TimersToPrint.emplace_back(T.Time, T.Name, T.Description);
@@ -297,6 +297,7 @@ void TimerGroup::print(raw_ostream &OS) {
 }
 
 void TimerGroup::sendStatistics() {
+#if 0
   prepareToPrintList();
   SmallString<80> FullName;
   for (const PrintRecord &R : TimersToPrint) {
@@ -305,4 +306,5 @@ void TimerGroup::sendStatistics() {
     AddTimeStatistic(Name, R.Time);
   }
   TimersToPrint.clear();
+#endif
 }

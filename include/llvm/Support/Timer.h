@@ -80,6 +80,7 @@ class Timer {
   TimeRecord StartTime;     ///< The time startTimer() was last called.
   std::string Name;         ///< The name of this time variable.
   std::string Description;  ///< Description of this time variable.
+  std::string StatisticName;
   bool Running;             ///< Is the timer currently running?
   bool Triggered;           ///< Has the timer ever been triggered?
   TimerGroup *TG = nullptr; ///< The TimerGroup this Timer is in.

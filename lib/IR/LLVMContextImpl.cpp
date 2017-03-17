@@ -263,3 +263,20 @@ static ManagedStatic<OptBisect> OptBisector;
 OptBisect &LLVMContextImpl::getOptBisect() {
   return *OptBisector;
 }
+
+class StatisticAggregator {
+public:
+  const Module *ContextModule;
+  const Function *ContextFunction;
+
+  StatisticAggregator() {
+  }
+
+  void event(StringRef Name, uint64_t Value) {
+
+  }
+};
+
+void LLVMContextImpl::statisticEvent(const StatisticEvent &Event) {
+  errs() << "
+}

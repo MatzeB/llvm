@@ -190,11 +190,19 @@ LLVMContext::getDiagnosticMessagePrefix(DiagnosticSeverity Severity) {
     return "remark";
   case DS_Note:
     return "note";
+  case DS_Statistic:
+    break;
   }
-  llvm_unreachable("Unknown DiagnosticSeverity");
+  llvm_unreachable("Unexpected DiagnosticSeverity");
 }
 
 void LLVMContext::diagnose(const DiagnosticInfo &DI) {
+  // Let's catch statistic events early
+  if (DI.getSeverity() == DS_Statistic) {
+    pImpl->statisticEvent(cast<StatisticEvent>(DI));
+    return;
+  }
+
   // If there is a report handler, use it.
   if (pImpl->DiagnosticHandler) {
     if (!pImpl->RespectDiagnosticFilters || isDiagnosticEnabled(DI))

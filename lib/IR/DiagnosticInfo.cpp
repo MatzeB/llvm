@@ -94,6 +94,13 @@ int llvm::getNextAvailablePluginDiagnosticKind() {
 
 const char *OptimizationRemarkAnalysis::AlwaysPrint = "";
 
+StatisticEvent::~StatisticEvent() {
+}
+
+void StatisticEvent::print(DiagnosticPrinter &DP) const {
+  // Statistic data is not printed.
+}
+
 DiagnosticInfoInlineAsm::DiagnosticInfoInlineAsm(const Instruction &I,
                                                  const Twine &MsgStr,
                                                  DiagnosticSeverity Severity)

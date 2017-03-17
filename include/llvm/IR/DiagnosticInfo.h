@@ -47,7 +47,8 @@ enum DiagnosticSeverity : char {
   DS_Remark,
   // A note attaches additional information to one of the previous diagnostic
   // types.
-  DS_Note
+  DS_Note,
+  DS_Statistic
 };
 
 /// \brief Defines the different supported kind of a diagnostic.
@@ -76,6 +77,7 @@ enum DiagnosticKind {
   DK_LastMachineRemark = DK_MachineOptimizationRemarkAnalysis,
   DK_MIRParser,
   DK_PGOProfile,
+  DK_Statistic,
   DK_Unsupported,
   DK_FirstPluginKind
 };
@@ -118,6 +120,22 @@ public:
   /// The printed message must not end with '.' nor start with a severity
   /// keyword.
   virtual void print(DiagnosticPrinter &DP) const = 0;
+};
+
+class StatisticEvent : public DiagnosticInfo {
+public:
+  StringRef Name;
+  uint64_t Value;
+
+  StatisticEvent(StringRef Name, uint64_t Value)
+    : DiagnosticInfo(DK_Statistic, DS_Statistic) {}
+  virtual ~StatisticEvent();
+
+  virtual void print(DiagnosticPrinter &DP) const;
+
+  static bool classof(const DiagnosticInfo *DI) {
+    return DI->getKind() == DK_Statistic;
+  }
 };
 
 typedef std::function<void(const DiagnosticInfo &)> DiagnosticHandlerFunction;
