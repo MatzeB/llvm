@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Timer.h"
+
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/CommandLine.h"
@@ -19,8 +20,11 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/StatisticStream.h"
 #include "llvm/Support/YAMLTraits.h"
+#include "llvm/Support/raw_ostream.h"
+#include <limits>
+
 using namespace llvm;
 
 // This ugly hack is brought to you courtesy of constructor/destructor ordering
@@ -104,22 +108,26 @@ static inline size_t getMemUsage() {
 
 TimeRecord TimeRecord::getCurrentTime(bool Start) {
   using Seconds = std::chrono::duration<double, std::ratio<1>>;
-  TimeRecord Result;
   sys::TimePoint<> now;
   std::chrono::nanoseconds user, sys;
 
+  ssize_t MemUsed;
   if (Start) {
-    Result.MemUsed = getMemUsage();
+    MemUsed = getMemUsage();
     sys::Process::GetTimeUsage(now, user, sys);
   } else {
     sys::Process::GetTimeUsage(now, user, sys);
-    Result.MemUsed = getMemUsage();
+    MemUsed = getMemUsage();
   }
 
-  Result.WallTime = Seconds(now.time_since_epoch()).count();
-  Result.UserTime = Seconds(user).count();
-  Result.SystemTime = Seconds(sys).count();
-  return Result;
+  double WallTime = Seconds(now.time_since_epoch()).count();
+  double UserTime = Seconds(user).count();
+  double SystemTime = Seconds(sys).count();
+  return TimeRecord(WallTime, UserTime, SystemTime, MemUsed);
+}
+
+TimeRecord TimeRecord::getInvalid() {
+  return TimeRecord(std::numeric_limits<double>::quiet_NaN(), 0, 0, 0);
 }
 
 void Timer::startTimer() {
@@ -141,6 +149,20 @@ void Timer::stopTimer() {
 void Timer::clear() {
   Running = Triggered = false;
   Time = StartTime = TimeRecord();
+}
+
+static void timeEvent(StatisticStream &SStream, Twine Name,
+                      double Value) {
+  int64_t msecs = (int64_t) (Value * 1000.);
+  SStream.even(Name, msecs);
+}
+
+StatTimeRegion::emitTime() const {
+  TimeRecord End = TimeRecord::getCurrentTime();
+  TimeRecord Delta = End - Begin;
+  timeEvent(SStream, Twine(EventName) + Twine(".wall"), Delta.getWallTime());
+  timeEvent(SStream, Twine(EventName) + Twine(".user"), Delta.getUserTime());
+  timeEvent(SStream, Twine(EventName) + Twine(".sys"), Delta.getSystemTime());
 }
 
 static void printVal(double Val, double Total, raw_ostream &OS) {

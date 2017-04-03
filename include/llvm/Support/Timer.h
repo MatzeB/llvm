@@ -13,12 +13,14 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
+#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace llvm {
 
+class StatisticStream;
 class Timer;
 class TimerGroup;
 class raw_ostream;
@@ -28,6 +30,11 @@ class TimeRecord {
   double UserTime;       ///< User time elapsed.
   double SystemTime;     ///< System time elapsed.
   ssize_t MemUsed;       ///< Memory allocated (in bytes).
+  TimeRecord(double WallTime, double UserTime, double SystemTime,
+             ssize_t MemUsed)
+    : WallTime(WallTime), UserTime(UserTime), SystemTime(SystemTime),
+      MemUsed(MemUsed) {}
+
 public:
   TimeRecord() : WallTime(0), UserTime(0), SystemTime(0), MemUsed(0) {}
 
@@ -36,6 +43,9 @@ public:
   /// matters if the time to get the memory usage is significant and shouldn't
   /// be counted as part of a duration.
   static TimeRecord getCurrentTime(bool Start = true);
+  static TimeRecord getInvalid();
+
+  bool isValid() const { return !std::isnan(WallTime); }
 
   double getProcessTime() const { return UserTime + SystemTime; }
   double getUserTime() const { return UserTime; }
@@ -156,6 +166,23 @@ public:
   }
   ~TimeRegion() {
     if (T) T->stopTimer();
+  }
+};
+
+class StatTimeRegion {
+  StatisticStream &SStream;
+  const char *EventName;
+  TimeRecord Begin;
+  void emitTime() const;
+public:
+  StatTimeRegion(StatisticStream &SStream, const char *EventName,
+                 bool Enabled = true)
+    : SStream(SStream), EventName(EventName),
+      Begin(Enabled ? TimeRecord::getCurrentTime() : TimeRecord::getInvalid()) {
+  }
+  ~StatTimeRegion() {
+    if (Begin.isValid())
+      emitTime();
   }
 };
 
