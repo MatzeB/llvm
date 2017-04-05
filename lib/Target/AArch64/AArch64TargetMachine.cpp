@@ -45,6 +45,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include <memory>
 #include <string>
+#include <random>
 
 using namespace llvm;
 
@@ -142,6 +143,10 @@ static cl::opt<int> EnableGlobalISelAtO(
     "aarch64-enable-global-isel-at-O", cl::Hidden,
     cl::desc("Enable GlobalISel at or below an opt level (-1 to disable)"),
     cl::init(-1));
+
+static cl::opt<int> InsertNops("aarch64-insert-nops", cl::Hidden,
+                                cl::desc("Enable nop insertion pass"),
+                                cl::init(0));
 
 extern "C" void LLVMInitializeAArch64Target() {
   // Register the target.
@@ -525,9 +530,48 @@ void AArch64PassConfig::addPreSched2() {
     addPass(createAArch64LoadStoreOptimizationPass());
 }
 
+class AArch64NopInserter : public MachineFunctionPass {
+public:
+  std::mt19937 Rand;
+  static char ID;
+  AArch64NopInserter() : MachineFunctionPass(ID), Rand(InsertNops) {}
+
+  bool runOnMachineFunction(MachineFunction &MF) override {
+    const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+    const MCInstrDesc &Hint = TII.get(AArch64::HINT);
+    for (MachineBasicBlock &MBB : MF) {
+      for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end(); I != E;
+           ++I) {
+        if (I->isTerminator() && I != MBB.begin() &&
+            std::prev(I)->isTerminator())
+          break;
+        if (I->isTransient())
+          continue;
+        if (Rand() % 5 == 0) {
+          // Insert a NOP
+          BuildMI(MBB, I, DebugLoc(), Hint).addImm(0);
+        }
+      }
+    }
+    return true;
+  }
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesCFG();
+    MachineFunctionPass::getAnalysisUsage(AU);
+  }
+  StringRef getPassName() const override {
+    return "AArch64 NOP Inserter";
+  }
+};
+
+char AArch64NopInserter::ID;
+
 void AArch64PassConfig::addPreEmitPass() {
   if (EnableA53Fix835769)
     addPass(createAArch64A53Fix835769());
+  if (InsertNops != 0) {
+    addPass(new AArch64NopInserter());
+  }
   // Relax conditional branch instructions if they're otherwise out of
   // range of their destination.
   if (BranchRelaxation)
