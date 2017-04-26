@@ -64,35 +64,16 @@ STATISTIC(NumMemSetInfer, "Number of memsets inferred");
 STATISTIC(NumMoveToCpy,   "Number of memmoves converted to memcpy");
 STATISTIC(NumCpyToSet,    "Number of memcpys converted to memset");
 
-static int64_t GetOffsetFromIndex(const GEPOperator *GEP, unsigned Idx,
-                                  bool &VariableIdxFound,
-                                  const DataLayout &DL) {
-  // Skip over the first indices.
-  gep_type_iterator GTI = gep_type_begin(GEP);
-  for (unsigned i = 1; i != Idx; ++i, ++GTI)
-    /*skip along*/;
+static Value *stripGEPOffsets(const DataLayout &DL, Value *Ptr,
+                              APInt &Offset) {
+  assert(Ptr->stripPointerCasts() == Ptr);
 
-  // Compute the offset implied by the rest of the indices.
-  int64_t Offset = 0;
-  for (unsigned i = Idx, e = GEP->getNumOperands(); i != e; ++i, ++GTI) {
-    ConstantInt *OpC = dyn_cast<ConstantInt>(GEP->getOperand(i));
-    if (!OpC)
-      return VariableIdxFound = true;
-    if (OpC->isZero()) continue;  // No offset.
-
-    // Handle struct indices, which add their field offset to the pointer.
-    if (StructType *STy = GTI.getStructTypeOrNull()) {
-      Offset += DL.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
-      continue;
-    }
-
-    // Otherwise, we have a sequential type like an array or vector.  Multiply
-    // the index by the ElementSize.
-    uint64_t Size = DL.getTypeAllocSize(GTI.getIndexedType());
-    Offset += Size*OpC->getSExtValue();
+  GEPOperator *GEP = dyn_cast<GEPOperator>(Ptr);
+  if (!GEP || !GEP->accumulateConstantOffset(DL, Offset)) {
+    Offset = 0;
+    return Ptr;
   }
-
-  return Offset;
+  return GEP->getOperand(0)->stripPointerCasts();
 }
 
 /// Return true if Ptr1 is provably equal to Ptr2 plus a constant offset, and
@@ -109,42 +90,22 @@ static bool IsPointerOffset(Value *Ptr1, Value *Ptr2, int64_t &Offset,
     return true;
   }
 
-  GEPOperator *GEP1 = dyn_cast<GEPOperator>(Ptr1);
-  GEPOperator *GEP2 = dyn_cast<GEPOperator>(Ptr2);
+  unsigned PtrWidth
+    = cast<IntegerType>(DL.getIntPtrType(Ptr1->getType()))->getBitWidth();
+  assert(cast<IntegerType>(DL.getIntPtrType(Ptr2->getType()))->getBitWidth()
+         == PtrWidth);
+  APInt Offset1(PtrWidth, 0);
+  Value *Base1 = stripGEPOffsets(DL, Ptr1, Offset1);
+  APInt Offset2(PtrWidth, 0);
+  Value *Base2 = stripGEPOffsets(DL, Ptr2, Offset2);
 
-  bool VariableIdxFound = false;
-
-  // If one pointer is a GEP and the other isn't, then see if the GEP is a
-  // constant offset from the base, as in "P" and "gep P, 1".
-  if (GEP1 && !GEP2 && GEP1->getOperand(0)->stripPointerCasts() == Ptr2) {
-    Offset = -GetOffsetFromIndex(GEP1, 1, VariableIdxFound, DL);
-    return !VariableIdxFound;
-  }
-
-  if (GEP2 && !GEP1 && GEP2->getOperand(0)->stripPointerCasts() == Ptr1) {
-    Offset = GetOffsetFromIndex(GEP2, 1, VariableIdxFound, DL);
-    return !VariableIdxFound;
-  }
-
-  // Right now we handle the case when Ptr1/Ptr2 are both GEPs with an identical
-  // base.  After that base, they may have some number of common (and
-  // potentially variable) indices.  After that they handle some constant
-  // offset, which determines their offset from each other.  At this point, we
-  // handle no other case.
-  if (!GEP1 || !GEP2 || GEP1->getOperand(0) != GEP2->getOperand(0))
+  if (Base1 != Base2)
     return false;
 
-  // Skip any common indices and track the GEP types.
-  unsigned Idx = 1;
-  for (; Idx != GEP1->getNumOperands() && Idx != GEP2->getNumOperands(); ++Idx)
-    if (GEP1->getOperand(Idx) != GEP2->getOperand(Idx))
-      break;
-
-  int64_t Offset1 = GetOffsetFromIndex(GEP1, Idx, VariableIdxFound, DL);
-  int64_t Offset2 = GetOffsetFromIndex(GEP2, Idx, VariableIdxFound, DL);
-  if (VariableIdxFound) return false;
-
-  Offset = Offset2-Offset1;
+  APInt OffsetAPInt = Offset2 - Offset1;
+  if (!OffsetAPInt.isSignedIntN(64))
+    return false;
+  Offset = OffsetAPInt.getSExtValue();
   return true;
 }
 
