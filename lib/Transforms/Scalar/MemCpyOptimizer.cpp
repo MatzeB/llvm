@@ -64,49 +64,29 @@ STATISTIC(NumMemSetInfer, "Number of memsets inferred");
 STATISTIC(NumMoveToCpy,   "Number of memmoves converted to memcpy");
 STATISTIC(NumCpyToSet,    "Number of memcpys converted to memset");
 
-static Value *stripGEPOffsets(const DataLayout &DL, Value *Ptr,
-                              APInt &Offset) {
-  assert(Ptr->stripPointerCasts() == Ptr);
+struct PtrOffset {
+  Value *Ptr;
+  APInt Offset;
 
-  GEPOperator *GEP = dyn_cast<GEPOperator>(Ptr);
-  if (!GEP || !GEP->accumulateConstantOffset(DL, Offset)) {
-    Offset = 0;
-    return Ptr;
+  PtrOffset(Value *Ptr, APInt Offset)
+    : Ptr(Ptr), Offset(Offset) {
+    assert(Ptr->stripPointerCasts() == Ptr);
   }
-  return GEP->getOperand(0)->stripPointerCasts();
-}
+};
 
-/// Return true if Ptr1 is provably equal to Ptr2 plus a constant offset, and
-/// return that constant offset. For example, Ptr1 might be &A[42], and Ptr2
-/// might be &A[40]. In this case offset would be -8.
-static bool IsPointerOffset(Value *Ptr1, Value *Ptr2, int64_t &Offset,
-                            const DataLayout &DL) {
-  Ptr1 = Ptr1->stripPointerCasts();
-  Ptr2 = Ptr2->stripPointerCasts();
-
-  // Handle the trivial case first.
-  if (Ptr1 == Ptr2) {
-    Offset = 0;
-    return true;
-  }
+static PtrOffset getPtrOffset(const DataLayout &DL, Value *Ptr) {
+  Value *BasePtr = Ptr->stripPointerCasts();
 
   unsigned PtrWidth
-    = cast<IntegerType>(DL.getIntPtrType(Ptr1->getType()))->getBitWidth();
-  assert(cast<IntegerType>(DL.getIntPtrType(Ptr2->getType()))->getBitWidth()
-         == PtrWidth);
-  APInt Offset1(PtrWidth, 0);
-  Value *Base1 = stripGEPOffsets(DL, Ptr1, Offset1);
-  APInt Offset2(PtrWidth, 0);
-  Value *Base2 = stripGEPOffsets(DL, Ptr2, Offset2);
-
-  if (Base1 != Base2)
-    return false;
-
-  APInt OffsetAPInt = Offset2 - Offset1;
-  if (!OffsetAPInt.isSignedIntN(64))
-    return false;
-  Offset = OffsetAPInt.getSExtValue();
-  return true;
+    = cast<IntegerType>(DL.getIntPtrType(BasePtr->getType()))->getBitWidth();
+  APInt Offset(PtrWidth, 0);
+  GEPOperator *GEP = dyn_cast<GEPOperator>(BasePtr);
+  if (GEP && GEP->accumulateConstantOffset(DL, Offset)) {
+    BasePtr = GEP->getOperand(0)->stripPointerCasts();
+  } else {
+    Offset = 0;
+  }
+  return PtrOffset(BasePtr, Offset);
 }
 
 namespace {
@@ -350,17 +330,10 @@ Instruction *MemCpyOptPass::tryMergingIntoMemset(Instruction *StartInst,
   // are stored.
   MemsetRanges Ranges(DL);
 
+  PtrOffset StartPtrOffset = getPtrOffset(DL, StartPtr);
+
   BasicBlock::iterator BI(StartInst);
   for (++BI; !isa<TerminatorInst>(BI); ++BI) {
-    if (!isa<StoreInst>(BI) && !isa<MemSetInst>(BI)) {
-      // If the instruction is readnone, ignore it, otherwise bail out.  We
-      // don't even allow readonly here because we don't want something like:
-      // A[1] = 2; strlen(A); A[2] = 2; -> memcpy(A, ...); strlen(A).
-      if (BI->mayWriteToMemory() || BI->mayReadFromMemory())
-        break;
-      continue;
-    }
-
     if (StoreInst *NextStore = dyn_cast<StoreInst>(BI)) {
       // If this is a store, see if we can merge it in.
       if (!NextStore->isSimple()) break;
@@ -370,25 +343,36 @@ Instruction *MemCpyOptPass::tryMergingIntoMemset(Instruction *StartInst,
         break;
 
       // Check to see if this store is to a constant offset from the start ptr.
-      int64_t Offset;
-      if (!IsPointerOffset(StartPtr, NextStore->getPointerOperand(), Offset,
-                           DL))
+      PtrOffset POffset = getPtrOffset(DL, NextStore->getPointerOperand());
+      if (StartPtrOffset.Ptr != POffset.Ptr)
         break;
 
+      APInt OffsetAPInt = POffset.Offset - StartPtrOffset.Offset;
+      if (!OffsetAPInt.isSignedIntN(64))
+        break;
+      int64_t Offset = OffsetAPInt.getSExtValue();
       Ranges.addStore(Offset, NextStore);
-    } else {
-      MemSetInst *MSI = cast<MemSetInst>(BI);
-
+    } else if (MemSetInst *MSI = dyn_cast<MemSetInst>(BI)) {
       if (MSI->isVolatile() || ByteVal != MSI->getValue() ||
           !isa<ConstantInt>(MSI->getLength()))
         break;
 
       // Check to see if this store is to a constant offset from the start ptr.
-      int64_t Offset;
-      if (!IsPointerOffset(StartPtr, MSI->getDest(), Offset, DL))
+      PtrOffset POffset = getPtrOffset(DL, MSI->getDest());
+      if (StartPtrOffset.Ptr != POffset.Ptr)
         break;
 
+      APInt OffsetAPInt = POffset.Offset - StartPtrOffset.Offset;
+      if (!OffsetAPInt.isSignedIntN(64))
+        break;
+      int64_t Offset = OffsetAPInt.getSExtValue();
       Ranges.addMemSet(Offset, MSI);
+    } else {
+      // If the instruction is readnone, ignore it, otherwise bail out.  We
+      // don't even allow readonly here because we don't want something like:
+      // A[1] = 2; strlen(A); A[2] = 2; -> memcpy(A, ...); strlen(A).
+      if (BI->mayReadOrWriteMemory())
+        break;
     }
   }
 
