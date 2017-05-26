@@ -7,7 +7,7 @@
 name:            test1
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %x1, %x2
 
     %w0 = ANDSWri %w0, 1, implicit-def %nzcv
@@ -31,7 +31,7 @@ body:             |
 name:            test2
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2
 
     %x0 = ANDSXri %x0, 1, implicit-def %nzcv
@@ -55,7 +55,7 @@ body:             |
 name:            test3
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %x1, %x2
 
     %w0 = ADDSWri %w0, 1, 0, implicit-def %nzcv
@@ -79,7 +79,7 @@ body:             |
 name:            test4
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2
 
     %x0 = ADDSXri %x0, 1, 0, implicit-def %nzcv
@@ -103,7 +103,7 @@ body:             |
 name:            test5
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %x1, %x2
 
     %w0 = SUBSWri %w0, 1, 0, implicit-def %nzcv
@@ -127,7 +127,7 @@ body:             |
 name:            test6
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2
 
     %x0 = SUBSXri %x0, 1, 0, implicit-def %nzcv
@@ -151,7 +151,7 @@ body:             |
 name:            test7
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = ADDSWrr %w0, %w1, implicit-def %nzcv
@@ -175,7 +175,7 @@ body:             |
 name:            test8
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2, %x3
 
     %x0 = ADDSXrr %x0, %x1, implicit-def %nzcv
@@ -199,7 +199,7 @@ body:             |
 name:            test9
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = ANDSWrr %w0, %w1, implicit-def %nzcv
@@ -223,7 +223,7 @@ body:             |
 name:            test10
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2, %x3
 
     %x0 = ANDSXrr %x0, %x1, implicit-def %nzcv
@@ -247,7 +247,7 @@ body:             |
 name:            test11
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = BICSWrr %w0, %w1, implicit-def %nzcv
@@ -271,7 +271,7 @@ body:             |
 name:            test12
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2, %x3
 
     %x0 = BICSXrr %x0, %x1, implicit-def %nzcv
@@ -295,7 +295,7 @@ body:             |
 name:            test13
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = SUBSWrr %w0, %w1, implicit-def %nzcv
@@ -319,7 +319,7 @@ body:             |
 name:            test14
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2, %x3
 
     %x0 = SUBSXrr %x0, %x1, implicit-def %nzcv
@@ -343,7 +343,7 @@ body:             |
 name:            test15
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = ADDSWrs %w0, %w1, 0, implicit-def %nzcv
@@ -367,7 +367,7 @@ body:             |
 name:            test16
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2, %x3
 
     %x0 = ADDSXrs %x0, %x1, 0, implicit-def %nzcv
@@ -391,7 +391,7 @@ body:             |
 name:            test17
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = ANDSWrs %w0, %w1, 0, implicit-def %nzcv
@@ -415,7 +415,7 @@ body:             |
 name:            test18
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2, %x3
 
     %x0 = ANDSXrs %x0, %x1, 0, implicit-def %nzcv
@@ -439,7 +439,7 @@ body:             |
 name:            test19
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %w1, %x2, %x3
 
     %w0 = BICSWrs %w0, %w1, 0, implicit-def %nzcv
@@ -465,7 +465,7 @@ body:             |
 name:            test20
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w1, %x2
 
     %w0 = SUBSWri %w1, 1, 0, implicit-def %nzcv
@@ -492,7 +492,7 @@ body:             |
 name:            test21
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %x1, %x2
 
     %w0 = ANDSWri %w0, 1, implicit-def %nzcv
@@ -519,7 +519,7 @@ body:             |
 name:            test22
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %x0, %x1, %x2
 
     %x0 = SUBSXri %x0, 1, 0, implicit-def %nzcv
@@ -544,22 +544,23 @@ body:             |
 name:            test23
 tracksRegLiveness: true
 body:             |
-  bb.0.entry:
+  bb.0:
     liveins: %w0, %x1, %x2
 
     %w0 = ADDSWri %w0, 1, 0, implicit-def %nzcv
     STRWui killed %w0, killed %x1, 0
-    Bcc 1, %bb.2, implicit killed %nzcv
-    B %bb.1
-
-  bb.3:
-    B %bb.1
+    Bcc 1, %bb.3, implicit killed %nzcv
+    B %bb.2
 
   bb.1:
+    liveins: %x2
+    B %bb.2
+
+  bb.2:
     liveins: %x2
 
     %w0 = COPY %wzr
     STRWui killed %w0, killed %x2, 0
 
-  bb.2:
+  bb.3:
     RET_ReallyLR

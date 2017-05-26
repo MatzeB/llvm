@@ -204,7 +204,7 @@ name:            test8
 tracksRegLiveness: true
 body:             |
   bb.0:
-    liveins: %x0, %x1
+    liveins: %x0, %x1, %x2
 
     %x1 = COPY %x0
     CBNZX %x1, %bb.2
@@ -236,7 +236,7 @@ name:            test9
 tracksRegLiveness: true
 body:             |
   bb.0:
-    liveins: %x0, %x1
+    liveins: %x0, %x1, %x2
 
     CBNZX %x0, %bb.2
 
@@ -247,7 +247,7 @@ body:             |
     B %bb.3
 
   bb.2:
-    liveins: %x1
+    liveins: %x1, %x2
 
     %x0 = LDRXui %x1, 0
 

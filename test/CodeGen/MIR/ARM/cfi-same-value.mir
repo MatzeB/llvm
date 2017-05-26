@@ -23,7 +23,7 @@ frameInfo:
 stack:
   - { id: 0, name: mem, offset: -48, size: 40, alignment: 4 }
   - { id: 1, type: spill-slot, offset: -4, size: 4, alignment: 4,
-      callee-saved-register: '%lr' }
+      callee-saved-register: '%lr', callee-saved-restored: false }
   - { id: 2, type: spill-slot, offset: -8, size: 4, alignment: 4,
       callee-saved-register: '%r11' }
 body: |
@@ -65,7 +65,7 @@ body: |
   ; CHECK-NEXT: CFI_INSTRUCTION same_value %r5
     CFI_INSTRUCTION same_value %r4
     CFI_INSTRUCTION same_value %r5
-    %sp = frame-setup STMDB_UPD %sp, 14, _, killed %r11, killed %lr
+    %sp = frame-setup STMDB_UPD %sp, 14, _, %r11, killed %lr
     frame-setup CFI_INSTRUCTION def_cfa_offset 8
     frame-setup CFI_INSTRUCTION offset %lr, -4
     frame-setup CFI_INSTRUCTION offset %r11, -8

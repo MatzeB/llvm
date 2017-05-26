@@ -114,7 +114,9 @@ namespace {
     BitVector regsReserved;
     RegSet regsLive;
     RegVector regsDefined, regsDead, regsKilled;
+    SmallVector<MCPhysReg, 16> expectedLiveOuts;
     RegMaskVector regMasks;
+    BitVector PristineRegs;
 
     SlotIndex lastIndex;
 
@@ -249,6 +251,7 @@ namespace {
     void report_context(SlotIndex Pos) const;
     void report_context_liverange(const LiveRange &LR) const;
     void report_context_lanemask(LaneBitmask LaneMask) const;
+    void report_context_reg(unsigned Reg) const;
     void report_context_vreg(unsigned VReg) const;
     void report_context_vreg_regunit(unsigned VRegOrRegUnit) const;
 
@@ -527,6 +530,10 @@ void MachineVerifier::report_context_liverange(const LiveRange &LR) const {
   errs() << "- liverange:   " << LR << '\n';
 }
 
+void MachineVerifier::report_context_reg(unsigned Reg) const {
+  errs() << "- register:    " << PrintReg(Reg, TRI) << '\n';
+}
+
 void MachineVerifier::report_context_vreg(unsigned VReg) const {
   errs() << "- v. register: " << PrintReg(VReg, TRI) << '\n';
 }
@@ -581,6 +588,9 @@ void MachineVerifier::visitMachineFunctionBefore() {
 
   if (!MF->empty())
     verifyStackFrame();
+
+  const MachineFrameInfo &MFI = MF->getFrameInfo();
+  PristineRegs = MFI.getPristineRegs(*MF);
 }
 
 // Does iterator point to a and b as the first two elements?
@@ -775,8 +785,10 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
   regsLive.clear();
   if (MRI->tracksLiveness()) {
     for (const auto &LI : MBB->liveins()) {
-      if (!TargetRegisterInfo::isPhysicalRegister(LI.PhysReg)) {
+      unsigned Reg = LI.PhysReg;
+      if (!TargetRegisterInfo::isPhysicalRegister(Reg)) {
         report("MBB live-in list contains non-physical register", MBB);
+        report_context_reg(Reg);
         continue;
       }
       for (MCSubRegIterator SubRegs(LI.PhysReg, TRI, /*IncludeSelf=*/true);
@@ -785,9 +797,7 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
     }
   }
 
-  const MachineFrameInfo &MFI = MF->getFrameInfo();
-  BitVector PR = MFI.getPristineRegs(*MF);
-  for (unsigned I : PR.set_bits()) {
+  for (unsigned I : PristineRegs.set_bits()) {
     for (MCSubRegIterator SubRegs(I, TRI, /*IncludeSelf=*/true);
          SubRegs.isValid(); ++SubRegs)
       regsLive.insert(*SubRegs);
@@ -1520,7 +1530,6 @@ void MachineVerifier::visitMachineBundleAfter(const MachineInstr *MI) {
 void
 MachineVerifier::visitMachineBasicBlockAfter(const MachineBasicBlock *MBB) {
   MBBInfoMap[MBB].regsLiveOut = regsLive;
-  regsLive.clear();
 
   if (Indexes) {
     SlotIndex stop = Indexes->getMBBEndIdx(MBB);
@@ -1531,6 +1540,61 @@ MachineVerifier::visitMachineBasicBlockAfter(const MachineBasicBlock *MBB) {
     }
     lastIndex = stop;
   }
+
+  // Now that we now the liveness at the end of this basic block, we can
+  // verify that it matches the successors live-in lists or our expectations
+  // for return blocks.
+  if (MRI->tracksLiveness()) {
+    expectedLiveOuts.clear();
+    if (MBB->isReturnBlock() && !MBB->back().isCall()) {
+      // Note: We excluded tailcalls here as we do not care about CSR after the
+      // call. TODO: We should check CSRs before the tailcall instead.
+
+      const MachineFrameInfo &MFI = MF->getFrameInfo();
+      if (MFI.isCalleeSavedInfoValid()) {
+        for (const CalleeSavedInfo &Info : MFI.getCalleeSavedInfo()) {
+          if (!Info.isRestored())
+            continue;
+          MCPhysReg Reg = Info.getReg();
+          if (MRI->isReserved(Reg))
+            continue;
+          expectedLiveOuts.push_back(Reg);
+        }
+      }
+    } else {
+      for (const MachineBasicBlock *Succ : MBB->successors()) {
+        // Don't add anything for EHPads. They have live-ins that are the result
+        // of the unwind/personality function that are not live-out of the
+        // predecessor and we don't know which is which.
+        if (Succ->isEHPad())
+          break;
+        for (const auto &LI : Succ->liveins()) {
+          MCPhysReg Reg = LI.PhysReg;
+          if (TargetRegisterInfo::isPhysicalRegister(Reg) &&
+              !MRI->isReserved(Reg))
+            expectedLiveOuts.push_back(Reg);
+        }
+      }
+    }
+
+    for (MCPhysReg Reg : expectedLiveOuts) {
+      /* At least any of the subregisters should be live. */
+      bool IsLive = false;
+      for (MCSubRegIterator SR(Reg, TRI, true); SR.isValid(); ++SR) {
+        if (regsLive.count(*SR)) {
+          IsLive = true;
+          break;
+        }
+      }
+      if (!IsLive) {
+        report("Expected register to be live at end of MBB", MBB);
+        report_context_reg(Reg);
+      }
+    }
+    expectedLiveOuts.clear();
+  }
+
+  regsLive.clear();
 }
 
 // Calculate the largest possible vregsPassed sets. These are the registers that
