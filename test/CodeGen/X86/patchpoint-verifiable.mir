@@ -28,7 +28,7 @@ fixedStack:
   - { id: 0, type: spill-slot, offset: -16, size: 8, alignment: 16 }
 body: |
   bb.0.entry:
-    liveins: %rdi, %rsi, %rbp
+    liveins: %rdi, %rsi
 
     frame-setup PUSH64r killed %rbp, implicit-def %rsp, implicit %rsp
     CFI_INSTRUCTION def_cfa_offset 16

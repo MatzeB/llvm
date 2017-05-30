@@ -791,6 +791,18 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
         report_context_reg(Reg);
         continue;
       }
+      // Having reserved registers in the livein list is a smell for bad code
+      // as we aren't tracking liveness of reserved registers anyway.
+      if (isReserved(Reg)) {
+        report("MBB live-in list contains reserved register", MBB);
+        report_context_reg(Reg);
+      }
+      // Having pristine registers in the livein list is a smell for bad code
+      // except for the case where the register is both a CSR and a parameter.
+      if (PristineRegs.test(Reg) && !MRI->isLiveIn(Reg)) {
+        report("MBB live-in list contains pristine register", MBB);
+        report_context_reg(Reg);
+      }
       for (MCSubRegIterator SubRegs(LI.PhysReg, TRI, /*IncludeSelf=*/true);
            SubRegs.isValid(); ++SubRegs)
         regsLive.insert(*SubRegs);
