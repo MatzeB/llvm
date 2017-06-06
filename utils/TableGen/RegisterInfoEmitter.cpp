@@ -360,7 +360,7 @@ void RegisterInfoEmitter::EmitRegMappingTables(
   // Emit reverse information about the dwarf register numbers.
   for (unsigned j = 0; j < 2; ++j) {
     for (unsigned i = 0, e = maxLength; i != e; ++i) {
-      OS << "extern const MCRegisterInfo::DwarfLLVMRegPair " << Namespace;
+      OS << "extern const MCRegisterInfo::LLVMRegDwarfPair " << Namespace;
       OS << (j == 0 ? "DwarfFlavour" : "EHFlavour");
       OS << i << "Dwarf2L[]";
 
@@ -1057,8 +1057,8 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
 
   // MCRegisterInfo initialization routine.
   OS << "static inline void Init" << TargetName
-     << "MCRegisterInfo(MCRegisterInfo *RI, unsigned RA, "
-     << "unsigned DwarfFlavour = 0, unsigned EHFlavour = 0, unsigned PC = 0) "
+     << "MCRegisterInfo(MCRegisterInfo *RI, MCPhysReg RA, "
+     << "unsigned DwarfFlavour = 0, unsigned EHFlavour = 0, MCPhysReg PC = 0) "
         "{\n"
      << "  RI->InitMCRegisterInfo(" << TargetName << "RegDesc, "
      << Regs.size() + 1 << ", RA, PC, " << TargetName << "MCRegisterClasses, "
@@ -1097,7 +1097,7 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
 
   OS << "struct " << ClassName << " : public TargetRegisterInfo {\n"
      << "  explicit " << ClassName
-     << "(unsigned RA, unsigned D = 0, unsigned E = 0, unsigned PC = 0);\n";
+     << "(MCPhysReg RA, unsigned D = 0, unsigned E = 0, MCPhysReg PC = 0);\n";
   if (!RegBank.getSubRegIndices().empty()) {
     OS << "  unsigned composeSubRegIndicesImpl"
        << "(unsigned, unsigned) const override;\n"
@@ -1423,7 +1423,8 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
   EmitRegMappingTables(OS, Regs, true);
 
   OS << ClassName << "::\n" << ClassName
-     << "(unsigned RA, unsigned DwarfFlavour, unsigned EHFlavour, unsigned PC)\n"
+     << "(MCPhysReg RA, unsigned DwarfFlavour, unsigned EHFlavour, "
+     << "MCPhysReg PC)\n"
      << "  : TargetRegisterInfo(" << TargetName << "RegInfoDesc"
      << ", RegisterClasses, RegisterClasses+" << RegisterClasses.size() <<",\n"
      << "             SubRegIndexNameTable, SubRegIndexLaneMaskTable, ";

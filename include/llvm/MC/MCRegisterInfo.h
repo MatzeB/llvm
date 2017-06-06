@@ -60,14 +60,14 @@ public:
 
   /// getRegister - Return the specified register in the class.
   ///
-  unsigned getRegister(unsigned i) const {
+  MCPhysReg getRegister(unsigned i) const {
     assert(i < getNumRegs() && "Register number out of range!");
     return RegsBegin[i];
   }
 
   /// contains - Return true if the specified register is included in this
   /// register class.  This does not include virtual registers.
-  bool contains(unsigned Reg) const {
+  bool contains(MCPhysReg Reg) const {
     unsigned InByte = Reg % 8;
     unsigned Byte = Reg / 8;
     if (Byte >= RegSetSize)
@@ -76,7 +76,7 @@ public:
   }
 
   /// contains - Return true if both registers are in this class.
-  bool contains(unsigned Reg1, unsigned Reg2) const {
+  bool contains(MCPhysReg Reg1, MCPhysReg Reg2) const {
     return contains(Reg1) && contains(Reg2);
   }
 
@@ -139,10 +139,16 @@ public:
   /// DwarfLLVMRegPair - Emitted by tablegen so Dwarf<->LLVM reg mappings can be
   /// performed with a binary search.
   struct DwarfLLVMRegPair {
-    unsigned FromReg;
+    MCPhysReg FromReg;
     unsigned ToReg;
 
     bool operator<(DwarfLLVMRegPair RHS) const { return FromReg < RHS.FromReg; }
+  };
+  struct LLVMRegDwarfPair {
+    unsigned FromReg;
+    MCPhysReg ToReg;
+
+    bool operator<(LLVMRegDwarfPair RHS) const { return FromReg < RHS.FromReg; }
   };
 
   /// SubRegCoveredBits - Emitted by tablegen: bit range covered by a subreg
@@ -155,8 +161,8 @@ public:
 private:
   const MCRegisterDesc *Desc;                 // Pointer to the descriptor array
   unsigned NumRegs;                           // Number of entries in the array
-  unsigned RAReg;                             // Return address register
-  unsigned PCReg;                             // Program counter register
+  MCPhysReg RAReg;                            // Return address register
+  MCPhysReg PCReg;                            // Program counter register
   const MCRegisterClass *Classes;             // Pointer to the regclass array
   unsigned NumClasses;                        // Number of entries in the array
   unsigned NumRegUnits;                       // Number of regunits.
@@ -180,10 +186,10 @@ private:
   unsigned EHDwarf2LRegsSize;
   const DwarfLLVMRegPair *L2DwarfRegs;        // LLVM to Dwarf regs mapping
   const DwarfLLVMRegPair *EHL2DwarfRegs;      // LLVM to Dwarf regs mapping EH
-  const DwarfLLVMRegPair *Dwarf2LRegs;        // Dwarf to LLVM regs mapping
-  const DwarfLLVMRegPair *EHDwarf2LRegs;      // Dwarf to LLVM regs mapping EH
-  DenseMap<unsigned, int> L2SEHRegs;          // LLVM to SEH regs mapping
-  DenseMap<unsigned, int> L2CVRegs;           // LLVM to CV regs mapping
+  const LLVMRegDwarfPair *Dwarf2LRegs;        // Dwarf to LLVM regs mapping
+  const LLVMRegDwarfPair *EHDwarf2LRegs;      // Dwarf to LLVM regs mapping EH
+  DenseMap<MCPhysReg, int> L2SEHRegs;         // LLVM to SEH regs mapping
+  DenseMap<MCPhysReg, int> L2CVRegs;          // LLVM to CV regs mapping
 
 public:
   /// DiffListIterator - Base iterator class that can traverse the
@@ -201,7 +207,7 @@ public:
     /// init - Point the iterator to InitVal, decoding subsequent values from
     /// DiffList. The iterator will initially point to InitVal, sub-classes are
     /// responsible for skipping the seed value if it is not part of the list.
-    void init(MCPhysReg InitVal, const MCPhysReg *DiffList) {
+    void init(uint16_t InitVal, const MCPhysReg *DiffList) {
       Val = InitVal;
       List = DiffList;
     }
@@ -209,7 +215,7 @@ public:
     /// advance - Move to the next list position, return the applied
     /// differential. This function does not detect the end of the list, that
     /// is the caller's responsibility (by checking for a 0 return value).
-    unsigned advance() {
+    bool advance() {
       assert(isValid() && "Cannot move off the end of the list.");
       MCPhysReg D = *List++;
       Val += D;
@@ -221,7 +227,7 @@ public:
     bool isValid() const { return List; }
 
     /// Dereference the iterator to get the value at the current position.
-    unsigned operator*() const { return Val; }
+    uint16_t operator*() const { return Val; }
 
     /// Pre-increment to move to the next position.
     void operator++() {
@@ -242,8 +248,8 @@ public:
 
   /// \brief Initialize MCRegisterInfo, called by TableGen
   /// auto-generated routines. *DO NOT USE*.
-  void InitMCRegisterInfo(const MCRegisterDesc *D, unsigned NR, unsigned RA,
-                          unsigned PC,
+  void InitMCRegisterInfo(const MCRegisterDesc *D, unsigned NR, MCPhysReg RA,
+                          MCPhysReg PC,
                           const MCRegisterClass *C, unsigned NC,
                           const MCPhysReg (*RURoots)[2],
                           unsigned NRU,
@@ -300,7 +306,7 @@ public:
   /// \brief Used to initialize Dwarf register to LLVM
   /// register number mapping. Called by TableGen auto-generated routines.
   /// *DO NOT USE*.
-  void mapDwarfRegsToLLVMRegs(const DwarfLLVMRegPair *Map, unsigned Size,
+  void mapDwarfRegsToLLVMRegs(const LLVMRegDwarfPair *Map, unsigned Size,
                               bool isEH) {
     if (isEH) {
       EHDwarf2LRegs = Map;
@@ -316,26 +322,26 @@ public:
   /// as the LLVM register number.
   /// FIXME: TableGen these numbers. Currently this requires target specific
   /// initialization code.
-  void mapLLVMRegToSEHReg(unsigned LLVMReg, int SEHReg) {
+  void mapLLVMRegToSEHReg(MCPhysReg LLVMReg, int SEHReg) {
     L2SEHRegs[LLVMReg] = SEHReg;
   }
 
-  void mapLLVMRegToCVReg(unsigned LLVMReg, int CVReg) {
+  void mapLLVMRegToCVReg(MCPhysReg LLVMReg, int CVReg) {
     L2CVRegs[LLVMReg] = CVReg;
   }
 
   /// \brief This method should return the register where the return
   /// address can be found.
-  unsigned getRARegister() const {
+  MCPhysReg getRARegister() const {
     return RAReg;
   }
 
   /// Return the register which is the program counter.
-  unsigned getProgramCounter() const {
+  MCPhysReg getProgramCounter() const {
     return PCReg;
   }
 
-  const MCRegisterDesc &operator[](unsigned RegNo) const {
+  const MCRegisterDesc &operator[](MCPhysReg RegNo) const {
     assert(RegNo < NumRegs &&
            "Attempting to access record for invalid register number!");
     return Desc[RegNo];
@@ -343,24 +349,24 @@ public:
 
   /// \brief Provide a get method, equivalent to [], but more useful with a
   /// pointer to this object.
-  const MCRegisterDesc &get(unsigned RegNo) const {
+  const MCRegisterDesc &get(MCPhysReg RegNo) const {
     return operator[](RegNo);
   }
 
   /// \brief Returns the physical register number of sub-register "Index"
   /// for physical register RegNo. Return zero if the sub-register does not
   /// exist.
-  unsigned getSubReg(unsigned Reg, unsigned Idx) const;
+  MCPhysReg getSubReg(MCPhysReg Reg, unsigned Idx) const;
 
   /// \brief Return a super-register of the specified register
   /// Reg so its sub-register of index SubIdx is Reg.
-  unsigned getMatchingSuperReg(unsigned Reg, unsigned SubIdx,
-                               const MCRegisterClass *RC) const;
+  MCPhysReg getMatchingSuperReg(MCPhysReg Reg, unsigned SubIdx,
+                                const MCRegisterClass *RC) const;
 
   /// \brief For a given register pair, return the sub-register index
   /// if the second register is a sub-register of the first. Return zero
   /// otherwise.
-  unsigned getSubRegIndex(unsigned RegNo, unsigned SubRegNo) const;
+  unsigned getSubRegIndex(MCPhysReg RegNo, MCPhysReg SubRegNo) const;
 
   /// \brief Get the size of the bit range covered by a sub-register index.
   /// If the index isn't continuous, return the sum of the sizes of its parts.
@@ -374,7 +380,7 @@ public:
 
   /// \brief Return the human-readable symbolic target-specific name for the
   /// specified physical register.
-  const char *getName(unsigned RegNo) const {
+  const char *getName(MCPhysReg RegNo) const {
     return RegStrings + get(RegNo).Name;
   }
 
@@ -402,18 +408,18 @@ public:
   /// number.  Returns -1 if there is no equivalent value.  The second
   /// parameter allows targets to use different numberings for EH info and
   /// debugging info.
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  int getDwarfRegNum(MCPhysReg RegNum, bool isEH) const;
 
   /// \brief Map a dwarf register back to a target register.
   int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 
   /// \brief Map a target register to an equivalent SEH register
   /// number.  Returns LLVM register number if there is no equivalent value.
-  int getSEHRegNum(unsigned RegNum) const;
+  int getSEHRegNum(MCPhysReg RegNum) const;
 
   /// \brief Map a target register to an equivalent CodeView register
   /// number.
-  int getCodeViewRegNum(unsigned RegNum) const;
+  int getCodeViewRegNum(MCPhysReg RegNum) const;
 
   regclass_iterator regclass_begin() const { return Classes; }
   regclass_iterator regclass_end() const { return Classes+NumClasses; }
@@ -437,34 +443,34 @@ public:
   }
 
    /// \brief Returns the encoding for RegNo
-  uint16_t getEncodingValue(unsigned RegNo) const {
+  uint16_t getEncodingValue(MCPhysReg RegNo) const {
     assert(RegNo < NumRegs &&
            "Attempting to get encoding for invalid register number!");
     return RegEncodingTable[RegNo];
   }
 
   /// \brief Returns true if RegB is a sub-register of RegA.
-  bool isSubRegister(unsigned RegA, unsigned RegB) const {
+  bool isSubRegister(MCPhysReg RegA, MCPhysReg RegB) const {
     return isSuperRegister(RegB, RegA);
   }
 
   /// \brief Returns true if RegB is a super-register of RegA.
-  bool isSuperRegister(unsigned RegA, unsigned RegB) const;
+  bool isSuperRegister(MCPhysReg RegA, MCPhysReg RegB) const;
 
   /// \brief Returns true if RegB is a sub-register of RegA or if RegB == RegA.
-  bool isSubRegisterEq(unsigned RegA, unsigned RegB) const {
+  bool isSubRegisterEq(MCPhysReg RegA, MCPhysReg RegB) const {
     return isSuperRegisterEq(RegB, RegA);
   }
 
   /// \brief Returns true if RegB is a super-register of RegA or if
   /// RegB == RegA.
-  bool isSuperRegisterEq(unsigned RegA, unsigned RegB) const {
+  bool isSuperRegisterEq(MCPhysReg RegA, MCPhysReg RegB) const {
     return RegA == RegB || isSuperRegister(RegA, RegB);
   }
 
   /// \brief Returns true if RegB is a super-register or sub-register of RegA
   /// or if RegB == RegA.
-  bool isSuperOrSubRegisterEq(unsigned RegA, unsigned RegB) const {
+  bool isSuperOrSubRegisterEq(MCPhysReg RegA, MCPhysReg RegB) const {
     return isSubRegisterEq(RegA, RegB) || isSuperRegister(RegA, RegB);
   }
 };
@@ -480,8 +486,8 @@ public:
 /// If IncludeSelf is set, Reg itself is included in the list.
 class MCSubRegIterator : public MCRegisterInfo::DiffListIterator {
 public:
-  MCSubRegIterator(unsigned Reg, const MCRegisterInfo *MCRI,
-                     bool IncludeSelf = false) {
+  MCSubRegIterator(MCPhysReg Reg, const MCRegisterInfo *MCRI,
+                   bool IncludeSelf = false) {
     init(Reg, MCRI->DiffLists + MCRI->get(Reg).SubRegs);
     // Initially, the iterator points to Reg itself.
     if (!IncludeSelf)
@@ -498,13 +504,13 @@ class MCSubRegIndexIterator {
 public:
   /// Constructs an iterator that traverses subregisters and their
   /// associated subregister indices.
-  MCSubRegIndexIterator(unsigned Reg, const MCRegisterInfo *MCRI)
+  MCSubRegIndexIterator(MCPhysReg Reg, const MCRegisterInfo *MCRI)
     : SRIter(Reg, MCRI) {
     SRIndex = MCRI->SubRegIndices + MCRI->get(Reg).SubRegIndices;
   }
 
   /// Returns current sub-register.
-  unsigned getSubReg() const {
+  MCPhysReg getSubReg() const {
     return *SRIter;
   }
 
@@ -529,7 +535,7 @@ class MCSuperRegIterator : public MCRegisterInfo::DiffListIterator {
 public:
   MCSuperRegIterator() = default;
 
-  MCSuperRegIterator(unsigned Reg, const MCRegisterInfo *MCRI,
+  MCSuperRegIterator(MCPhysReg Reg, const MCRegisterInfo *MCRI,
                      bool IncludeSelf = false) {
     init(Reg, MCRI->DiffLists + MCRI->get(Reg).SuperRegs);
     // Initially, the iterator points to Reg itself.
@@ -540,7 +546,8 @@ public:
 
 // Definition for isSuperRegister. Put it down here since it needs the
 // iterator defined above in addition to the MCRegisterInfo class itself.
-inline bool MCRegisterInfo::isSuperRegister(unsigned RegA, unsigned RegB) const{
+inline bool
+MCRegisterInfo::isSuperRegister(MCPhysReg RegA, MCPhysReg RegB) const{
   for (MCSuperRegIterator I(RegA, this); I.isValid(); ++I)
     if (*I == RegB)
       return true;
@@ -567,7 +574,7 @@ public:
   /// in Reg.
   MCRegUnitIterator() = default;
 
-  MCRegUnitIterator(unsigned Reg, const MCRegisterInfo *MCRI) {
+  MCRegUnitIterator(MCPhysReg Reg, const MCRegisterInfo *MCRI) {
     assert(Reg && "Null register has no regunits");
     // Decode the RegUnits MCRegisterDesc field.
     unsigned RU = MCRI->get(Reg).RegUnits;
@@ -598,14 +605,14 @@ public:
 
   /// Constructs an iterator that traverses the register units and their
   /// associated LaneMasks in Reg.
-  MCRegUnitMaskIterator(unsigned Reg, const MCRegisterInfo *MCRI)
+  MCRegUnitMaskIterator(MCPhysReg Reg, const MCRegisterInfo *MCRI)
     : RUIter(Reg, MCRI) {
       uint16_t Idx = MCRI->get(Reg).RegUnitLaneMasks;
       MaskListIter = &MCRI->RegUnitMaskSequences[Idx];
   }
 
   /// Returns a (RegUnit, LaneMask) pair.
-  std::pair<unsigned,LaneBitmask> operator*() const {
+  std::pair<uint16_t,LaneBitmask> operator*() const {
     return std::make_pair(*RUIter, *MaskListIter);
   }
 
@@ -630,8 +637,8 @@ public:
 
 /// MCRegUnitRootIterator enumerates the root registers of a register unit.
 class MCRegUnitRootIterator {
-  uint16_t Reg0 = 0;
-  uint16_t Reg1 = 0;
+  MCPhysReg Reg0 = 0;
+  MCPhysReg Reg1 = 0;
 
 public:
   MCRegUnitRootIterator() = default;
@@ -643,7 +650,7 @@ public:
   }
 
   /// \brief Dereference to get the current root register.
-  unsigned operator*() const {
+  MCPhysReg operator*() const {
     return Reg0;
   }
 
@@ -665,7 +672,7 @@ public:
 /// any ordering or that entries are unique.
 class MCRegAliasIterator {
 private:
-  unsigned Reg;
+  MCPhysReg Reg;
   const MCRegisterInfo *MCRI;
   bool IncludeSelf;
 
@@ -674,7 +681,7 @@ private:
   MCSuperRegIterator SI;
 
 public:
-  MCRegAliasIterator(unsigned Reg, const MCRegisterInfo *MCRI,
+  MCRegAliasIterator(MCPhysReg Reg, const MCRegisterInfo *MCRI,
                      bool IncludeSelf)
     : Reg(Reg), MCRI(MCRI), IncludeSelf(IncludeSelf) {
     // Initialize the iterators.
@@ -690,7 +697,7 @@ public:
 
   bool isValid() const { return RI.isValid(); }
 
-  unsigned operator*() const {
+  MCPhysReg operator*() const {
     assert(SI.isValid() && "Cannot dereference an invalid iterator.");
     return *SI;
   }
