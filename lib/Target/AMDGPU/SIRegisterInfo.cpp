@@ -632,6 +632,7 @@ bool SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
   assert(SuperReg != AMDGPU::M0 && "m0 should never spill");
 
   unsigned OffsetReg = AMDGPU::M0;
+#if 0 // Remove this
   unsigned M0CopyReg = AMDGPU::NoRegister;
 
   if (SpillToSMEM) {
@@ -641,6 +642,7 @@ bool SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
         .addReg(AMDGPU::M0);
     }
   }
+#endif
 
   unsigned ScalarStoreOp;
   unsigned EltSize = 4;
@@ -754,10 +756,12 @@ bool SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
     }
   }
 
+#if 0 // Remove this
   if (M0CopyReg != AMDGPU::NoRegister) {
     BuildMI(*MBB, MI, DL, TII->get(AMDGPU::COPY), AMDGPU::M0)
       .addReg(M0CopyReg, RegState::Kill);
   }
+#endif
 
   MI->eraseFromParent();
   MFI->addToSpilledSGPRs(NumSubRegs);
@@ -792,6 +796,7 @@ bool SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
   assert(SuperReg != AMDGPU::M0 && "m0 should never spill");
 
   unsigned OffsetReg = AMDGPU::M0;
+#if 0 // Remove this
   unsigned M0CopyReg = AMDGPU::NoRegister;
 
   if (SpillToSMEM) {
@@ -801,6 +806,7 @@ bool SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
         .addReg(AMDGPU::M0);
     }
   }
+#endif
 
   unsigned EltSize = 4;
   unsigned ScalarLoadOp;
@@ -898,10 +904,12 @@ bool SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
     }
   }
 
+#if 0 // remove this
   if (M0CopyReg != AMDGPU::NoRegister) {
     BuildMI(*MBB, MI, DL, TII->get(AMDGPU::COPY), AMDGPU::M0)
       .addReg(M0CopyReg, RegState::Kill);
   }
+#endif
 
   MI->eraseFromParent();
   return true;
