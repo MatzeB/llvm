@@ -40,7 +40,7 @@ TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
 
 TargetRegisterInfo::~TargetRegisterInfo() {}
 
-void TargetRegisterInfo::markSuperRegs(BitVector &RegisterSet, unsigned Reg)
+void TargetRegisterInfo::markSuperRegs(BitVector &RegisterSet, MCPhysReg Reg)
     const {
   for (MCSuperRegIterator AI(Reg, this, true); AI.isValid(); ++AI)
     RegisterSet.set(*AI);
@@ -148,9 +148,7 @@ TargetRegisterInfo::getAllocatableClass(const TargetRegisterClass *RC) const {
 /// register of the given type, picking the most sub register class of
 /// the right type that contains this physreg.
 const TargetRegisterClass *
-TargetRegisterInfo::getMinimalPhysRegClass(unsigned reg, MVT VT) const {
-  assert(isPhysicalRegister(reg) && "reg must be a physical register");
-
+TargetRegisterInfo::getMinimalPhysRegClass(MCPhysReg reg, MVT VT) const {
   // Pick the most sub register class of the right type that contains
   // this physreg.
   const TargetRegisterClass* BestRC = nullptr;

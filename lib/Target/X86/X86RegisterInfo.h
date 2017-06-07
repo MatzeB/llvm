@@ -121,7 +121,7 @@ public:
 
   bool canRealignStack(const MachineFunction &MF) const override;
 
-  bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
+  bool hasReservedSpillSlot(const MachineFunction &MF, MCPhysReg Reg,
                             int &FrameIdx) const override;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator MI,
@@ -129,10 +129,10 @@ public:
                            RegScavenger *RS = nullptr) const override;
 
   // Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
-  unsigned getPtrSizedFrameRegister(const MachineFunction &MF) const;
-  unsigned getStackRegister() const { return StackPtr; }
-  unsigned getBaseRegister() const { return BasePtr; }
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getPtrSizedFrameRegister(const MachineFunction &MF) const;
+  MCPhysReg getStackRegister() const { return StackPtr; }
+  MCPhysReg getBaseRegister() const { return BasePtr; }
   /// Returns physical register used as frame pointer.
   /// This will always returns the frame pointer register, contrary to
   /// getFrameRegister() which returns the "base pointer" in situations

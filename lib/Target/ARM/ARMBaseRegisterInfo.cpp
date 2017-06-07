@@ -417,7 +417,7 @@ cannotEliminateFrame(const MachineFunction &MF) const {
     || needsStackRealignment(MF);
 }
 
-unsigned
+MCPhysReg
 ARMBaseRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const ARMSubtarget &STI = MF.getSubtarget<ARMSubtarget>();
   const ARMFrameLowering *TFI = getFrameLowering(MF);

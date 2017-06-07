@@ -64,7 +64,7 @@ const MCPhysReg *R600RegisterInfo::getCalleeSavedRegs(
   return &CalleeSavedReg;
 }
 
-unsigned R600RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+MCPhysReg R600RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return AMDGPU::NoRegister;
 }
 

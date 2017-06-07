@@ -255,14 +255,14 @@ bool LanaiRegisterInfo::hasBasePointer(const MachineFunction &MF) const {
   return false;
 }
 
-unsigned LanaiRegisterInfo::getRARegister() const { return Lanai::RCA; }
+MCPhysReg LanaiRegisterInfo::getRARegister() const { return Lanai::RCA; }
 
-unsigned
+MCPhysReg
 LanaiRegisterInfo::getFrameRegister(const MachineFunction & /*MF*/) const {
   return Lanai::FP;
 }
 
-unsigned LanaiRegisterInfo::getBaseRegister() const { return Lanai::R14; }
+MCPhysReg LanaiRegisterInfo::getBaseRegister() const { return Lanai::R14; }
 
 unsigned LanaiRegisterInfo::getEHExceptionRegister() const {
   llvm_unreachable("no exception support");

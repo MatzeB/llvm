@@ -323,7 +323,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 
-unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+MCPhysReg XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const XCoreFrameLowering *TFI = getFrameLowering(MF);
 
   return TFI->hasFP(MF) ? XCore::R10 : XCore::SP;

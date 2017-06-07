@@ -128,7 +128,7 @@ void WebAssemblyRegisterInfo::eliminateFrameIndex(
   MI.getOperand(FIOperandNum).ChangeToRegister(FIRegOperand, /*IsDef=*/false);
 }
 
-unsigned
+MCPhysReg
 WebAssemblyRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   static const unsigned Regs[2][2] = {
       /*            !isArch64Bit       isArch64Bit      */

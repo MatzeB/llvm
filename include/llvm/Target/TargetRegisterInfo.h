@@ -77,18 +77,18 @@ public:
   }
 
   /// Return the specified register in the class.
-  unsigned getRegister(unsigned i) const {
+  MCPhysReg getRegister(unsigned i) const {
     return MC->getRegister(i);
   }
 
   /// Return true if the specified register is included in this register class.
   /// This does not include virtual registers.
-  bool contains(unsigned Reg) const {
+  bool contains(MCPhysReg Reg) const {
     return MC->contains(Reg);
   }
 
   /// Return true if both registers are in this class.
-  bool contains(unsigned Reg1, unsigned Reg2) const {
+  bool contains(MCPhysReg Reg1, MCPhysReg Reg2) const {
     return MC->contains(Reg1, Reg2);
   }
 
@@ -342,7 +342,7 @@ public:
   /// picking the most sub register class of the right type that contains this
   /// physreg.
   const TargetRegisterClass *
-    getMinimalPhysRegClass(unsigned Reg, MVT VT = MVT::Other) const;
+    getMinimalPhysRegClass(MCPhysReg Reg, MVT VT = MVT::Other) const;
 
   /// Return the maximal subclass of the given register class that is
   /// allocatable or NULL.
@@ -357,12 +357,12 @@ public:
 
   /// Return the additional cost of using this register instead
   /// of other registers in its class.
-  unsigned getCostPerUse(unsigned RegNo) const {
+  unsigned getCostPerUse(MCPhysReg RegNo) const {
     return InfoDesc[RegNo].CostPerUse;
   }
 
   /// Return true if the register is in the allocation of any register class.
-  bool isInAllocatableClass(unsigned RegNo) const {
+  bool isInAllocatableClass(MCPhysReg RegNo) const {
     return InfoDesc[RegNo].inAllocatableClass;
   }
 
@@ -427,7 +427,7 @@ public:
   }
 
   /// Returns true if Reg contains RegUnit.
-  bool hasRegUnit(unsigned Reg, unsigned RegUnit) const {
+  bool hasRegUnit(MCPhysReg Reg, unsigned RegUnit) const {
     for (MCRegUnitIterator Units(Reg, this); Units.isValid(); ++Units)
       if (*Units == RegUnit)
         return true;
@@ -495,7 +495,7 @@ public:
 
   /// Returns true if PhysReg is unallocatable and constant throughout the
   /// function.  Used by MachineRegisterInfo::isConstantPhysReg().
-  virtual bool isConstantPhysReg(unsigned PhysReg) const { return false; }
+  virtual bool isConstantPhysReg(MCPhysReg PhysReg) const { return false; }
 
   /// Prior to adding the live-out mask to a stackmap or patchpoint
   /// instruction, provide the target the opportunity to adjust it (mainly to
@@ -504,8 +504,8 @@ public:
 
   /// Return a super-register of the specified register
   /// Reg so its sub-register of index SubIdx is Reg.
-  unsigned getMatchingSuperReg(unsigned Reg, unsigned SubIdx,
-                               const TargetRegisterClass *RC) const {
+  MCPhysReg getMatchingSuperReg(MCPhysReg Reg, unsigned SubIdx,
+                                const TargetRegisterClass *RC) const {
     return MCRegisterInfo::getMatchingSuperReg(Reg, SubIdx, RC->MC);
   }
 
@@ -523,9 +523,9 @@ public:
   // subregister SrcSubReg return true if this is a preferable copy
   // instruction or an earlier use should be used.
   virtual bool shouldRewriteCopySrc(const TargetRegisterClass *DefRC,
-                                    unsigned DefSubReg,
+                                    unsigned DefSubRegIdx,
                                     const TargetRegisterClass *SrcRC,
-                                    unsigned SrcSubReg) const;
+                                    unsigned SrcSubRegIdx) const;
 
   /// Returns the largest legal sub-class of RC that
   /// supports the sub-register index Idx.
@@ -838,7 +838,7 @@ public:
   /// spill slot. This tells PEI not to create a new stack frame
   /// object for the given register. It should be called only after
   /// determineCalleeSaves().
-  virtual bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
+  virtual bool hasReservedSpillSlot(const MachineFunction &MF, MCPhysReg Reg,
                                     int &FrameIdx) const {
     return false;
   }
@@ -920,7 +920,7 @@ public:
                                    RegScavenger *RS = nullptr) const = 0;
 
   /// Return the assembly name for \p Reg.
-  virtual StringRef getRegAsmName(unsigned Reg) const {
+  virtual StringRef getRegAsmName(MCPhysReg Reg) const {
     // FIXME: We are assuming that the assembly name is equal to the TableGen
     // name converted to lower case
     //
@@ -936,9 +936,9 @@ public:
   /// \brief SrcRC and DstRC will be morphed into NewRC if this returns true.
   virtual bool shouldCoalesce(MachineInstr *MI,
                               const TargetRegisterClass *SrcRC,
-                              unsigned SubReg,
+                              unsigned SubRegIdx,
                               const TargetRegisterClass *DstRC,
-                              unsigned DstSubReg,
+                              unsigned DstSubRegIdx,
                               const TargetRegisterClass *NewRC) const
   { return true; }
 
@@ -947,10 +947,10 @@ public:
 
   /// getFrameRegister - This method should return the register used as a base
   /// for values allocated in the current stack frame.
-  virtual unsigned getFrameRegister(const MachineFunction &MF) const = 0;
+  virtual MCPhysReg getFrameRegister(const MachineFunction &MF) const = 0;
 
   /// Mark a register and all its aliases as reserved in the given set.
-  void markSuperRegs(BitVector &RegisterSet, unsigned Reg) const;
+  void markSuperRegs(BitVector &RegisterSet, MCPhysReg Reg) const;
 
   /// Returns true if for every register in the set all super registers are part
   /// of the set as well.

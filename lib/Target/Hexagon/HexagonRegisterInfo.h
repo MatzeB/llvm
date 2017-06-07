@@ -63,10 +63,10 @@ public:
   }
 
   // Debug information queries.
-  unsigned getRARegister() const;
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
-  unsigned getFrameRegister() const;
-  unsigned getStackRegister() const;
+  MCPhysReg getRARegister() const;
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getFrameRegister() const;
+  MCPhysReg getStackRegister() const;
 
   unsigned getHexagonSubRegIndex(const TargetRegisterClass *RC,
         unsigned GenIdx) const;

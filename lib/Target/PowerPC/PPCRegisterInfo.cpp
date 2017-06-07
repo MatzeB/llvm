@@ -714,7 +714,7 @@ void PPCRegisterInfo::lowerVRSAVERestore(MachineBasicBlock::iterator II,
 }
 
 bool PPCRegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
-                                           unsigned Reg, int &FrameIdx) const {
+                                           MCPhysReg Reg, int &FrameIdx) const {
   const PPCSubtarget &Subtarget = MF.getSubtarget<PPCSubtarget>();
   // For the nonvolatile condition registers (CR2, CR3, CR4) in an SVR4
   // ABI, return true to prevent allocating an additional frame slot.
@@ -909,7 +909,7 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MI.getOperand(OperandBase + 1).ChangeToRegister(SReg, false, false, true);
 }
 
-unsigned PPCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+MCPhysReg PPCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const PPCFrameLowering *TFI = getFrameLowering(MF);
 
   if (!TM.isPPC64())
@@ -918,7 +918,7 @@ unsigned PPCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
     return TFI->hasFP(MF) ? PPC::X31 : PPC::X1;
 }
 
-unsigned PPCRegisterInfo::getBaseRegister(const MachineFunction &MF) const {
+MCPhysReg PPCRegisterInfo::getBaseRegister(const MachineFunction &MF) const {
   const PPCSubtarget &Subtarget = MF.getSubtarget<PPCSubtarget>();
   if (!hasBasePointer(MF))
     return getFrameRegister(MF);

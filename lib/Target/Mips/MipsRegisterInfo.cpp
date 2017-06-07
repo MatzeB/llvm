@@ -291,7 +291,7 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
   eliminateFI(MI, FIOperandNum, FrameIndex, stackSize, spOffset);
 }
 
-unsigned MipsRegisterInfo::
+MCPhysReg MipsRegisterInfo::
 getFrameRegister(const MachineFunction &MF) const {
   const MipsSubtarget &Subtarget = MF.getSubtarget<MipsSubtarget>();
   const TargetFrameLowering *TFI = Subtarget.getFrameLowering();

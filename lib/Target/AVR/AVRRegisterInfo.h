@@ -42,7 +42,7 @@ public:
                            unsigned FIOperandNum,
                            RegScavenger *RS = NULL) const override;
 
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
 
   const TargetRegisterClass *
   getPointerRegClass(const MachineFunction &MF,

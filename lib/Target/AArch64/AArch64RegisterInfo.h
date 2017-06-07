@@ -62,7 +62,7 @@ public:
                                              CallingConv::ID) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
-  bool isConstantPhysReg(unsigned PhysReg) const override;
+  bool isConstantPhysReg(MCPhysReg PhysReg) const override;
   const TargetRegisterClass *
   getPointerRegClass(const MachineFunction &MF,
                      unsigned Kind = 0) const override;
@@ -91,7 +91,7 @@ public:
   unsigned getBaseRegister() const;
 
   // Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
 
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const override;

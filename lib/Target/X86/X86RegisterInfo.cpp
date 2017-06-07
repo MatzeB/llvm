@@ -637,7 +637,7 @@ bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
 }
 
 bool X86RegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
-                                           unsigned Reg, int &FrameIdx) const {
+                                           MCPhysReg Reg, int &FrameIdx) const {
   // Since X86 defines assignCalleeSavedSpillSlots which always return true
   // this function neither used nor tested.
   llvm_unreachable("Unused function on X86. Otherwise need a test case.");
@@ -745,15 +745,15 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 }
 
-unsigned X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+MCPhysReg X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const X86FrameLowering *TFI = getFrameLowering(MF);
   return TFI->hasFP(MF) ? FramePtr : StackPtr;
 }
 
-unsigned
+MCPhysReg
 X86RegisterInfo::getPtrSizedFrameRegister(const MachineFunction &MF) const {
   const X86Subtarget &Subtarget = MF.getSubtarget<X86Subtarget>();
-  unsigned FrameReg = getFrameRegister(MF);
+  MCPhysReg FrameReg = getFrameRegister(MF);
   if (Subtarget.isTarget64BitILP32())
     FrameReg = getX86SubSuperRegister(FrameReg, 32);
   return FrameReg;

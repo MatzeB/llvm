@@ -152,7 +152,7 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI,
   MI->getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
 }
 
-unsigned
+MCPhysReg
 SystemZRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const SystemZFrameLowering *TFI = getFrameLowering(MF);
   return TFI->hasFP(MF) ? SystemZ::R11D : SystemZ::R15D;

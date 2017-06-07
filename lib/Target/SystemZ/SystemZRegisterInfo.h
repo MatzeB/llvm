@@ -59,7 +59,7 @@ public:
   void eliminateFrameIndex(MachineBasicBlock::iterator MI,
                            int SPAdj, unsigned FIOperandNum,
                            RegScavenger *RS) const override;
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
 };
 
 } // end namespace llvm

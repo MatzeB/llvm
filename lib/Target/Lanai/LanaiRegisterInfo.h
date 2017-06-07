@@ -42,9 +42,9 @@ struct LanaiRegisterInfo : public LanaiGenRegisterInfo {
                            RegScavenger *RS = nullptr) const override;
 
   // Debug information queries.
-  unsigned getRARegister() const;
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
-  unsigned getBaseRegister() const;
+  MCPhysReg getRARegister() const;
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getBaseRegister() const;
   bool hasBasePointer(const MachineFunction &MF) const;
 
   // Exception handling queries.

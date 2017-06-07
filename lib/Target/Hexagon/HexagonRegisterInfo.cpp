@@ -232,12 +232,12 @@ void HexagonRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 
-unsigned HexagonRegisterInfo::getRARegister() const {
+MCPhysReg HexagonRegisterInfo::getRARegister() const {
   return Hexagon::R31;
 }
 
 
-unsigned HexagonRegisterInfo::getFrameRegister(const MachineFunction
+MCPhysReg HexagonRegisterInfo::getFrameRegister(const MachineFunction
                                                &MF) const {
   const HexagonFrameLowering *TFI = getFrameLowering(MF);
   if (TFI->hasFP(MF))
@@ -246,12 +246,12 @@ unsigned HexagonRegisterInfo::getFrameRegister(const MachineFunction
 }
 
 
-unsigned HexagonRegisterInfo::getFrameRegister() const {
+MCPhysReg HexagonRegisterInfo::getFrameRegister() const {
   return Hexagon::R30;
 }
 
 
-unsigned HexagonRegisterInfo::getStackRegister() const {
+MCPhysReg HexagonRegisterInfo::getStackRegister() const {
   return Hexagon::R29;
 }
 

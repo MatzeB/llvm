@@ -116,7 +116,7 @@ public:
   void lowerVRSAVERestore(MachineBasicBlock::iterator II,
                           unsigned FrameIndex) const;
 
-  bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
+  bool hasReservedSpillSlot(const MachineFunction &MF, MCPhysReg Reg,
                             int &FrameIdx) const override;
   void eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
                            unsigned FIOperandNum,
@@ -133,10 +133,10 @@ public:
                           int64_t Offset) const override;
 
   // Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  MCPhysReg getFrameRegister(const MachineFunction &MF) const override;
 
   // Base pointer (stack realignment) support.
-  unsigned getBaseRegister(const MachineFunction &MF) const;
+  MCPhysReg getBaseRegister(const MachineFunction &MF) const;
   bool hasBasePointer(const MachineFunction &MF) const;
 };
 

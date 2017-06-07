@@ -155,7 +155,8 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
 }
 
-unsigned MSP430RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+MCPhysReg
+MSP430RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const MSP430FrameLowering *TFI = getFrameLowering(MF);
   return TFI->hasFP(MF) ? MSP430::FP : MSP430::SP;
 }

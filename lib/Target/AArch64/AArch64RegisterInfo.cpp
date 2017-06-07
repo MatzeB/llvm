@@ -160,7 +160,7 @@ bool AArch64RegisterInfo::isReservedReg(const MachineFunction &MF,
   return false;
 }
 
-bool AArch64RegisterInfo::isConstantPhysReg(unsigned PhysReg) const {
+bool AArch64RegisterInfo::isConstantPhysReg(MCPhysReg PhysReg) const {
   return PhysReg == AArch64::WZR || PhysReg == AArch64::XZR;
 }
 
@@ -205,7 +205,7 @@ bool AArch64RegisterInfo::hasBasePointer(const MachineFunction &MF) const {
   return false;
 }
 
-unsigned
+MCPhysReg
 AArch64RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const AArch64FrameLowering *TFI = getFrameLowering(MF);
   return TFI->hasFP(MF) ? AArch64::FP : AArch64::SP;
