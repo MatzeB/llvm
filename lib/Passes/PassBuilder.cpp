@@ -151,6 +151,7 @@ using namespace llvm;
 
 static cl::opt<unsigned> MaxDevirtIterations("pm-max-devirt-iterations",
                                              cl::ReallyHidden, cl::init(4));
+static cl::opt<bool> SomeO0OptsNewPM("some-o0-opts-newpm");
 static cl::opt<bool>
     RunPartialInlining("enable-npm-partial-inlining", cl::init(false),
                        cl::Hidden, cl::ZeroOrMore,
@@ -1285,6 +1286,29 @@ PassBuilder::parsePipelineText(StringRef Text) {
   return {std::move(ResultPipeline)};
 }
 
+static FunctionPassManager makeMinimalFPM(bool DebugLogging) {
+  FunctionPassManager FPM(DebugLogging);
+  FPM.addPass(PromotePass());
+  FPM.addPass(SROA());
+  FPM.addPass(EarlyCSEPass(EnableEarlyCSEMemSSA));
+  FPM.addPass(SimplifyCFGPass());
+  FPM.addPass(InstCombinePass());
+
+  FPM.addPass(TailCallElimPass());
+
+  // Specially optimize memory movement as it doesn't look like dataflow in SSA.
+  FPM.addPass(MemCpyOptPass());
+  FPM.addPass(SimplifyCFGPass());
+  return FPM;
+}
+
+static CGSCCPassManager makeMinimalCGSCCPM(bool DebugLogging) {
+  CGSCCPassManager MainCGPipeline(DebugLogging);
+
+  MainCGPipeline.addPass(createCGSCCToFunctionPassAdaptor(makeMinimalFPM(DebugLogging)));
+  return MainCGPipeline;
+}
+
 bool PassBuilder::parseModulePass(ModulePassManager &MPM,
                                   const PipelineElement &E, bool VerifyEachPass,
                                   bool DebugLogging) {
@@ -1348,9 +1372,17 @@ bool PassBuilder::parseModulePass(ModulePassManager &MPM,
                               .Case("O3", O3)
                               .Case("Os", Os)
                               .Case("Oz", Oz);
-    if (L == O0)
+    if (L == O0) {
+      if (SomeO0OptsNewPM) {
+        // Optimize globals to try and fold them into constants.
+        //MPM.addPass(GlobalOptPass());
+
+        MPM.addPass(createModuleToPostOrderCGSCCPassAdaptor(makeMinimalCGSCCPM(DebugLogging)));
+      }
+
       // At O0 we do nothing at all!
       return true;
+    }
 
     if (Matches[1] == "default") {
       MPM.addPass(buildPerModuleDefaultPipeline(L, DebugLogging));

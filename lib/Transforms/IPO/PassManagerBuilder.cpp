@@ -43,6 +43,8 @@
 
 using namespace llvm;
 
+static cl::opt<bool> SomeO0Opts("some-o0-opts");
+
 static cl::opt<bool>
     RunPartialInlining("enable-partial-inlining", cl::init(false), cl::Hidden,
                        cl::ZeroOrMore, cl::desc("Run Partial inlinining pass"));
@@ -436,6 +438,24 @@ void PassManagerBuilder::populateModulePassManager(
     // new unnamed globals.
     if (PrepareForThinLTO)
       MPM.add(createNameAnonGlobalPass());
+
+    if (SomeO0Opts) {
+      // Add LibraryInfo if we have some.
+      //if (LibraryInfo)
+      //  MPM.add(new TargetLibraryInfoWrapperPass(*LibraryInfo));
+
+      //MPM.add(createGlobalOptimizerPass()); // Optimize out global vars
+      // Promote any localized global vars.
+      MPM.add(createPromoteMemoryToRegisterPass());
+
+      MPM.add(createDeadArgEliminationPass()); // Dead argument elimination
+
+      //addInstructionCombiningPass(MPM); // Clean up after IPCP & DAE
+      MPM.add(createInstructionSimplifierPass());
+      //MPM.add(createCFGSimplificationPass()); // Clean up after IPCP & DAE
+    }
+
+
     return;
   }
 
