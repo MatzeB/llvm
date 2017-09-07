@@ -1463,6 +1463,10 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
     // Before doing SelectionDAG ISel, see if FastISel has been requested.
     if (FastIS) {
+      StringRef GroupName = "sdag";
+      StringRef GroupDescription = "Instruction Selection and Scheduling";
+      NamedRegionTimer T("fastisel", "Fast ISel", GroupName,
+                         GroupDescription, TimePassesIsEnabled);
       if (LLVMBB != &Fn.getEntryBlock())
         FastIS->startNewBlock();
 
