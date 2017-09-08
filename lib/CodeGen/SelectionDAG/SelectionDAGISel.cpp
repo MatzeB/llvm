@@ -110,6 +110,8 @@ STATISTIC(NumDAGIselRetries,"Number of times dag isel has to try another path");
 STATISTIC(NumEntryBlocks, "Number of entry blocks encountered");
 STATISTIC(NumFastIselFailLowerArguments,
           "Number of entry blocks where fast isel failed to lower arguments");
+STATISTIC(NumIRInstr, "Number of IR instructions");
+STATISTIC(NumMIInstr, "Number of MI instructions");
 
 static cl::opt<int> EnableFastISelAbort(
     "fast-isel-abort", cl::Hidden,
@@ -621,6 +623,15 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   // Release function-specific state. SDB and CurDAG are already cleared
   // at this point.
   FuncInfo->clear();
+
+  if (AreStatisticsEnabled()) {
+    for (const MachineBasicBlock &MBB : *MF) {
+      for (const MachineInstr &MI : MBB) {
+        if (!MI.isTransient())
+          ++NumMIInstr;
+      }
+    }
+  }
 
   DEBUG(dbgs() << "*** MachineFunction at end of ISel ***\n");
   DEBUG(MF->print(dbgs()));
@@ -1460,6 +1471,8 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
     if (LLVMBB->isEHPad())
       if (!PrepareEHLandingPad())
         continue;
+
+    NumIRInstr += std::distance(Begin, End);
 
     // Before doing SelectionDAG ISel, see if FastISel has been requested.
     if (FastIS) {
