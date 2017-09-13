@@ -1129,8 +1129,15 @@ bool MIParser::assignRegisterTies(MachineInstr &MI,
   }
   // FIXME: Verify that for non INLINEASM instructions, the def and use tied
   // indices must be less than tied max.
-  for (const auto &TiedPair : TiedRegisterPairs)
+  for (const auto &TiedPair : TiedRegisterPairs) {
+    // Ignore ties that are already present (this can happen if MCInstrDesc
+    // describes the tie already) to avoid tieOperands() complaining.
+    const MachineOperand &FirstMO = MI.getOperand(TiedPair.first);
+    if (FirstMO.isTied() &&
+        MI.findTiedOperandIdx(TiedPair.first) == TiedPair.second)
+      continue;
     MI.tieOperands(TiedPair.first, TiedPair.second);
+  }
   return false;
 }
 
