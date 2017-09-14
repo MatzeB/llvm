@@ -20,6 +20,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -87,6 +88,32 @@ namespace {
       }
     };
 
+    struct BasicLiveRegInfo {
+      unsigned VirtReg;
+      MCPhysReg PhysReg;
+      bool LiveOut;
+      bool Reloaded;
+
+      explicit BasicLiveRegInfo(const LiveReg &LR)
+        : VirtReg(LR.VirtReg), PhysReg(LR.PhysReg), LiveOut(LR.LiveOut),
+          Reloaded(LR.Reloaded) {}
+
+      LiveReg toLiveReg() const {
+        LiveReg Result(VirtReg);
+        Result.PhysReg = PhysReg;
+        Result.LiveOut = LiveOut;
+        Result.Reloaded = Reloaded;
+        return Result;
+      }
+    };
+
+    struct BlockInfo {
+      std::vector<BasicLiveRegInfo> VRegAssignments;
+    };
+    DenseMap<MachineBasicBlock*, BlockInfo*> BlockInfos;
+
+
+
     typedef SparseSet<LiveReg> LiveRegMap;
 
     /// This map contains entries for each virtual register that is currently
@@ -107,10 +134,6 @@ namespace {
       /// (e.g., setting up a call parameter), and it remains reserved until it
       /// is used.
       regPreAssigned,
-
-      /// Used temporarily in reloadAtBegin to mark physreg that are live-in
-      /// to the basic block.
-      regLiveIn,
 
       /// A register state may also be a virtual register number, indication
       /// that the physical register is currently allocated to a virtual
@@ -177,7 +200,8 @@ namespace {
 
   private:
     bool runOnMachineFunction(MachineFunction &Fn) override;
-    void allocateBasicBlock(MachineBasicBlock &MBB);
+    void allocateBasicBlock(MachineBasicBlock &MBB,
+                            MachineBasicBlock *PreviousMBB);
     void allocateInstruction(MachineInstr &MI);
     int getStackSpaceFor(unsigned VirtReg);
 
@@ -274,22 +298,11 @@ void RegAllocFast::spillVirtReg(MachineBasicBlock::iterator Before,
 
 /// Reload all currently assigned virtual registers.
 void RegAllocFast::reloadAtBegin() {
-  for (MachineBasicBlock::RegisterMaskPair P : MBB->liveins()) {
-    MCPhysReg Reg = P.PhysReg;
-    // Set state to live-in. This possibly overrides mappings to virtual
-    // registers but we don't care anymore at this point.
-    setPhysRegState(Reg, regLiveIn);
-  }
-
   // The LiveRegMap is keyed by an unsigned (the virtreg number), so the order
   // of spilling here is deterministic, if arbitrary.
   for (const LiveReg &LR : LiveVirtRegs) {
     MCPhysReg PhysReg = LR.PhysReg;
     if (PhysReg == 0)
-      continue;
-
-    unsigned FirstUnit = *MCRegUnitIterator(PhysReg, TRI);
-    if (RegUnitState[FirstUnit] == regLiveIn)
       continue;
 
     assert(MBB != &MBB->getParent()->front() && "no reload in start block");
@@ -733,8 +746,6 @@ void RegAllocFast::dumpState() {
     case regPreAssigned:
       dbgs() << " " << PrintRegUnit(Unit, TRI) << "[P]";
       break;
-    case regLiveIn:
-      llvm_unreachable("Should not have regLiveIn in map");
     default: {
       dbgs() << ' ' << PrintRegUnit(Unit, TRI) << '=' << PrintReg(VirtReg);
       LiveRegMap::iterator I = findLiveVirtReg(VirtReg);
@@ -954,20 +965,56 @@ void RegAllocFast::allocateInstruction(MachineInstr &MI) {
   }
 }
 
-void RegAllocFast::allocateBasicBlock(MachineBasicBlock &MBB) {
+static bool shouldCrossBlocks(const MachineBasicBlock &MBB) {
+  for (MachineBasicBlock *Pred : MBB.predecessors()) {
+    if (Pred->succ_size() != 1) {
+      return false;
+    }
+  }
+  return MBB.pred_size() > 0;
+}
+
+void RegAllocFast::allocateBasicBlock(MachineBasicBlock &MBB,
+                                      MachineBasicBlock *PrevMBB) {
   this->MBB = &MBB;
   DEBUG(dbgs() << "\nAllocating " << MBB);
 
-  RegUnitState.assign(TRI->getNumRegUnits(), regFree);
-  assert(LiveVirtRegs.empty() && "Mapping not cleared from last block?");
 
-  Coalesced.clear();
+  // See if we can simply continue with the allocation state from the previous
+  // block.
+  if (MBB.succ_size() == 1) {
+    MachineBasicBlock *SuccBlock = *MBB.succ_begin();
+    BlockInfo *BI = BlockInfos.lookup(SuccBlock);
+    if (false && BI != nullptr && SuccBlock == PrevMBB) {
+      // Shortcut: Just leave LiveVirtRegs as is instead of restoring from
+      // BlockInfo.
+    } else {
+      LiveVirtRegs.clear();
+      if (BI != nullptr) {
+        for (const BasicLiveRegInfo BLRI : BI->VRegAssignments)
+          LiveVirtRegs.insert(BLRI.toLiveReg());
+      }
+    }
+  } else {
+    LiveVirtRegs.clear();
+  }
+
+  // Initialize register unit state, note that no preassigned registers should
+  // be live accross basic blocks.  TODO: assert this?
+  RegUnitState.assign(TRI->getNumRegUnits(), regFree);
+  for (const LiveReg &LR : LiveVirtRegs) {
+    MCPhysReg PhysReg = LR.PhysReg;
+    if (PhysReg != 0)
+      setPhysRegState(PhysReg, LR.VirtReg);
+  }
 
   // Otherwise, sequentially allocate each instruction in the MBB.
+  Coalesced.clear();
   for (MachineInstr &MI : make_range(MBB.rbegin(), MBB.rend())) {
     DEBUG(
-      dbgs() << "\n>> " << MI << "Regs:";
-      dumpState()
+      dbgs() << "Regs:";
+      dumpState();
+      dbgs() << ">> " << MI;
     );
 
     // Debug values are not allowed to change codegen in any way.
@@ -1036,11 +1083,17 @@ void RegAllocFast::allocateBasicBlock(MachineBasicBlock &MBB) {
     dumpState()
   );
 
-  // Spill all physical registers holding virtual registers now.
-  DEBUG(dbgs() << "Loading live registers at begin of block.\n");
-  reloadAtBegin();
-
-  LiveVirtRegs.clear();
+  // Check whether we want to let some values live accross blocks:
+  // We currently to this only if all of our predecessors have exactly 1
+  // successor.
+  if (shouldCrossBlocks(MBB)) {
+    BlockInfo *BI = new BlockInfo();
+    for (LiveReg &LR : LiveVirtRegs)
+      BI->VRegAssignments.push_back(BasicLiveRegInfo(LR));
+  } else {
+    DEBUG(dbgs() << "Loading live registers at begin of block.\n");
+    reloadAtBegin();
+  }
 
   // Erase all the coalesced copies. We are delaying it until now because
   // LiveVirtRegs might refer to the instrs.
@@ -1054,6 +1107,7 @@ void RegAllocFast::allocateBasicBlock(MachineBasicBlock &MBB) {
 bool RegAllocFast::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "********** FAST REGISTER ALLOCATION **********\n"
                << "********** Function: " << MF.getName() << '\n');
+  DEBUG(MF.dump());
   MRI = &MF.getRegInfo();
   const TargetSubtargetInfo &STI = MF.getSubtarget();
   TRI = STI.getRegisterInfo();
@@ -1072,14 +1126,22 @@ bool RegAllocFast::runOnMachineFunction(MachineFunction &MF) {
   MayLiveOut.clear();
   MayLiveOut.resize(NumVirtRegs);
 
+  SmallVector<MachineBasicBlock*, 32> PostOrder;
+  MachineBasicBlock *Entry = &MF.front();
+  std::copy(po_begin(Entry), po_end(Entry), std::back_inserter(PostOrder));
+
   // Loop over all of the basic blocks, eliminating virtual register references
-  for (MachineBasicBlock &MBB : MF)
-    allocateBasicBlock(MBB);
+  MachineBasicBlock *PrevMBB = nullptr;
+  for (MachineBasicBlock *MBB : PostOrder) {
+    allocateBasicBlock(*MBB, PrevMBB);
+    PrevMBB = MBB;
+  }
 
   // All machine operands and other references to virtual registers have been
   // replaced. Remove the virtual registers.
   MRI->clearVirtRegs();
 
+  LiveVirtRegs.clear();
   StackSlotForVirtReg.clear();
   LiveDbgValueMap.clear();
   return true;
