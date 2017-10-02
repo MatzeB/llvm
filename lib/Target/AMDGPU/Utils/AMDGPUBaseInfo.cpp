@@ -839,7 +839,7 @@ AMDGPUAS getAMDGPUAS(Triple T) {
   return AS;
 }
 
-AMDGPUAS getAMDGPUAS(const TargetMachine &M) {
+AMDGPUAS getAMDGPUAS(const LLVMTargetMachine &M) {
   return getAMDGPUAS(M.getTargetTriple());
 }
 

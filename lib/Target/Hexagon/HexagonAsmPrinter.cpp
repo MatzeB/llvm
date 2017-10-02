@@ -76,7 +76,7 @@ inline static unsigned getHexagonRegisterPair(unsigned Reg,
   return Pair;
 }
 
-HexagonAsmPrinter::HexagonAsmPrinter(TargetMachine &TM,
+HexagonAsmPrinter::HexagonAsmPrinter(LLVMTargetMachine &TM,
                                      std::unique_ptr<MCStreamer> Streamer)
     : AsmPrinter(TM, std::move(Streamer)) {}
 

@@ -205,7 +205,7 @@ using ValueToSExts = DenseMap<Value *, SExts>;
 class TypePromotionTransaction;
 
   class CodeGenPrepare : public FunctionPass {
-    const TargetMachine *TM = nullptr;
+    const LLVMTargetMachine *TM = nullptr;
     const TargetSubtargetInfo *SubtargetInfo;
     const TargetLowering *TLI = nullptr;
     const TargetRegisterInfo *TRI;
@@ -335,7 +335,7 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
 
   ModifiedDT = false;
   if (auto *TPC = getAnalysisIfAvailable<TargetPassConfig>()) {
-    TM = &TPC->getTM<TargetMachine>();
+    TM = &TPC->getTM<LLVMTargetMachine>();
     SubtargetInfo = TM->getSubtargetImpl(F);
     TLI = SubtargetInfo->getTargetLowering();
     TRI = SubtargetInfo->getRegisterInfo();

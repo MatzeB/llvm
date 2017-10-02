@@ -34,7 +34,8 @@ enum NodeType : unsigned {
 
 class BPFTargetLowering : public TargetLowering {
 public:
-  explicit BPFTargetLowering(const TargetMachine &TM, const BPFSubtarget &STI);
+  explicit BPFTargetLowering(const LLVMTargetMachine &TM,
+                             const BPFSubtarget &STI);
 
   // Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;

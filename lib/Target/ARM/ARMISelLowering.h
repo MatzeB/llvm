@@ -42,11 +42,11 @@ class FunctionLoweringInfo;
 class GlobalValue;
 class InstrItineraryData;
 class Instruction;
+class LLVMTargetMachine;
 class MachineBasicBlock;
 class MachineInstr;
 class SelectionDAG;
 class TargetLibraryInfo;
-class TargetMachine;
 class TargetRegisterInfo;
 class VectorType;
 
@@ -268,7 +268,7 @@ class VectorType;
 
   class ARMTargetLowering : public TargetLowering {
   public:
-    explicit ARMTargetLowering(const TargetMachine &TM,
+    explicit ARMTargetLowering(const LLVMTargetMachine &TM,
                                const ARMSubtarget &STI);
 
     unsigned getJumpTableEncoding() const override;

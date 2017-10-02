@@ -116,7 +116,7 @@ EnableOptimizeLogicalImm("aarch64-enable-logical-imm", cl::Hidden,
 /// Value type used for condition codes.
 static const MVT MVT_CC = MVT::i32;
 
-AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
+AArch64TargetLowering::AArch64TargetLowering(const LLVMTargetMachine &TM,
                                              const AArch64Subtarget &STI)
     : TargetLowering(TM), Subtarget(&STI) {
   // AArch64 doesn't have comparisons which set GPRs or setcc instructions, so

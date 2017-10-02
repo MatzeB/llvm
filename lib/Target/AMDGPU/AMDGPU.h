@@ -19,12 +19,12 @@ namespace llvm {
 class AMDGPUTargetMachine;
 class FunctionPass;
 class GCNTargetMachine;
+class LLVMTargetMachine;
+class Module;
 class ModulePass;
 class Pass;
-class Target;
-class TargetMachine;
 class PassRegistry;
-class Module;
+class Target;
 
 // R600 Passes
 FunctionPass *createR600VectorRegMerger();
@@ -34,7 +34,8 @@ FunctionPass *createR600ClauseMergePass();
 FunctionPass *createR600Packetizer();
 FunctionPass *createR600ControlFlowFinalizer();
 FunctionPass *createAMDGPUCFGStructurizerPass();
-FunctionPass *createR600ISelDag(TargetMachine *TM, CodeGenOpt::Level OptLevel);
+FunctionPass *createR600ISelDag(LLVMTargetMachine *TM,
+                                CodeGenOpt::Level OptLevel);
 
 // SI Passes
 FunctionPass *createSIAnnotateControlFlowPass();
@@ -140,7 +141,7 @@ extern char &AMDGPUPromoteAllocaID;
 
 Pass *createAMDGPUStructurizeCFGPass();
 FunctionPass *createAMDGPUISelDag(
-  TargetMachine *TM = nullptr,
+  LLVMTargetMachine *TM = nullptr,
   CodeGenOpt::Level OptLevel = CodeGenOpt::Default);
 ModulePass *createAMDGPUAlwaysInlinePass(bool GlobalOpt = true);
 ModulePass *createAMDGPUOpenCLImageTypeLoweringPass();
@@ -250,7 +251,7 @@ struct AMDGPUAS {
 namespace llvm {
 namespace AMDGPU {
 AMDGPUAS getAMDGPUAS(const Module &M);
-AMDGPUAS getAMDGPUAS(const TargetMachine &TM);
+AMDGPUAS getAMDGPUAS(const LLVMTargetMachine &TM);
 AMDGPUAS getAMDGPUAS(Triple T);
 } // namespace AMDGPU
 } // namespace llvm

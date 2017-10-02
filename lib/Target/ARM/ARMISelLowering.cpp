@@ -220,7 +220,7 @@ void ARMTargetLowering::addQRTypeForNEON(MVT VT) {
   addTypeForNEON(VT, MVT::v2f64, MVT::v4i32);
 }
 
-ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
+ARMTargetLowering::ARMTargetLowering(const LLVMTargetMachine &TM,
                                      const ARMSubtarget &STI)
     : TargetLowering(TM), Subtarget(&STI) {
   RegInfo = Subtarget->getRegisterInfo();

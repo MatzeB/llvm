@@ -86,7 +86,7 @@ namespace HexagonISD {
     void promoteLdStType(MVT VT, MVT PromotedLdStVT);
 
   public:
-    explicit HexagonTargetLowering(const TargetMachine &TM,
+    explicit HexagonTargetLowering(const LLVMTargetMachine &TM,
                                    const HexagonSubtarget &ST);
 
     /// IsEligibleForTailCallOptimization - Check whether the call is eligible

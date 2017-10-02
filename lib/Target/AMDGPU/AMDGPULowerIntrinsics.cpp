@@ -116,7 +116,7 @@ bool AMDGPULowerIntrinsics::makeLIDRangeMetadata(Function &F) const {
   if (!TPC)
     return false;
 
-  const TargetMachine &TM = TPC->getTM<TargetMachine>();
+  const LLVMTargetMachine &TM = TPC->getTM<LLVMTargetMachine>();
   const AMDGPUSubtarget &ST = TM.getSubtarget<AMDGPUSubtarget>(F);
   bool Changed = false;
 

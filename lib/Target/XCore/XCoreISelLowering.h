@@ -93,7 +93,7 @@ namespace llvm {
   class XCoreTargetLowering : public TargetLowering
   {
   public:
-    explicit XCoreTargetLowering(const TargetMachine &TM,
+    explicit XCoreTargetLowering(const LLVMTargetMachine &TM,
                                  const XCoreSubtarget &Subtarget);
 
     using TargetLowering::isZExtFree;
@@ -141,7 +141,7 @@ namespace llvm {
     }
 
   private:
-    const TargetMachine &TM;
+    const LLVMTargetMachine &TM;
     const XCoreSubtarget &Subtarget;
 
     // Lower Operand helpers

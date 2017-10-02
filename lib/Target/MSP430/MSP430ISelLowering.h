@@ -69,7 +69,7 @@ namespace llvm {
   class MSP430Subtarget;
   class MSP430TargetLowering : public TargetLowering {
   public:
-    explicit MSP430TargetLowering(const TargetMachine &TM,
+    explicit MSP430TargetLowering(const LLVMTargetMachine &TM,
                                   const MSP430Subtarget &STI);
 
     MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {

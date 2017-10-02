@@ -540,7 +540,7 @@ bool AMDGPUCodeGenPrepare::runOnFunction(Function &F) {
   if (!TPC)
     return false;
 
-  const TargetMachine &TM = TPC->getTM<TargetMachine>();
+  const LLVMTargetMachine &TM = TPC->getTM<LLVMTargetMachine>();
   ST = &TM.getSubtarget<SISubtarget>(F);
   DA = &getAnalysis<DivergenceAnalysis>();
   HasUnsafeFPMath = hasUnsafeFPMath(F);

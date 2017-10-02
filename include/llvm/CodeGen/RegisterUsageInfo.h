@@ -27,7 +27,7 @@
 namespace llvm {
 
 class Function;
-class TargetMachine;
+class LLVMTargetMachine;
 
 class PhysicalRegisterUsageInfo : public ImmutablePass {
   virtual void anchor();
@@ -44,9 +44,9 @@ public:
     AU.setPreservesAll();
   }
 
-  /// To set TargetMachine *, which is used to print
+  /// To set LLVMTargetMachine *, which is used to print
   /// analysis when command line option -print-regusage is used.
-  void setTargetMachine(const TargetMachine *TM_) { TM = TM_; }
+  void setTargetMachine(const LLVMTargetMachine *TM_) { TM = TM_; }
 
   bool doInitialization(Module &M) override;
 
@@ -68,7 +68,7 @@ private:
   /// and 1 means content of register will be preserved around function call.
   DenseMap<const Function *, std::vector<uint32_t>> RegMasks;
 
-  const TargetMachine *TM;
+  const LLVMTargetMachine *TM;
 };
 
 } // end namespace llvm

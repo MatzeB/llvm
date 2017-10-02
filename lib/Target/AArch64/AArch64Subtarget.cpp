@@ -147,7 +147,8 @@ void AArch64Subtarget::initializeProperties() {
 
 AArch64Subtarget::AArch64Subtarget(const Triple &TT, const std::string &CPU,
                                    const std::string &FS,
-                                   const TargetMachine &TM, bool LittleEndian)
+                                   const LLVMTargetMachine &TM,
+                                   bool LittleEndian)
     : AArch64GenSubtargetInfo(TT, CPU, FS),
       ReserveX18(TT.isOSDarwin() || TT.isOSWindows()), IsLittle(LittleEndian),
       TargetTriple(TT), FrameLowering(),

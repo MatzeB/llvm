@@ -782,8 +782,6 @@ bool SafeStack::run() {
 }
 
 class SafeStackLegacyPass : public FunctionPass {
-  const TargetMachine *TM = nullptr;
-
 public:
   static char ID; // Pass identification, replacement for typeid..
 
@@ -812,8 +810,9 @@ public:
       return false;
     }
 
-    TM = &getAnalysis<TargetPassConfig>().getTM<TargetMachine>();
-    auto *TL = TM->getSubtargetImpl(F)->getTargetLowering();
+    const LLVMTargetMachine &TM =
+      getAnalysis<TargetPassConfig>().getTM<LLVMTargetMachine>();
+    auto *TL = TM.getSubtargetImpl(F)->getTargetLowering();
     if (!TL)
       report_fatal_error("TargetLowering instance is required");
 

@@ -43,7 +43,7 @@ namespace llvm {
 /// pattern-matching instruction selectors.
 class SelectionDAGISel : public MachineFunctionPass {
 public:
-  TargetMachine &TM;
+  LLVMTargetMachine &TM;
   const TargetLibraryInfo *LibInfo;
   FunctionLoweringInfo *FuncInfo;
   MachineFunction *MF;
@@ -64,7 +64,7 @@ public:
 
   static char ID;
 
-  explicit SelectionDAGISel(TargetMachine &tm,
+  explicit SelectionDAGISel(LLVMTargetMachine &tm,
                             CodeGenOpt::Level OL = CodeGenOpt::Default);
   ~SelectionDAGISel() override;
 

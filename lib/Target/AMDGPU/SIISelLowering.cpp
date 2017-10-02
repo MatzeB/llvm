@@ -104,7 +104,7 @@ static unsigned findFirstFreeSGPR(CCState &CCInfo) {
   llvm_unreachable("Cannot allocate sgpr");
 }
 
-SITargetLowering::SITargetLowering(const TargetMachine &TM,
+SITargetLowering::SITargetLowering(const LLVMTargetMachine &TM,
                                    const SISubtarget &STI)
     : AMDGPUTargetLowering(TM, STI) {
   addRegisterClass(MVT::i1, &AMDGPU::VReg_1RegClass);

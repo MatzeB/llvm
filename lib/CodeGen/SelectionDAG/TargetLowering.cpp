@@ -36,8 +36,8 @@
 #include <cctype>
 using namespace llvm;
 
-/// NOTE: The TargetMachine owns TLOF.
-TargetLowering::TargetLowering(const TargetMachine &tm)
+/// NOTE: The LLVMTargetMachine owns TLOF.
+TargetLowering::TargetLowering(const LLVMTargetMachine &tm)
   : TargetLoweringBase(tm) {}
 
 const char *TargetLowering::getTargetNodeName(unsigned Opcode) const {
@@ -317,9 +317,8 @@ TargetLowering::getPICJumpTableRelocBaseExpr(const MachineFunction *MF,
   return MCSymbolRefExpr::create(MF->getJTISymbol(JTI, Ctx), Ctx);
 }
 
-bool
-TargetLowering::isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const {
-  const TargetMachine &TM = getTargetMachine();
+bool TargetLowering::isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const {
+  const LLVMTargetMachine &TM = getTargetMachine();
   const GlobalValue *GV = GA->getGlobal();
 
   // If the address is not even local to this DSO we will have to load it from

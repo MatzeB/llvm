@@ -364,7 +364,7 @@ class SystemZTargetMachine;
 
 class SystemZTargetLowering : public TargetLowering {
 public:
-  explicit SystemZTargetLowering(const TargetMachine &TM,
+  explicit SystemZTargetLowering(const LLVMTargetMachine &TM,
                                  const SystemZSubtarget &STI);
 
   // Override TargetLowering.

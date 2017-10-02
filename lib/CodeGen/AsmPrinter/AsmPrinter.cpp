@@ -163,7 +163,8 @@ static unsigned getGVAlignmentLog2(const GlobalValue *GV, const DataLayout &DL,
   return NumBits;
 }
 
-AsmPrinter::AsmPrinter(TargetMachine &tm, std::unique_ptr<MCStreamer> Streamer)
+AsmPrinter::AsmPrinter(LLVMTargetMachine &tm,
+                       std::unique_ptr<MCStreamer> Streamer)
     : MachineFunctionPass(ID), TM(tm), MAI(tm.getMCAsmInfo()),
       OutContext(Streamer->getContext()), OutStreamer(std::move(Streamer)) {
   VerboseAsm = OutStreamer->isVerboseAsm();

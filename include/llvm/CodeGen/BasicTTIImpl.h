@@ -25,6 +25,8 @@
 
 namespace llvm {
 
+class LLVMTargetMachine;
+
 extern cl::opt<unsigned> PartialUnrollingThreshold;
 
 /// \brief Base class which can be used to help build a TTI implementation.
@@ -74,7 +76,7 @@ private:
   }
 
 protected:
-  explicit BasicTTIImplBase(const TargetMachine *TM, const DataLayout &DL)
+  explicit BasicTTIImplBase(const LLVMTargetMachine *TM, const DataLayout &DL)
       : BaseT(DL) {}
 
   using TargetTransformInfoImplBase::DL;
@@ -1255,7 +1257,7 @@ class BasicTTIImpl : public BasicTTIImplBase<BasicTTIImpl> {
   const TargetLoweringBase *getTLI() const { return TLI; }
 
 public:
-  explicit BasicTTIImpl(const TargetMachine *ST, const Function &F);
+  explicit BasicTTIImpl(const LLVMTargetMachine *ST, const Function &F);
 };
 
 }

@@ -45,7 +45,7 @@ namespace {
 
 class AMDGPUAnnotateKernelFeatures : public CallGraphSCCPass {
 private:
-  const TargetMachine *TM = nullptr;
+  const LLVMTargetMachine *TM = nullptr;
   AMDGPUAS AS;
 
   bool addFeatureAttributes(Function &F);
@@ -319,7 +319,7 @@ bool AMDGPUAnnotateKernelFeatures::doInitialization(CallGraph &CG) {
     report_fatal_error("TargetMachine is required");
 
   AS = AMDGPU::getAMDGPUAS(CG.getModule());
-  TM = &TPC->getTM<TargetMachine>();
+  TM = &TPC->getTM<LLVMTargetMachine>();
   return false;
 }
 

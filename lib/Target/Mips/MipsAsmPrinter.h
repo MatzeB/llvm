@@ -122,7 +122,7 @@ public:
   const MipsFunctionInfo *MipsFI;
   MipsMCInstLower MCInstLowering;
 
-  explicit MipsAsmPrinter(TargetMachine &TM,
+  explicit MipsAsmPrinter(LLVMTargetMachine &TM,
                           std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), MCInstLowering(*this) {}
 

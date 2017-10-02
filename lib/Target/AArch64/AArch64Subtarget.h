@@ -155,7 +155,7 @@ public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   AArch64Subtarget(const Triple &TT, const std::string &CPU,
-                   const std::string &FS, const TargetMachine &TM,
+                   const std::string &FS, const LLVMTargetMachine &TM,
                    bool LittleEndian);
 
   const AArch64SelectionDAGInfo *getSelectionDAGInfo() const override {

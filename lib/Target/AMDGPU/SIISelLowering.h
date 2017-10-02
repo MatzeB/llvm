@@ -144,7 +144,7 @@ class SITargetLowering final : public AMDGPUTargetLowering {
   bool shouldEmitPCReloc(const GlobalValue *GV) const;
 
 public:
-  SITargetLowering(const TargetMachine &tm, const SISubtarget &STI);
+  SITargetLowering(const LLVMTargetMachine &tm, const SISubtarget &STI);
 
   const SISubtarget *getSubtarget() const;
 

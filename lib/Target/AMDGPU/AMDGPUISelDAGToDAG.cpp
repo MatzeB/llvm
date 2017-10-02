@@ -71,7 +71,7 @@ class AMDGPUDAGToDAGISel : public SelectionDAGISel {
   AMDGPUAS AMDGPUASI;
 
 public:
-  explicit AMDGPUDAGToDAGISel(TargetMachine *TM = nullptr,
+  explicit AMDGPUDAGToDAGISel(LLVMTargetMachine *TM = nullptr,
                               CodeGenOpt::Level OptLevel = CodeGenOpt::Default)
     : SelectionDAGISel(*TM, OptLevel) {
     AMDGPUASI = AMDGPU::getAMDGPUAS(*TM);
@@ -221,7 +221,7 @@ protected:
 
 class R600DAGToDAGISel : public AMDGPUDAGToDAGISel {
 public:
-  explicit R600DAGToDAGISel(TargetMachine *TM, CodeGenOpt::Level OptLevel) :
+  explicit R600DAGToDAGISel(LLVMTargetMachine *TM, CodeGenOpt::Level OptLevel) :
       AMDGPUDAGToDAGISel(TM, OptLevel) {}
 
   void Select(SDNode *N) override;
@@ -242,14 +242,14 @@ INITIALIZE_PASS_END(AMDGPUDAGToDAGISel, "isel",
 
 /// \brief This pass converts a legalized DAG into a AMDGPU-specific
 // DAG, ready for instruction scheduling.
-FunctionPass *llvm::createAMDGPUISelDag(TargetMachine *TM,
+FunctionPass *llvm::createAMDGPUISelDag(LLVMTargetMachine *TM,
                                         CodeGenOpt::Level OptLevel) {
   return new AMDGPUDAGToDAGISel(TM, OptLevel);
 }
 
 /// \brief This pass converts a legalized DAG into a R600-specific
 // DAG, ready for instruction scheduling.
-FunctionPass *llvm::createR600ISelDag(TargetMachine *TM,
+FunctionPass *llvm::createR600ISelDag(LLVMTargetMachine *TM,
                                       CodeGenOpt::Level OptLevel) {
   return new R600DAGToDAGISel(TM, OptLevel);
 }

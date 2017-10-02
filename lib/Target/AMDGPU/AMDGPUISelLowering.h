@@ -120,7 +120,7 @@ protected:
   void analyzeFormalArgumentsCompute(CCState &State,
                               const SmallVectorImpl<ISD::InputArg> &Ins) const;
 public:
-  AMDGPUTargetLowering(const TargetMachine &TM, const AMDGPUSubtarget &STI);
+  AMDGPUTargetLowering(const LLVMTargetMachine &TM, const AMDGPUSubtarget &STI);
 
   bool mayIgnoreSignedZero(SDValue Op) const {
     if (getTargetMachine().Options.NoSignedZerosFPMath)

@@ -35,7 +35,7 @@ using namespace llvm;
 namespace {
 class BPFAsmPrinter : public AsmPrinter {
 public:
-  explicit BPFAsmPrinter(TargetMachine &TM,
+  explicit BPFAsmPrinter(LLVMTargetMachine &TM,
                          std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)) {}
 

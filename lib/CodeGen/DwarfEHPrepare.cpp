@@ -257,8 +257,8 @@ bool DwarfEHPrepare::InsertUnwindResumeCalls(Function &Fn) {
 }
 
 bool DwarfEHPrepare::runOnFunction(Function &Fn) {
-  const TargetMachine &TM =
-      getAnalysis<TargetPassConfig>().getTM<TargetMachine>();
+  const LLVMTargetMachine &TM =
+      getAnalysis<TargetPassConfig>().getTM<LLVMTargetMachine>();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   TLI = TM.getSubtargetImpl(Fn)->getTargetLowering();
   bool Changed = InsertUnwindResumeCalls(Fn);

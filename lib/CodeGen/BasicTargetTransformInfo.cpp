@@ -31,6 +31,6 @@ cl::opt<unsigned>
                                     cl::desc("Threshold for partial unrolling"),
                                     cl::Hidden);
 
-BasicTTIImpl::BasicTTIImpl(const TargetMachine *TM, const Function &F)
+BasicTTIImpl::BasicTTIImpl(const LLVMTargetMachine *TM, const Function &F)
     : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl(F)),
       TLI(ST->getTargetLowering()) {}

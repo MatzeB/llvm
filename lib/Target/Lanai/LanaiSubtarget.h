@@ -33,7 +33,7 @@ public:
   // This constructor initializes the data members to match that
   // of the specified triple.
   LanaiSubtarget(const Triple &TargetTriple, StringRef Cpu,
-                 StringRef FeatureString, const TargetMachine &TM,
+                 StringRef FeatureString, const LLVMTargetMachine &TM,
                  const TargetOptions &Options, CodeModel::Model CodeModel,
                  CodeGenOpt::Level OptLevel);
 

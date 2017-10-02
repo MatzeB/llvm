@@ -106,7 +106,7 @@ bool StackProtector::runOnFunction(Function &Fn) {
   DominatorTreeWrapperPass *DTWP =
       getAnalysisIfAvailable<DominatorTreeWrapperPass>();
   DT = DTWP ? &DTWP->getDomTree() : nullptr;
-  TM = &getAnalysis<TargetPassConfig>().getTM<TargetMachine>();
+  TM = &getAnalysis<TargetPassConfig>().getTM<LLVMTargetMachine>();
   Trip = TM->getTargetTriple();
   TLI = TM->getSubtargetImpl(Fn)->getTargetLowering();
   HasPrologue = false;

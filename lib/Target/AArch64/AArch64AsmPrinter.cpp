@@ -65,7 +65,7 @@ class AArch64AsmPrinter : public AsmPrinter {
   const AArch64Subtarget *STI;
 
 public:
-  AArch64AsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+  AArch64AsmPrinter(LLVMTargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), MCInstLowering(OutContext, *this),
         SM(*this) {}
 

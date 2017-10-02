@@ -151,7 +151,7 @@ bool AMDGPUTargetLowering::isOrEquivalentToAdd(SelectionDAG &DAG, SDValue Op)
   return false;
 }
 
-AMDGPUTargetLowering::AMDGPUTargetLowering(const TargetMachine &TM,
+AMDGPUTargetLowering::AMDGPUTargetLowering(const LLVMTargetMachine &TM,
                                            const AMDGPUSubtarget &STI)
     : TargetLowering(TM), Subtarget(&STI) {
   AMDGPUASI = AMDGPU::getAMDGPUAS(TM);

@@ -167,7 +167,7 @@ typedef SmallSetVector<int, 8> StackObjSet;
 ///
 bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   if (!SpillCalleeSavedRegisters) {
-    const TargetMachine &TM = Fn.getTarget();
+    const LLVMTargetMachine &TM = Fn.getTarget();
     if (!TM.usesPhysRegsForPEI()) {
       SpillCalleeSavedRegisters = [](MachineFunction &, RegScavenger *,
                                      unsigned &, unsigned &, const MBBVector &,

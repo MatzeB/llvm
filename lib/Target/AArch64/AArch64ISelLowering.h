@@ -239,7 +239,7 @@ class AArch64TargetMachine;
 
 class AArch64TargetLowering : public TargetLowering {
 public:
-  explicit AArch64TargetLowering(const TargetMachine &TM,
+  explicit AArch64TargetLowering(const LLVMTargetMachine &TM,
                                  const AArch64Subtarget &STI);
 
   /// Selects the correct CCAssignFn for a given CallingConvention value.

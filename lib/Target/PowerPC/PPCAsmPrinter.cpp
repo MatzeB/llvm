@@ -81,7 +81,7 @@ protected:
   StackMaps SM;
 
 public:
-  explicit PPCAsmPrinter(TargetMachine &TM,
+  explicit PPCAsmPrinter(LLVMTargetMachine &TM,
                          std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), SM(*this) {}
 
@@ -122,7 +122,7 @@ public:
   /// PPCLinuxAsmPrinter - PowerPC assembly printer, customized for Linux
   class PPCLinuxAsmPrinter : public PPCAsmPrinter {
   public:
-    explicit PPCLinuxAsmPrinter(TargetMachine &TM,
+    explicit PPCLinuxAsmPrinter(LLVMTargetMachine &TM,
                                 std::unique_ptr<MCStreamer> Streamer)
         : PPCAsmPrinter(TM, std::move(Streamer)) {}
 
@@ -144,7 +144,7 @@ public:
   /// OS X
   class PPCDarwinAsmPrinter : public PPCAsmPrinter {
   public:
-    explicit PPCDarwinAsmPrinter(TargetMachine &TM,
+    explicit PPCDarwinAsmPrinter(LLVMTargetMachine &TM,
                                  std::unique_ptr<MCStreamer> Streamer)
         : PPCAsmPrinter(TM, std::move(Streamer)) {}
 
@@ -1595,11 +1595,12 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
 /// Darwin assembler can deal with.
 ///
 static AsmPrinter *
-createPPCAsmPrinterPass(TargetMachine &tm,
+createPPCAsmPrinterPass(TargetMachine &TM,
                         std::unique_ptr<MCStreamer> &&Streamer) {
-  if (tm.getTargetTriple().isMacOSX())
-    return new PPCDarwinAsmPrinter(tm, std::move(Streamer));
-  return new PPCLinuxAsmPrinter(tm, std::move(Streamer));
+  LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine&>(TM);
+  if (LLVMTM.getTargetTriple().isMacOSX())
+    return new PPCDarwinAsmPrinter(LLVMTM, std::move(Streamer));
+  return new PPCLinuxAsmPrinter(LLVMTM, std::move(Streamer));
 }
 
 // Force static initialization.

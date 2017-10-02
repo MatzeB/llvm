@@ -79,7 +79,7 @@ protected:
   /// Which PIC style to use
   PICStyles::Style PICStyle;
 
-  const TargetMachine &TM;
+  const LLVMTargetMachine &TM;
 
   /// SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42, or none supported.
   X86SSEEnum X86SSELevel;

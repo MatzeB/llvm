@@ -26,6 +26,8 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -45,9 +47,10 @@ class DwarfDebug;
 class GCMetadataPrinter;
 class GlobalIndirectSymbol;
 class GlobalObject;
+class GCStrategy;
 class GlobalValue;
 class GlobalVariable;
-class GCStrategy;
+class LLVMTargetMachine;
 class MachineBasicBlock;
 class MachineConstantPoolValue;
 class MachineFunction;
@@ -70,14 +73,13 @@ class MDNode;
 class Module;
 class raw_ostream;
 class TargetLoweringObjectFile;
-class TargetMachine;
 
 /// This class is intended to be used as a driving class for all asm writers.
 class AsmPrinter : public MachineFunctionPass {
 public:
   /// Target machine description.
   ///
-  TargetMachine &TM;
+  LLVMTargetMachine &TM;
 
   /// Target Asm Printer information.
   ///
@@ -173,7 +175,8 @@ private:
   bool isCFIMoveForDebugging = false;
 
 protected:
-  explicit AsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer);
+  explicit AsmPrinter(LLVMTargetMachine &TM,
+                      std::unique_ptr<MCStreamer> Streamer);
 
 public:
   ~AsmPrinter() override;
@@ -204,7 +207,7 @@ public:
   /// Return information about data layout.
   const DataLayout &getDataLayout() const;
 
-  /// Return the pointer size from the TargetMachine
+  /// Return the pointer size from the LLVMTargetMachine
   unsigned getPointerSize() const;
 
   /// Return information about subtarget.
@@ -636,6 +639,26 @@ private:
   /// Emit GlobalAlias or GlobalIFunc.
   void emitGlobalIndirectSymbol(Module &M,
                                 const GlobalIndirectSymbol& GIS);
+};
+
+/// Helper template for registering a target specific assembly printer, for use
+/// in the target machine initialization function. Usage:
+///
+/// extern "C" void LLVMInitializeFooAsmPrinter() {
+///   extern Target TheFooTarget;
+///   RegisterAsmPrinter<FooAsmPrinter> X(TheFooTarget);
+/// }
+template <class AsmPrinterImpl> struct RegisterAsmPrinter {
+  RegisterAsmPrinter(Target &T) {
+    TargetRegistry::RegisterAsmPrinter(T, &Allocator);
+  }
+
+private:
+  static AsmPrinter *Allocator(TargetMachine &TM,
+                               std::unique_ptr<MCStreamer> &&Streamer) {
+    LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine&>(TM);
+    return new AsmPrinterImpl(LLVMTM, std::move(Streamer));
+  }
 };
 
 } // end namespace llvm

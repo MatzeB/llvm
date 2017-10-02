@@ -81,7 +81,7 @@ void RegUsageInfoCollector::getAnalysisUsage(AnalysisUsage &AU) const {
 bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   MachineRegisterInfo *MRI = &MF.getRegInfo();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-  const TargetMachine &TM = MF.getTarget();
+  const LLVMTargetMachine &TM = MF.getTarget();
 
   DEBUG(dbgs() << " -------------------- " << getPassName()
                << " -------------------- \n");

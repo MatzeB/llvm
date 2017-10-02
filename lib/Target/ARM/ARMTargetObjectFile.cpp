@@ -66,9 +66,12 @@ getDebugThreadLocalSymbol(const MCSymbol *Sym) const {
 
 static bool isExecuteOnlyFunction(const GlobalObject *GO, SectionKind SK,
                                   const TargetMachine &TM) {
-  if (const Function *F = dyn_cast<Function>(GO))
-    if (TM.getSubtarget<ARMSubtarget>(*F).genExecuteOnly() && SK.isText())
+  if (const Function *F = dyn_cast<Function>(GO)) {
+    const ARMBaseTargetMachine &ARM_TM =
+      static_cast<const ARMBaseTargetMachine &>(TM);
+    if (ARM_TM.getSubtarget<ARMSubtarget>(*F).genExecuteOnly() && SK.isText())
       return true;
+  }
   return false;
 }
 

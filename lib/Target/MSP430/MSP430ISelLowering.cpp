@@ -38,7 +38,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "msp430-lower"
 
-MSP430TargetLowering::MSP430TargetLowering(const TargetMachine &TM,
+MSP430TargetLowering::MSP430TargetLowering(const LLVMTargetMachine &TM,
                                            const MSP430Subtarget &STI)
     : TargetLowering(TM) {
 

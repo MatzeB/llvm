@@ -51,7 +51,7 @@ static void fail(const SDLoc &DL, SelectionDAG &DAG, const char *Msg,
       DiagnosticInfoUnsupported(*MF.getFunction(), Str, DL.getDebugLoc()));
 }
 
-BPFTargetLowering::BPFTargetLowering(const TargetMachine &TM,
+BPFTargetLowering::BPFTargetLowering(const LLVMTargetMachine &TM,
                                      const BPFSubtarget &STI)
     : TargetLowering(TM) {
 

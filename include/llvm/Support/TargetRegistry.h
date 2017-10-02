@@ -37,6 +37,7 @@
 namespace llvm {
 
 class AsmPrinter;
+class LLVMTargetMachine;
 class MCAsmBackend;
 class MCAsmInfo;
 class MCAsmParser;
@@ -1106,26 +1107,6 @@ private:
                                       MCAsmParser &P, const MCInstrInfo &MII,
                                       const MCTargetOptions &Options) {
     return new MCAsmParserImpl(STI, P, MII, Options);
-  }
-};
-
-/// RegisterAsmPrinter - Helper template for registering a target specific
-/// assembly printer, for use in the target machine initialization
-/// function. Usage:
-///
-/// extern "C" void LLVMInitializeFooAsmPrinter() {
-///   extern Target TheFooTarget;
-///   RegisterAsmPrinter<FooAsmPrinter> X(TheFooTarget);
-/// }
-template <class AsmPrinterImpl> struct RegisterAsmPrinter {
-  RegisterAsmPrinter(Target &T) {
-    TargetRegistry::RegisterAsmPrinter(T, &Allocator);
-  }
-
-private:
-  static AsmPrinter *Allocator(TargetMachine &TM,
-                               std::unique_ptr<MCStreamer> &&Streamer) {
-    return new AsmPrinterImpl(TM, std::move(Streamer));
   }
 };
 

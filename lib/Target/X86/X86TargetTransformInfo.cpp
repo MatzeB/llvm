@@ -2522,7 +2522,7 @@ bool X86TTIImpl::hasDivRemOp(Type *DataType, bool IsSigned) {
 
 bool X86TTIImpl::areInlineCompatible(const Function *Caller,
                                      const Function *Callee) const {
-  const TargetMachine &TM = getTLI()->getTargetMachine();
+  const LLVMTargetMachine &TM = getTLI()->getTargetMachine();
 
   // Work this as a subsetting of subtarget features.
   const FeatureBitset &CallerBits =

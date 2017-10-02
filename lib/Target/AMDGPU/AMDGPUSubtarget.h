@@ -179,7 +179,7 @@ protected:
 
 public:
   AMDGPUSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
-                  const TargetMachine &TM);
+                  const LLVMTargetMachine &TM);
   ~AMDGPUSubtarget() override;
 
   AMDGPUSubtarget &initializeSubtargetDependencies(const Triple &TT,
@@ -614,7 +614,7 @@ private:
 
 public:
   R600Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
-                const TargetMachine &TM);
+                const LLVMTargetMachine &TM);
 
   const R600InstrInfo *getInstrInfo() const override {
     return &InstrInfo;
@@ -659,7 +659,7 @@ private:
 
 public:
   SISubtarget(const Triple &TT, StringRef CPU, StringRef FS,
-              const TargetMachine &TM);
+              const LLVMTargetMachine &TM);
 
   const SIInstrInfo *getInstrInfo() const override {
     return &InstrInfo;

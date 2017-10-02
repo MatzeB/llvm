@@ -335,7 +335,7 @@ private:
   bool EmitGeneric;
 
 public:
-  NVPTXAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+  NVPTXAsmPrinter(LLVMTargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)),
         EmitGeneric(static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() ==
                     NVPTX::CUDA) {}

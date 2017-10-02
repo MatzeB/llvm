@@ -133,7 +133,7 @@ private:
                                   uint64_t CodeSize);
 
 public:
-  explicit AMDGPUAsmPrinter(TargetMachine &TM,
+  explicit AMDGPUAsmPrinter(LLVMTargetMachine &TM,
                             std::unique_ptr<MCStreamer> Streamer);
 
   StringRef getPassName() const override;

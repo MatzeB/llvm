@@ -34,7 +34,7 @@ SystemZSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
 
 SystemZSubtarget::SystemZSubtarget(const Triple &TT, const std::string &CPU,
                                    const std::string &FS,
-                                   const TargetMachine &TM)
+                                   const LLVMTargetMachine &TM)
     : SystemZGenSubtargetInfo(TT, CPU, FS), HasDistinctOps(false),
       HasLoadStoreOnCond(false), HasHighWord(false), HasFPExtension(false),
       HasPopulationCount(false), HasMessageSecurityAssist3(false),

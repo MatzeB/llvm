@@ -42,7 +42,7 @@ namespace {
           *OutStreamer->getTargetStreamer());
     }
   public:
-    explicit SparcAsmPrinter(TargetMachine &TM,
+    explicit SparcAsmPrinter(LLVMTargetMachine &TM,
                              std::unique_ptr<MCStreamer> Streamer)
         : AsmPrinter(TM, std::move(Streamer)) {}
 

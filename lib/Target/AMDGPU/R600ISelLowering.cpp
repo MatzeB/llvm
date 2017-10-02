@@ -50,7 +50,7 @@
 
 using namespace llvm;
 
-R600TargetLowering::R600TargetLowering(const TargetMachine &TM,
+R600TargetLowering::R600TargetLowering(const LLVMTargetMachine &TM,
                                        const R600Subtarget &STI)
     : AMDGPUTargetLowering(TM, STI), Gen(STI.getGeneration()) {
   addRegisterClass(MVT::f32, &AMDGPU::R600_Reg32RegClass);

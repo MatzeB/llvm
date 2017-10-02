@@ -469,7 +469,8 @@ static bool nextRealType(SmallVectorImpl<CompositeType *> &SubTypes,
 /// between it and the return.
 ///
 /// This function only tests target-independent requirements.
-bool llvm::isInTailCallPosition(ImmutableCallSite CS, const TargetMachine &TM) {
+bool llvm::isInTailCallPosition(ImmutableCallSite CS,
+                                const LLVMTargetMachine &TM) {
   const Instruction *I = CS.getInstruction();
   const BasicBlock *ExitBB = I->getParent();
   const TerminatorInst *Term = ExitBB->getTerminator();

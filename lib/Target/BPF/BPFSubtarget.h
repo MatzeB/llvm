@@ -51,7 +51,7 @@ public:
   // This constructor initializes the data members to match that
   // of the specified triple.
   BPFSubtarget(const Triple &TT, const std::string &CPU, const std::string &FS,
-               const TargetMachine &TM);
+               const LLVMTargetMachine &TM);
 
   BPFSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
 

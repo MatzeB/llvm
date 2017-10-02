@@ -38,7 +38,8 @@ LanaiSubtarget &LanaiSubtarget::initializeSubtargetDependencies(StringRef CPU,
 }
 
 LanaiSubtarget::LanaiSubtarget(const Triple &TargetTriple, StringRef Cpu,
-                               StringRef FeatureString, const TargetMachine &TM,
+                               StringRef FeatureString,
+                               const LLVMTargetMachine &TM,
                                const TargetOptions & /*Options*/,
                                CodeModel::Model /*CodeModel*/,
                                CodeGenOpt::Level /*OptLevel*/)

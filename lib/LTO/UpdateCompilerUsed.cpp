@@ -73,9 +73,7 @@ private:
     SmallPtrSet<const TargetLowering *, 1> TLSet;
 
     for (const Function &F : TheModule) {
-      const TargetLowering *Lowering =
-          TM.getSubtargetImpl(F)->getTargetLowering();
-
+      const TargetLowering *Lowering = TM.getTargetLowering(F);
       if (Lowering && TLSet.insert(Lowering).second)
         // TargetLowering has info on library calls that CodeGen expects to be
         // available, both from the C runtime and compiler-rt.

@@ -91,7 +91,7 @@ AMDGPUSubtarget::initializeSubtargetDependencies(const Triple &TT,
 }
 
 AMDGPUSubtarget::AMDGPUSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
-                                 const TargetMachine &TM)
+                                 const LLVMTargetMachine &TM)
   : AMDGPUGenSubtargetInfo(TT, GPU, FS),
     TargetTriple(TT),
     Gen(TT.getArch() == Triple::amdgcn ? SOUTHERN_ISLANDS : R600),
@@ -332,14 +332,14 @@ bool AMDGPUSubtarget::makeLIDRangeMetadata(Instruction *I) const {
 }
 
 R600Subtarget::R600Subtarget(const Triple &TT, StringRef GPU, StringRef FS,
-                             const TargetMachine &TM) :
+                             const LLVMTargetMachine &TM) :
   AMDGPUSubtarget(TT, GPU, FS, TM),
   InstrInfo(*this),
   FrameLowering(TargetFrameLowering::StackGrowsUp, getStackAlignment(), 0),
   TLInfo(TM, *this) {}
 
 SISubtarget::SISubtarget(const Triple &TT, StringRef GPU, StringRef FS,
-                         const TargetMachine &TM)
+                         const LLVMTargetMachine &TM)
     : AMDGPUSubtarget(TT, GPU, FS, TM), InstrInfo(*this),
       FrameLowering(TargetFrameLowering::StackGrowsUp, getStackAlignment(), 0),
       TLInfo(TM, *this) {

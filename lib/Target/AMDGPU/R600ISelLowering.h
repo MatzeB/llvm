@@ -24,7 +24,7 @@ class R600Subtarget;
 
 class R600TargetLowering final : public AMDGPUTargetLowering {
 public:
-  R600TargetLowering(const TargetMachine &TM, const R600Subtarget &STI);
+  R600TargetLowering(const LLVMTargetMachine &TM, const R600Subtarget &STI);
 
   const R600Subtarget *getSubtarget() const;
 

@@ -486,8 +486,8 @@ static void InitCmpLibcallCCs(ISD::CondCode *CCs) {
   CCs[RTLIB::O_PPCF128] = ISD::SETEQ;
 }
 
-/// NOTE: The TargetMachine owns TLOF.
-TargetLoweringBase::TargetLoweringBase(const TargetMachine &tm) : TM(tm) {
+/// NOTE: The LLVMTargetMachine owns TLOF.
+TargetLoweringBase::TargetLoweringBase(const LLVMTargetMachine &tm) : TM(tm) {
   initActions();
 
   // Perform these initializations only once.

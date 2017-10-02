@@ -25,13 +25,13 @@ namespace llvm {
 class MachineInstr;
 class MCInst;
 class raw_ostream;
-class TargetMachine;
+class LLVMTargetMachine;
 
   class HexagonAsmPrinter : public AsmPrinter {
     const HexagonSubtarget *Subtarget = nullptr;
 
   public:
-    explicit HexagonAsmPrinter(TargetMachine &TM,
+    explicit HexagonAsmPrinter(LLVMTargetMachine &TM,
                                std::unique_ptr<MCStreamer> Streamer);
 
     bool runOnMachineFunction(MachineFunction &Fn) override {

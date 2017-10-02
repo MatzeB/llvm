@@ -67,7 +67,7 @@ class LanaiSubtarget;
 
 class LanaiTargetLowering : public TargetLowering {
 public:
-  LanaiTargetLowering(const TargetMachine &TM, const LanaiSubtarget &STI);
+  LanaiTargetLowering(const LLVMTargetMachine &TM, const LanaiSubtarget &STI);
 
   // LowerOperation - Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;

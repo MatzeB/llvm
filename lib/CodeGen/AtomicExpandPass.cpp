@@ -196,7 +196,7 @@ bool AtomicExpand::runOnFunction(Function &F) {
   if (!TPC)
     return false;
 
-  auto &TM = TPC->getTM<TargetMachine>();
+  auto &TM = TPC->getTM<LLVMTargetMachine>();
   if (!TM.getSubtargetImpl(F)->enableAtomicExpand())
     return false;
   TLI = TM.getSubtargetImpl(F)->getTargetLowering();

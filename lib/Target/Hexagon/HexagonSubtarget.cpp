@@ -99,7 +99,7 @@ static cl::opt<bool> EnableCheckBankConflict("hexagon-check-bank-conflict",
 
 
 HexagonSubtarget::HexagonSubtarget(const Triple &TT, StringRef CPU,
-                                   StringRef FS, const TargetMachine &TM)
+                                   StringRef FS, const LLVMTargetMachine &TM)
     : HexagonGenSubtargetInfo(TT, CPU, FS),
       CPUString(Hexagon_MC::selectHexagonCPU(TT, CPU)),
       InstrInfo(initializeSubtargetDependencies(CPU, FS)),

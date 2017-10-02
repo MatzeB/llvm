@@ -253,3 +253,12 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM, MCContext *&Ctx,
 
   return false; // success!
 }
+
+bool LLVMTargetMachine::useAA(const Function &F) const {
+  return getSubtargetImpl(F)->useAA();
+}
+
+const TargetLowering *
+LLVMTargetMachine::getTargetLowering(const Function &F) const {
+  return getSubtargetImpl(F)->getTargetLowering();
+}

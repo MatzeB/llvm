@@ -215,8 +215,8 @@ public:
     llvm_unreachable("Invalid content kind");
   }
 
-  /// NOTE: The TargetMachine owns TLOF.
-  explicit TargetLoweringBase(const TargetMachine &TM);
+  /// NOTE: The LLVMTargetMachine owns TLOF.
+  explicit TargetLoweringBase(const LLVMTargetMachine &TM);
   TargetLoweringBase(const TargetLoweringBase &) = delete;
   TargetLoweringBase &operator=(const TargetLoweringBase &) = delete;
   virtual ~TargetLoweringBase() = default;
@@ -226,7 +226,7 @@ protected:
   void initActions();
 
 public:
-  const TargetMachine &getTargetMachine() const { return TM; }
+  const LLVMTargetMachine &getTargetMachine() const { return TM; }
 
   virtual bool useSoftFloat() const { return false; }
 
@@ -2230,7 +2230,7 @@ public:
   virtual void finalizeLowering(MachineFunction &MF) const;
 
 private:
-  const TargetMachine &TM;
+  const LLVMTargetMachine &TM;
 
   /// Tells the code generator that the target has multiple (allocatable)
   /// condition registers that can be used to store the results of comparisons
@@ -2501,8 +2501,8 @@ public:
   TargetLowering(const TargetLowering &) = delete;
   TargetLowering &operator=(const TargetLowering &) = delete;
 
-  /// NOTE: The TargetMachine owns TLOF.
-  explicit TargetLowering(const TargetMachine &TM);
+  /// NOTE: The LLVMTargetMachine owns TLOF.
+  explicit TargetLowering(const LLVMTargetMachine &TM);
 
   bool isPositionIndependent() const;
 

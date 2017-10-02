@@ -56,7 +56,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
 
-ARMAsmPrinter::ARMAsmPrinter(TargetMachine &TM,
+ARMAsmPrinter::ARMAsmPrinter(LLVMTargetMachine &TM,
                              std::unique_ptr<MCStreamer> Streamer)
     : AsmPrinter(TM, std::move(Streamer)), AFI(nullptr), MCP(nullptr),
       InConstantPool(false), OptimizationGoals(-1) {}

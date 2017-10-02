@@ -67,7 +67,7 @@ class LLVM_LIBRARY_VISIBILITY ARMAsmPrinter : public AsmPrinter {
   SmallPtrSet<const GlobalVariable*,2> EmittedPromotedGlobalLabels;
 
 public:
-  explicit ARMAsmPrinter(TargetMachine &TM,
+  explicit ARMAsmPrinter(LLVMTargetMachine &TM,
                          std::unique_ptr<MCStreamer> Streamer);
 
   StringRef getPassName() const override {

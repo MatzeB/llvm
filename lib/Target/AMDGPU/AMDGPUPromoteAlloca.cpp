@@ -68,7 +68,7 @@ namespace {
 // FIXME: This can create globals so should be a module pass.
 class AMDGPUPromoteAlloca : public FunctionPass {
 private:
-  const TargetMachine *TM;
+  const LLVMTargetMachine *TM;
   Module *Mod = nullptr;
   const DataLayout *DL = nullptr;
   AMDGPUAS AS;
@@ -139,7 +139,7 @@ bool AMDGPUPromoteAlloca::runOnFunction(Function &F) {
     return false;
 
   if (auto *TPC = getAnalysisIfAvailable<TargetPassConfig>())
-    TM = &TPC->getTM<TargetMachine>();
+    TM = &TPC->getTM<LLVMTargetMachine>();
   else
     return false;
 

@@ -49,7 +49,7 @@ void BPFSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
 }
 
 BPFSubtarget::BPFSubtarget(const Triple &TT, const std::string &CPU,
-                           const std::string &FS, const TargetMachine &TM)
+                           const std::string &FS, const LLVMTargetMachine &TM)
     : BPFGenSubtargetInfo(TT, CPU, FS), InstrInfo(),
       FrameLowering(initializeSubtargetDependencies(CPU, FS)),
       TLInfo(TM, *this) {}

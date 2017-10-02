@@ -71,7 +71,7 @@ static cl::opt<int> LanaiLowerConstantMulThreshold(
              "multiplication instead of calling library function [default=14]"),
     cl::init(14));
 
-LanaiTargetLowering::LanaiTargetLowering(const TargetMachine &TM,
+LanaiTargetLowering::LanaiTargetLowering(const LLVMTargetMachine &TM,
                                          const LanaiSubtarget &STI)
     : TargetLowering(TM) {
   // Set up the register classes.

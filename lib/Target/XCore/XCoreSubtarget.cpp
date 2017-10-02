@@ -26,6 +26,7 @@ using namespace llvm;
 void XCoreSubtarget::anchor() { }
 
 XCoreSubtarget::XCoreSubtarget(const Triple &TT, const std::string &CPU,
-                               const std::string &FS, const TargetMachine &TM)
+                               const std::string &FS,
+                               const LLVMTargetMachine &TM)
     : XCoreGenSubtargetInfo(TT, CPU, FS), InstrInfo(), FrameLowering(*this),
       TLInfo(TM, *this), TSInfo() {}

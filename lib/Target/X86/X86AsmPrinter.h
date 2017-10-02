@@ -100,7 +100,7 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   void EmitXRayTable();
 
 public:
-  explicit X86AsmPrinter(TargetMachine &TM,
+  explicit X86AsmPrinter(LLVMTargetMachine &TM,
                          std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)), SM(*this), FM(*this) {}
 

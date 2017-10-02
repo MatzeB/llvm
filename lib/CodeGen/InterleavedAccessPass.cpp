@@ -444,7 +444,7 @@ bool InterleavedAccess::runOnFunction(Function &F) {
   DEBUG(dbgs() << "*** " << getPassName() << ": " << F.getName() << "\n");
 
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  auto &TM = TPC->getTM<TargetMachine>();
+  auto &TM = TPC->getTM<LLVMTargetMachine>();
   TLI = TM.getSubtargetImpl(F)->getTargetLowering();
   MaxFactor = TLI->getMaxSupportedInterleaveFactor();
 

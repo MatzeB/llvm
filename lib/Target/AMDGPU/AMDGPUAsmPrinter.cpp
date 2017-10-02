@@ -79,9 +79,10 @@ static uint32_t getFPMode(const MachineFunction &F) {
 }
 
 static AsmPrinter *
-createAMDGPUAsmPrinterPass(TargetMachine &tm,
+createAMDGPUAsmPrinterPass(TargetMachine &TM,
                            std::unique_ptr<MCStreamer> &&Streamer) {
-  return new AMDGPUAsmPrinter(tm, std::move(Streamer));
+  LLVMTargetMachine &LLVMTM = static_cast<LLVMTargetMachine&>(TM);
+  return new AMDGPUAsmPrinter(LLVMTM, std::move(Streamer));
 }
 
 extern "C" void LLVMInitializeAMDGPUAsmPrinter() {
@@ -91,7 +92,7 @@ extern "C" void LLVMInitializeAMDGPUAsmPrinter() {
                                      createAMDGPUAsmPrinterPass);
 }
 
-AMDGPUAsmPrinter::AMDGPUAsmPrinter(TargetMachine &TM,
+AMDGPUAsmPrinter::AMDGPUAsmPrinter(LLVMTargetMachine &TM,
                                    std::unique_ptr<MCStreamer> Streamer)
   : AsmPrinter(TM, std::move(Streamer)) {
     AMDGPUASI = static_cast<AMDGPUTargetMachine*>(&TM)->getAMDGPUAS();

@@ -54,7 +54,7 @@ namespace {
     XCoreTargetStreamer &getTargetStreamer();
 
   public:
-    explicit XCoreAsmPrinter(TargetMachine &TM,
+    explicit XCoreAsmPrinter(LLVMTargetMachine &TM,
                              std::unique_ptr<MCStreamer> Streamer)
         : AsmPrinter(TM, std::move(Streamer)), MCInstLowering(*this) {}
 

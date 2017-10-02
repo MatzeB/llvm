@@ -70,7 +70,7 @@ getTargetNodeName(unsigned Opcode) const
   return nullptr;
 }
 
-XCoreTargetLowering::XCoreTargetLowering(const TargetMachine &TM,
+XCoreTargetLowering::XCoreTargetLowering(const LLVMTargetMachine &TM,
                                          const XCoreSubtarget &Subtarget)
     : TargetLowering(TM), TM(TM), Subtarget(Subtarget) {
 

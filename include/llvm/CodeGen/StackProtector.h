@@ -29,9 +29,9 @@ class BasicBlock;
 class DominatorTree;
 class Function;
 class Instruction;
+class LLVMTargetMachine;
 class Module;
 class TargetLoweringBase;
-class TargetMachine;
 class Type;
 
 class StackProtector : public FunctionPass {
@@ -53,7 +53,7 @@ public:
   using SSPLayoutMap = ValueMap<const AllocaInst *, SSPLayoutKind>;
 
 private:
-  const TargetMachine *TM = nullptr;
+  const LLVMTargetMachine *TM = nullptr;
 
   /// TLI - Keep a pointer of a TargetLowering to consult for determining
   /// target type sizes.

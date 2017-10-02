@@ -36,10 +36,10 @@
 
 namespace llvm {
 
+class LLVMTargetMachine;
 class MachineInstr;
 class SDep;
 class SUnit;
-class TargetMachine;
 class Triple;
 
 class HexagonSubtarget : public HexagonGenSubtargetInfo {
@@ -84,7 +84,7 @@ private:
 
 public:
   HexagonSubtarget(const Triple &TT, StringRef CPU, StringRef FS,
-                   const TargetMachine &TM);
+                   const LLVMTargetMachine &TM);
 
   /// getInstrItins - Return the instruction itineraries based on subtarget
   /// selection.

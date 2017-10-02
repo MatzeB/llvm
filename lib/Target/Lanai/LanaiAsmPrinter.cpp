@@ -41,7 +41,7 @@ using namespace llvm;
 namespace {
 class LanaiAsmPrinter : public AsmPrinter {
 public:
-  explicit LanaiAsmPrinter(TargetMachine &TM,
+  explicit LanaiAsmPrinter(LLVMTargetMachine &TM,
                            std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)) {}
 

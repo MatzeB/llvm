@@ -49,7 +49,7 @@ public:
   /// of the specified triple.
   ///
   MSP430Subtarget(const Triple &TT, const std::string &CPU,
-                  const std::string &FS, const TargetMachine &TM);
+                  const std::string &FS, const LLVMTargetMachine &TM);
 
   MSP430Subtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
 

@@ -38,6 +38,7 @@ class PassManagerBuilder;
 class Target;
 class TargetIntrinsicInfo;
 class TargetIRAnalysis;
+class TargetLowering;
 class TargetLoweringObjectFile;
 class TargetPassConfig;
 class TargetSubtargetInfo;
@@ -105,20 +106,8 @@ public:
   StringRef getTargetCPU() const { return TargetCPU; }
   StringRef getTargetFeatureString() const { return TargetFS; }
 
-  /// Virtual method implemented by subclasses that returns a reference to that
-  /// target's TargetSubtargetInfo-derived member variable.
-  virtual const TargetSubtargetInfo *getSubtargetImpl(const Function &) const {
-    return nullptr;
-  }
   virtual TargetLoweringObjectFile *getObjFileLowering() const {
     return nullptr;
-  }
-
-  /// This method returns a pointer to the specified type of
-  /// TargetSubtargetInfo.  In debug builds, it verifies that the object being
-  /// returned is of the correct type.
-  template <typename STC> const STC &getSubtarget(const Function &F) const {
-    return *static_cast<const STC*>(getSubtargetImpl(F));
   }
 
   /// Create a DataLayout.
@@ -243,27 +232,16 @@ public:
     return true;
   }
 
-  /// True if subtarget inserts the final scheduling pass on its own.
-  ///
-  /// Branch relaxation, which must happen after block placement, can
-  /// on some targets (e.g. SystemZ) expose additional post-RA
-  /// scheduling opportunities.
-  virtual bool targetSchedulesPostRAScheduling() const { return false; };
-
   void getNameWithPrefix(SmallVectorImpl<char> &Name, const GlobalValue *GV,
                          Mangler &Mang, bool MayAlwaysUsePrivate = false) const;
   MCSymbol *getSymbol(const GlobalValue *GV) const;
 
-  /// True if the target uses physical regs at Prolog/Epilog insertion
-  /// time. If true (most machines), all vregs must be allocated before
-  /// PEI. If false (virtual-register machines), then callee-save register
-  /// spilling and scavenging are not needed or used.
-  virtual bool usesPhysRegsForPEI() const { return true; }
+  /// \brief Returns true if target uses alias analysis during code generation.
+  virtual bool useAA(const Function &F) const { return false; }
 
-  /// True if the target wants to use interprocedural register allocation by
-  /// default. The -enable-ipra flag can be used to override this.
-  virtual bool useIPRA() const {
-    return false;
+  /// Returns TargetLowering instance for the given function or nullptr.
+  virtual const TargetLowering *getTargetLowering(const Function &F) const {
+    return nullptr;
   }
 };
 
@@ -305,6 +283,41 @@ public:
   bool addPassesToEmitMC(PassManagerBase &PM, MCContext *&Ctx,
                          raw_pwrite_stream &OS,
                          bool DisableVerify = true) override;
+
+  /// Virtual method implemented by subclasses that returns a reference to that
+  /// target's TargetSubtargetInfo-derived member variable.
+  virtual const TargetSubtargetInfo *getSubtargetImpl(const Function &) const
+    = 0;
+
+  /// This method returns a pointer to the specified type of
+  /// TargetSubtargetInfo.  In debug builds, it verifies that the object being
+  /// returned is of the correct type.
+  template <typename STC> const STC &getSubtarget(const Function &F) const {
+    return *static_cast<const STC*>(getSubtargetImpl(F));
+  }
+
+  /// True if subtarget inserts the final scheduling pass on its own.
+  ///
+  /// Branch relaxation, which must happen after block placement, can
+  /// on some targets (e.g. SystemZ) expose additional post-RA
+  /// scheduling opportunities.
+  virtual bool targetSchedulesPostRAScheduling() const { return false; };
+
+  /// True if the target uses physical regs at Prolog/Epilog insertion
+  /// time. If true (most machines), all vregs must be allocated before
+  /// PEI. If false (virtual-register machines), then callee-save register
+  /// spilling and scavenging are not needed or used.
+  virtual bool usesPhysRegsForPEI() const { return true; }
+
+  /// True if the target wants to use interprocedural register allocation by
+  /// default. The -enable-ipra flag can be used to override this.
+  virtual bool useIPRA() const {
+    return false;
+  }
+
+  bool useAA(const Function &F) const override;
+
+  const TargetLowering *getTargetLowering(const Function &F) const override;
 
   /// Returns true if the target is expected to pass all machine verifier
   /// checks. This is a stopgap measure to fix targets one by one. We will

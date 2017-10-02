@@ -1704,7 +1704,7 @@ HexagonTargetLowering::LowerGlobalTLSAddress(SDValue Op,
 // TargetLowering Implementation
 //===----------------------------------------------------------------------===//
 
-HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
+HexagonTargetLowering::HexagonTargetLowering(const LLVMTargetMachine &TM,
                                              const HexagonSubtarget &ST)
     : TargetLowering(TM), HTM(static_cast<const HexagonTargetMachine&>(TM)),
       Subtarget(ST) {

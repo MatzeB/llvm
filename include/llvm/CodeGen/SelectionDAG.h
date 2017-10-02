@@ -66,6 +66,7 @@ struct fltSemantics;
 class GlobalValue;
 struct KnownBits;
 class LLVMContext;
+class LLVMTargetMachine;
 class MachineBasicBlock;
 class MachineConstantPoolValue;
 class MCSymbol;
@@ -74,7 +75,6 @@ class SDDbgValue;
 class SelectionDAG;
 class SelectionDAGTargetInfo;
 class TargetLowering;
-class TargetMachine;
 class TargetSubtargetInfo;
 class Value;
 
@@ -207,7 +207,7 @@ void checkForCycles(const SelectionDAG *DAG, bool force = false);
 /// linear form.
 ///
 class SelectionDAG {
-  const TargetMachine &TM;
+  const LLVMTargetMachine &TM;
   const SelectionDAGTargetInfo *TSI = nullptr;
   const TargetLowering *TLI = nullptr;
   MachineFunction *MF;
@@ -361,7 +361,7 @@ private:
   }
 
 public:
-  explicit SelectionDAG(const TargetMachine &TM, CodeGenOpt::Level);
+  explicit SelectionDAG(const LLVMTargetMachine &TM, CodeGenOpt::Level);
   SelectionDAG(const SelectionDAG &) = delete;
   SelectionDAG &operator=(const SelectionDAG &) = delete;
   ~SelectionDAG();
@@ -378,7 +378,7 @@ public:
   const Pass *getPass() const { return SDAGISelPass; }
 
   const DataLayout &getDataLayout() const { return MF->getDataLayout(); }
-  const TargetMachine &getTarget() const { return TM; }
+  const LLVMTargetMachine &getTarget() const { return TM; }
   const TargetSubtargetInfo &getSubtarget() const { return MF->getSubtarget(); }
   const TargetLowering &getTargetLoweringInfo() const { return *TLI; }
   const SelectionDAGTargetInfo &getSelectionDAGInfo() const { return *TSI; }
