@@ -1571,9 +1571,8 @@ checkNumAlignedDPRCS2Regs(MachineFunction &MF, BitVector &SavedRegs) {
 }
 
 void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                            BitVector &SavedRegs,
-                                            RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                            BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
   // This tells PEI to spill the FP as if it is any other callee-save register
   // to take advantage the eliminateFrameIndex machinery. This also ensures it
   // is spilled in the order specified by getCalleeSavedRegs() to make it easier
@@ -1975,14 +1974,14 @@ void ARMFrameLowering::determineCalleeSaves(MachineFunction &MF,
             ExtraCSSpill = true;
         }
       }
-      if (!ExtraCSSpill && !AFI->isThumb1OnlyFunction()) {
+      if (!ExtraCSSpill && !AFI->isThumb1OnlyFunction() &&
+          MFI.getEmergencySpillSlots().empty()) {
         // note: Thumb1 functions spill to R12, not the stack.  Reserve a slot
         // closest to SP or frame pointer.
-        assert(RS && "Register scavenging not provided");
         const TargetRegisterClass &RC = ARM::GPRRegClass;
         unsigned Size = TRI->getSpillSize(RC);
         unsigned Align = TRI->getSpillAlignment(RC);
-        RS->addScavengingFrameIndex(MFI.CreateStackObject(Size, Align, false));
+        MFI.addEmergencySpillSlot(MFI.CreateStackObject(Size, Align, false));
       }
     }
   }

@@ -60,8 +60,7 @@ bool TargetFrameLowering::needsFrameIndexResolution(
 }
 
 void TargetFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                               BitVector &SavedRegs,
-                                               RegScavenger *RS) const {
+                                               BitVector &SavedRegs) const {
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
   // Resize before the early returns. Some backends expect that

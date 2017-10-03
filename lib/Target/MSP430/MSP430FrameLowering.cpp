@@ -287,9 +287,8 @@ MachineBasicBlock::iterator MSP430FrameLowering::eliminateCallFramePseudoInstr(
   return MBB.erase(I);
 }
 
-void
-MSP430FrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                                         RegScavenger *) const {
+void MSP430FrameLowering::processFunctionBeforeFrameFinalized(
+    MachineFunction &MF) const {
   // Create a frame entry for the FP register that must be saved.
   if (hasFP(MF)) {
     int FrameIdx = MF.getFrameInfo().CreateFixedObject(2, -4, true);

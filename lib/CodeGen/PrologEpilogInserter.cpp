@@ -50,7 +50,7 @@ using namespace llvm;
 #define DEBUG_TYPE "prologepilog"
 
 typedef SmallVector<MachineBasicBlock *, 4> MBBVector;
-static void doSpillCalleeSavedRegs(MachineFunction &MF, RegScavenger *RS,
+static void doSpillCalleeSavedRegs(MachineFunction &MF,
                                    unsigned &MinCSFrameIndex,
                                    unsigned &MaxCXFrameIndex,
                                    const MBBVector &SaveBlocks,
@@ -79,17 +79,14 @@ public:
   bool runOnMachineFunction(MachineFunction &Fn) override;
 
 private:
-  std::function<void(MachineFunction &MF, RegScavenger *RS,
-                     unsigned &MinCSFrameIndex, unsigned &MaxCSFrameIndex,
-                     const MBBVector &SaveBlocks,
+  std::function<void(MachineFunction &MF, unsigned &MinCSFrameIndex,
+                     unsigned &MaxCSFrameIndex, const MBBVector &SaveBlocks,
                      const MBBVector &RestoreBlocks)>
       SpillCalleeSavedRegisters;
   std::function<void(MachineFunction &MF, RegScavenger &RS)>
       ScavengeFrameVirtualRegs;
 
   bool UsesCalleeSaves = false;
-
-  RegScavenger *RS;
 
   // MinCSFrameIndex, MaxCSFrameIndex - Keeps the range of callee saved
   // stack frame indexes.
@@ -101,25 +98,16 @@ private:
   MBBVector SaveBlocks;
   MBBVector RestoreBlocks;
 
-  // Flag to control whether to use the register scavenger to resolve
-  // frame index materialization registers. Set according to
-  // TRI->requiresFrameIndexScavenging() for the current function.
-  bool FrameIndexVirtualScavenging;
-
-  // Flag to control whether the scavenger should be passed even though
-  // FrameIndexVirtualScavenging is used.
-  bool FrameIndexEliminationScavenging;
-
   // Emit remarks.
   MachineOptimizationRemarkEmitter *ORE = nullptr;
 
   void calculateCallFrameInfo(MachineFunction &Fn);
   void calculateSaveRestoreBlocks(MachineFunction &Fn);
 
-  void calculateFrameObjectOffsets(MachineFunction &Fn);
-  void replaceFrameIndices(MachineFunction &Fn);
+  void calculateFrameObjectOffsets(MachineFunction &Fn, RegScavenger *RS);
+  void replaceFrameIndices(MachineFunction &Fn, RegScavenger *RS);
   void replaceFrameIndices(MachineBasicBlock *BB, MachineFunction &Fn,
-                           int &SPAdj);
+                           int &SPAdj, RegScavenger *RS);
   void insertPrologEpilogCode(MachineFunction &Fn);
 };
 } // namespace
@@ -169,9 +157,8 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   if (!SpillCalleeSavedRegisters) {
     const LLVMTargetMachine &TM = Fn.getTarget();
     if (!TM.usesPhysRegsForPEI()) {
-      SpillCalleeSavedRegisters = [](MachineFunction &, RegScavenger *,
-                                     unsigned &, unsigned &, const MBBVector &,
-                                     const MBBVector &) {};
+      SpillCalleeSavedRegisters = [](MachineFunction &, unsigned &, unsigned &,
+                                     const MBBVector &, const MBBVector &) {};
       ScavengeFrameVirtualRegs = [](MachineFunction &, RegScavenger &) {};
     } else {
       SpillCalleeSavedRegisters = doSpillCalleeSavedRegs;
@@ -184,10 +171,6 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   const TargetRegisterInfo *TRI = Fn.getSubtarget().getRegisterInfo();
   const TargetFrameLowering *TFI = Fn.getSubtarget().getFrameLowering();
 
-  RS = TRI->requiresRegisterScavenging(Fn) ? new RegScavenger() : nullptr;
-  FrameIndexVirtualScavenging = TRI->requiresFrameIndexScavenging(Fn);
-  FrameIndexEliminationScavenging = (RS && !FrameIndexVirtualScavenging) ||
-    TRI->requiresFrameIndexReplacementScavenging(Fn);
   ORE = &getAnalysis<MachineOptimizationRemarkEmitterPass>().getORE();
 
   // Calculate the MaxCallFrameSize and AdjustsStack variables for the
@@ -200,15 +183,22 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   calculateSaveRestoreBlocks(Fn);
 
   // Handle CSR spilling and restoring, for targets that need it.
-  SpillCalleeSavedRegisters(Fn, RS, MinCSFrameIndex, MaxCSFrameIndex,
-                            SaveBlocks, RestoreBlocks);
+  SpillCalleeSavedRegisters(Fn, MinCSFrameIndex, MaxCSFrameIndex, SaveBlocks,
+                            RestoreBlocks);
 
   // Allow the target machine to make final modifications to the function
   // before the frame layout is finalized.
-  TFI->processFunctionBeforeFrameFinalized(Fn, RS);
+  TFI->processFunctionBeforeFrameFinalized(Fn);
+
+  MachineFrameInfo &MFI = Fn.getFrameInfo();
+  std::unique_ptr<RegScavenger> RS;
+  if (TRI->requiresRegisterScavenging(Fn)) {
+    RS.reset(new RegScavenger());
+    RS->useEmergencySpillSlots(MFI);
+  }
 
   // Calculate actual frame offsets for all abstract stack objects...
-  calculateFrameObjectOffsets(Fn);
+  calculateFrameObjectOffsets(Fn, RS.get());
 
   // Add prolog and epilog code to the function.  This function is required
   // to align the stack frame as necessary for any stack variables or
@@ -218,10 +208,17 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   if (!F->hasFnAttribute(Attribute::Naked))
     insertPrologEpilogCode(Fn);
 
+  // Flag to control whether to use the register scavenger to resolve
+  // frame index materialization registers. Set according to
+  // TRI->requiresFrameIndexScavenging() for the current function.
+  bool FrameIndexVirtualScavenging = TRI->requiresFrameIndexScavenging(Fn);
+  // Flag to control whether the scavenger should be passed even though
+  // FrameIndexVirtualScavenging is used.
+  bool FrameIndexEliminationScavenging = (RS && !FrameIndexVirtualScavenging) ||
+    TRI->requiresFrameIndexReplacementScavenging(Fn);
   // Replace all MO_FrameIndex operands with physical register references
   // and actual offsets.
-  //
-  replaceFrameIndices(Fn);
+  replaceFrameIndices(Fn, FrameIndexEliminationScavenging ? RS.get() : nullptr);
 
   // If register scavenging is needed, as we've enabled doing it as a
   // post-pass, scavenge the virtual registers that frame index elimination
@@ -234,14 +231,12 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   }
 
   // Warn on stack size when we exceeds the given limit.
-  MachineFrameInfo &MFI = Fn.getFrameInfo();
   uint64_t StackSize = MFI.getStackSize();
   if (WarnStackSize.getNumOccurrences() > 0 && WarnStackSize < StackSize) {
     DiagnosticInfoStackSize DiagStackSize(*F, StackSize);
     F->getContext().diagnose(DiagStackSize);
   }
 
-  delete RS;
   SaveBlocks.clear();
   RestoreBlocks.clear();
   MFI.setSavePoint(nullptr);
@@ -512,7 +507,7 @@ static void insertCSRRestores(MachineBasicBlock &RestoreBlock,
   }
 }
 
-static void doSpillCalleeSavedRegs(MachineFunction &Fn, RegScavenger *RS,
+static void doSpillCalleeSavedRegs(MachineFunction &Fn,
                                    unsigned &MinCSFrameIndex,
                                    unsigned &MaxCSFrameIndex,
                                    const MBBVector &SaveBlocks,
@@ -525,7 +520,7 @@ static void doSpillCalleeSavedRegs(MachineFunction &Fn, RegScavenger *RS,
 
   // Determine which of the registers in the callee save list should be saved.
   BitVector SavedRegs;
-  TFI->determineCalleeSaves(Fn, SavedRegs, RS);
+  TFI->determineCalleeSaves(Fn, SavedRegs);
 
   // Assign stack slots for any callee-saved registers that must be spilled.
   assignCalleeSavedSpillSlots(Fn, SavedRegs, MinCSFrameIndex, MaxCSFrameIndex);
@@ -697,7 +692,8 @@ AssignProtectedObjSet(const StackObjSet &UnassignedObjs,
 /// calculateFrameObjectOffsets - Calculate actual frame offsets for all of the
 /// abstract stack objects.
 ///
-void PEI::calculateFrameObjectOffsets(MachineFunction &Fn) {
+void PEI::calculateFrameObjectOffsets(MachineFunction &Fn,
+                                      RegScavenger *RS) {
   const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   StackProtector *SP = &getAnalysis<StackProtector>();
 
@@ -1013,7 +1009,7 @@ void PEI::insertPrologEpilogCode(MachineFunction &Fn) {
 /// replaceFrameIndices - Replace all MO_FrameIndex operands with physical
 /// register references and actual offsets.
 ///
-void PEI::replaceFrameIndices(MachineFunction &Fn) {
+void PEI::replaceFrameIndices(MachineFunction &Fn, RegScavenger *RS) {
   const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   if (!TFI.needsFrameIndexResolution(Fn)) return;
 
@@ -1034,7 +1030,7 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
       SPAdj = SPState[StackPred->getNumber()];
     }
     MachineBasicBlock *BB = *DFI;
-    replaceFrameIndices(BB, Fn, SPAdj);
+    replaceFrameIndices(BB, Fn, SPAdj, RS);
     SPState[BB->getNumber()] = SPAdj;
   }
 
@@ -1044,19 +1040,19 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
       // Already handled in DFS traversal.
       continue;
     int SPAdj = 0;
-    replaceFrameIndices(&BB, Fn, SPAdj);
+    replaceFrameIndices(&BB, Fn, SPAdj, RS);
   }
 }
 
 void PEI::replaceFrameIndices(MachineBasicBlock *BB, MachineFunction &Fn,
-                              int &SPAdj) {
+                              int &SPAdj, RegScavenger *RS) {
   assert(Fn.getSubtarget().getRegisterInfo() &&
          "getRegisterInfo() must be implemented!");
   const TargetInstrInfo &TII = *Fn.getSubtarget().getInstrInfo();
   const TargetRegisterInfo &TRI = *Fn.getSubtarget().getRegisterInfo();
   const TargetFrameLowering *TFI = Fn.getSubtarget().getFrameLowering();
 
-  if (RS && FrameIndexEliminationScavenging)
+  if (RS)
     RS->enterBasicBlock(*BB);
 
   bool InsideCallSequence = false;
@@ -1124,8 +1120,7 @@ void PEI::replaceFrameIndices(MachineBasicBlock *BB, MachineFunction &Fn,
       // If this instruction has a FrameIndex operand, we need to
       // use that target machine register info object to eliminate
       // it.
-      TRI.eliminateFrameIndex(MI, SPAdj, i,
-                              FrameIndexEliminationScavenging ?  RS : nullptr);
+      TRI.eliminateFrameIndex(MI, SPAdj, i, RS);
 
       // Reset the iterator if we were at the beginning of the BB.
       if (AtBeginning) {
@@ -1150,7 +1145,7 @@ void PEI::replaceFrameIndices(MachineBasicBlock *BB, MachineFunction &Fn,
     if (DoIncr && I != BB->end()) ++I;
 
     // Update register states.
-    if (RS && FrameIndexEliminationScavenging && DidFinishLoop)
+    if (RS && DidFinishLoop)
       RS->forward(MI);
   }
 }

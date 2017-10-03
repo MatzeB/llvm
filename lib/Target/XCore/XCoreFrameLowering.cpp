@@ -533,9 +533,8 @@ MachineBasicBlock::iterator XCoreFrameLowering::eliminateCallFramePseudoInstr(
 }
 
 void XCoreFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                              BitVector &SavedRegs,
-                                              RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                              BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
 
   XCoreFunctionInfo *XFI = MF.getInfo<XCoreFunctionInfo>();
 
@@ -571,9 +570,7 @@ void XCoreFrameLowering::determineCalleeSaves(MachineFunction &MF,
 }
 
 void XCoreFrameLowering::
-processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                    RegScavenger *RS) const {
-  assert(RS && "requiresRegisterScavenging failed");
+processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetRegisterClass &RC = XCore::GRRegsRegClass;
   const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
@@ -585,7 +582,7 @@ processFunctionBeforeFrameFinalized(MachineFunction &MF,
   unsigned Size = TRI.getSpillSize(RC);
   unsigned Align = TRI.getSpillAlignment(RC);
   if (XFI->isLargeFrame(MF) || hasFP(MF))
-    RS->addScavengingFrameIndex(MFI.CreateStackObject(Size, Align, false));
+    MFI.addEmergencySpillSlot(MFI.CreateStackObject(Size, Align, false));
   if (XFI->isLargeFrame(MF) && !hasFP(MF))
-    RS->addScavengingFrameIndex(MFI.CreateStackObject(Size, Align, false));
+    MFI.addEmergencySpillSlot(MFI.CreateStackObject(Size, Align, false));
 }

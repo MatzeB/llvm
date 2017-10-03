@@ -164,9 +164,8 @@ Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
 }
 
 void Mips16FrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                               BitVector &SavedRegs,
-                                               RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                               BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
   const Mips16InstrInfo &TII =
       *static_cast<const Mips16InstrInfo *>(STI.getInstrInfo());
   const MipsRegisterInfo &RI = TII.getRegisterInfo();

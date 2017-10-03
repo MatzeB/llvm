@@ -354,9 +354,8 @@ void SparcFrameLowering::remapRegsForLeafProc(MachineFunction &MF) const {
 }
 
 void SparcFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                              BitVector &SavedRegs,
-                                              RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                              BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
   if (!DisableLeafProc && isLeafProc(MF)) {
     SparcMachineFunctionInfo *MFI = MF.getInfo<SparcMachineFunctionInfo>();
     MFI->setLeafProc(true);

@@ -35,12 +35,10 @@ public:
   int getFrameIndexReference(const MachineFunction &MF, int FI,
                              unsigned &FrameReg) const override;
 
-  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                            RegScavenger *RS = nullptr) const override;
+  void determineCalleeSaves(MachineFunction &MF,
+                            BitVector &SavedRegs) const override;
 
-  void processFunctionBeforeFrameFinalized(
-    MachineFunction &MF,
-    RegScavenger *RS = nullptr) const override;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const override;
 
   MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF,

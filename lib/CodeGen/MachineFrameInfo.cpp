@@ -106,6 +106,10 @@ int MachineFrameInfo::CreateFixedSpillStackObject(uint64_t Size,
   return -++NumFixedObjects;
 }
 
+void MachineFrameInfo::addEmergencySpillSlot(int FI) {
+  EmergencySpillSlots.push_back(FI);
+}
+
 BitVector MachineFrameInfo::getPristineRegs(const MachineFunction &MF) const {
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   BitVector BV(TRI->getNumRegs());

@@ -1150,14 +1150,13 @@ bool AArch64FrameLowering::restoreCalleeSavedRegisters(
 }
 
 void AArch64FrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                                BitVector &SavedRegs,
-                                                RegScavenger *RS) const {
+                                                BitVector &SavedRegs) const {
   // All calls are tail calls in GHC calling conv, and functions have no
   // prologue/epilogue.
   if (MF.getFunction()->getCallingConv() == CallingConv::GHC)
     return;
 
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
   const AArch64RegisterInfo *RegInfo = static_cast<const AArch64RegisterInfo *>(
       MF.getSubtarget().getRegisterInfo());
   AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
@@ -1247,13 +1246,14 @@ void AArch64FrameLowering::determineCalleeSaves(MachineFunction &MF,
 
     // If we didn't find an extra callee-saved register to spill, create
     // an emergency spill slot.
-    if (!ExtraCSSpill || MF.getRegInfo().isPhysRegUsed(ExtraCSSpill)) {
+    if ((!ExtraCSSpill || MF.getRegInfo().isPhysRegUsed(ExtraCSSpill)) &&
+        MFI.getEmergencySpillSlots().empty()) {
       const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
       const TargetRegisterClass &RC = AArch64::GPR64RegClass;
       unsigned Size = TRI->getSpillSize(RC);
       unsigned Align = TRI->getSpillAlignment(RC);
       int FI = MFI.CreateStackObject(Size, Align, false);
-      RS->addScavengingFrameIndex(FI);
+      MFI.addEmergencySpillSlot(FI);
       DEBUG(dbgs() << "No available CS registers, allocated fi#" << FI
                    << " as the emergency spill slot.\n");
     }

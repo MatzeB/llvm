@@ -89,11 +89,10 @@ public:
   bool needsFP(const MachineFunction &MF) const;
   void replaceFPWithRealFP(MachineFunction &MF) const;
 
-  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                            RegScavenger *RS = nullptr) const override;
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                     RegScavenger *RS = nullptr) const override;
-  void addScavengingSpillSlot(MachineFunction &MF, RegScavenger *RS) const;
+  void determineCalleeSaves(MachineFunction &MF,
+                            BitVector &SavedRegs) const override;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const override;
+  void addScavengingSpillSlot(MachineFunction &MF) const;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,

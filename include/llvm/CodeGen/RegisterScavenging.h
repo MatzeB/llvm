@@ -71,6 +71,8 @@ class RegScavenger {
 public:
   RegScavenger() = default;
 
+  void useEmergencySpillSlots(const MachineFrameInfo &MFI);
+
   /// Start tracking liveness from the begin of basic block \p MBB.
   void enterBasicBlock(MachineBasicBlock &MBB);
 
@@ -128,11 +130,6 @@ public:
   /// Find an unused register of the specified register class.
   /// Return 0 if none is found.
   unsigned FindUnusedReg(const TargetRegisterClass *RegClass) const;
-
-  /// Add a scavenging frame index.
-  void addScavengingFrameIndex(int FI) {
-    Scavenged.push_back(ScavengedInfo(FI));
-  }
 
   /// Query whether a frame index is a scavenging frame index.
   bool isScavengingFrameIndex(int FI) const {

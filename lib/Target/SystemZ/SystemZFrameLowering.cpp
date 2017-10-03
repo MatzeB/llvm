@@ -63,9 +63,8 @@ SystemZFrameLowering::getCalleeSavedSpillSlots(unsigned &NumEntries) const {
 }
 
 void SystemZFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                                BitVector &SavedRegs,
-                                                RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                                BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
 
   MachineFrameInfo &MFFrame = MF.getFrameInfo();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
@@ -274,8 +273,7 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 }
 
 void SystemZFrameLowering::
-processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                    RegScavenger *RS) const {
+processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
   MachineFrameInfo &MFFrame = MF.getFrameInfo();
   // Get the size of our stack frame to be allocated ...
   uint64_t StackSize = (MFFrame.estimateStackSize(MF) +
@@ -297,8 +295,8 @@ processFunctionBeforeFrameFinalized(MachineFunction &MF,
     // are outside the reach of an unsigned 12-bit displacement.
     // Create 2 for the case where both addresses in an MVC are
     // out of range.
-    RS->addScavengingFrameIndex(MFFrame.CreateStackObject(8, 8, false));
-    RS->addScavengingFrameIndex(MFFrame.CreateStackObject(8, 8, false));
+    MFFrame.addEmergencySpillSlot(MFFrame.CreateStackObject(8, 8, false));
+    MFFrame.addEmergencySpillSlot(MFFrame.CreateStackObject(8, 8, false));
   }
 }
 

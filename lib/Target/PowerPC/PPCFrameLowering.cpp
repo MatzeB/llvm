@@ -1572,9 +1572,8 @@ void PPCFrameLowering::createTailCallBranchInstr(MachineBasicBlock &MBB) const {
 }
 
 void PPCFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                            BitVector &SavedRegs,
-                                            RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                            BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
 
   const PPCRegisterInfo *RegInfo = Subtarget.getRegisterInfo();
 
@@ -1645,11 +1644,11 @@ void PPCFrameLowering::determineCalleeSaves(MachineFunction &MF,
   }
 }
 
-void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                                       RegScavenger *RS) const {
+void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
+    const {
   // Early exit if not using the SVR4 ABI.
   if (!Subtarget.isSVR4ABI()) {
-    addScavengingSpillSlot(MF, RS);
+    addScavengingSpillSlot(MF);
     return;
   }
 
@@ -1671,7 +1670,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
 
   // Early exit if no callee saved registers are modified!
   if (CSI.empty() && !needsFP(MF)) {
-    addScavengingSpillSlot(MF, RS);
+    addScavengingSpillSlot(MF);
     return;
   }
 
@@ -1881,12 +1880,11 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF,
     }
   }
 
-  addScavengingSpillSlot(MF, RS);
+  addScavengingSpillSlot(MF);
 }
 
 void
-PPCFrameLowering::addScavengingSpillSlot(MachineFunction &MF,
-                                         RegScavenger *RS) const {
+PPCFrameLowering::addScavengingSpillSlot(MachineFunction &MF) const {
   // Reserve a slot closest to SP or frame pointer if we have a dynalloc or
   // a large stack, which will require scavenging a register to materialize a
   // large offset.
@@ -1910,7 +1908,7 @@ PPCFrameLowering::addScavengingSpillSlot(MachineFunction &MF,
     const TargetRegisterInfo &TRI = *Subtarget.getRegisterInfo();
     unsigned Size = TRI.getSpillSize(RC);
     unsigned Align = TRI.getSpillAlignment(RC);
-    RS->addScavengingFrameIndex(MFI.CreateStackObject(Size, Align, false));
+    MFI.addEmergencySpillSlot(MFI.CreateStackObject(Size, Align, false));
 
     // Might we have over-aligned allocas?
     bool HasAlVars = MFI.hasVarSizedObjects() &&
@@ -1918,7 +1916,7 @@ PPCFrameLowering::addScavengingSpillSlot(MachineFunction &MF,
 
     // These kinds of spills might need two registers.
     if (spillsCR(MF) || spillsVRSAVE(MF) || HasAlVars)
-      RS->addScavengingFrameIndex(MFI.CreateStackObject(Size, Align, false));
+      MFI.addEmergencySpillSlot(MFI.CreateStackObject(Size, Align, false));
 
   }
 }

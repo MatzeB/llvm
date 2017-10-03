@@ -27,8 +27,8 @@ public:
   bool isFPCloseToIncomingSP() const override { return false; }
   const SpillSlot *getCalleeSavedSpillSlots(unsigned &NumEntries) const
     override;
-  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                            RegScavenger *RS) const override;
+  void determineCalleeSaves(MachineFunction &MF,
+                            BitVector &SavedRegs) const override;
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MBBI,
                                  const std::vector<CalleeSavedInfo> &CSI,
@@ -38,8 +38,7 @@ public:
                                    std::vector<CalleeSavedInfo> &CSI,
                                    const TargetRegisterInfo *TRI) const
     override;
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                           RegScavenger *RS) const override;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const override;
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
   bool hasFP(const MachineFunction &MF) const override;

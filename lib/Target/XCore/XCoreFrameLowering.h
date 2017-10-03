@@ -47,11 +47,11 @@ namespace llvm {
 
     bool hasFP(const MachineFunction &MF) const override;
 
-    void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                              RegScavenger *RS = nullptr) const override;
+    void determineCalleeSaves(MachineFunction &MF,
+                              BitVector &SavedRegs) const override;
 
-    void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                     RegScavenger *RS = nullptr) const override;
+    void
+    processFunctionBeforeFrameFinalized(MachineFunction &MF) const override;
 
     //! Stack slot size (4 bytes)
     static int stackSlotSize() {

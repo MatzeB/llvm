@@ -74,8 +74,8 @@ public:
   void adjustForHiPEPrologue(MachineFunction &MF,
                              MachineBasicBlock &PrologueMBB) const override;
 
-  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                            RegScavenger *RS = nullptr) const override;
+  void determineCalleeSaves(MachineFunction &MF,
+                            BitVector &SavedRegs) const override;
 
   bool
   assignCalleeSavedSpillSlots(MachineFunction &MF,
@@ -112,8 +112,7 @@ public:
 
   unsigned getWinEHParentFrameOffset(const MachineFunction &MF) const override;
 
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                           RegScavenger *RS) const override;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const override;
 
   /// Check the instruction before/after the passed instruction. If
   /// it is an ADD/SUB/LEA instruction it is deleted argument and the

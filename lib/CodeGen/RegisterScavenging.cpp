@@ -54,6 +54,12 @@ void RegScavenger::setRegUsed(unsigned Reg, LaneBitmask LaneMask) {
   LiveUnits.addRegMasked(Reg, LaneMask);
 }
 
+void RegScavenger::useEmergencySpillSlots(const MachineFrameInfo &MFI) {
+  for (int FI : MFI.getEmergencySpillSlots()) {
+    Scavenged.push_back(ScavengedInfo(FI));
+  }
+}
+
 void RegScavenger::init(MachineBasicBlock &MBB) {
   MachineFunction &MF = *MBB.getParent();
   TII = MF.getSubtarget().getInstrInfo();
@@ -785,15 +791,15 @@ public:
     const TargetSubtargetInfo &STI = MF.getSubtarget();
     const TargetFrameLowering &TFL = *STI.getFrameLowering();
 
-    RegScavenger RS;
     // Let's hope that calling those outside of PrologEpilogueInserter works
     // well enough to initialize the scavenger with some emergency spillslots
     // for the target.
     BitVector SavedRegs;
-    TFL.determineCalleeSaves(MF, SavedRegs, &RS);
-    TFL.processFunctionBeforeFrameFinalized(MF, &RS);
+    TFL.determineCalleeSaves(MF, SavedRegs);
+    TFL.processFunctionBeforeFrameFinalized(MF);
 
     // Let's scavenge the current function
+    RegScavenger RS;
     scavengeFrameVirtualRegs(MF, RS);
     return true;
   }

@@ -580,8 +580,7 @@ int SIFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
 }
 
 void SIFrameLowering::processFunctionBeforeFrameFinalized(
-  MachineFunction &MF,
-  RegScavenger *RS) const {
+  MachineFunction &MF) const {
   MachineFrameInfo &MFI = MF.getFrameInfo();
 
   if (!MFI.hasStackObjects())
@@ -613,7 +612,8 @@ void SIFrameLowering::processFunctionBeforeFrameFinalized(
         if (TII->isSGPRSpill(MI)) {
           int FI = TII->getNamedOperand(MI, AMDGPU::OpName::addr)->getIndex();
           if (FuncInfo->allocateSGPRSpillToVGPR(MF, FI)) {
-            bool Spilled = TRI.eliminateSGPRToVGPRSpillFrameIndex(MI, FI, RS);
+            bool Spilled = TRI.eliminateSGPRToVGPRSpillFrameIndex(MI, FI,
+                /*RS =*/nullptr);
             (void)Spilled;
             assert(Spilled && "failed to spill SGPR to VGPR when allocated");
           } else
@@ -630,8 +630,6 @@ void SIFrameLowering::processFunctionBeforeFrameFinalized(
   // allocas. Stack temps produced from legalization are not counted currently.
   if (FuncInfo->hasNonSpillStackObjects() || FuncInfo->hasSpilledVGPRs() ||
       !AllSGPRSpilledToVGPRs || !allStackObjectsAreDead(MFI)) {
-    assert(RS && "RegScavenger required if spilling");
-
     // We force this to be at offset 0 so no user object ever has 0 as an
     // address, so we may use 0 as an invalid pointer value. This is because
     // LLVM assumes 0 is an invalid pointer in address space 0. Because alloca
@@ -647,13 +645,13 @@ void SIFrameLowering::processFunctionBeforeFrameFinalized(
     // emergency scavenging.
     int ScavengeFI = MFI.CreateFixedObject(
       TRI.getSpillSize(AMDGPU::SGPR_32RegClass), 0, false);
-    RS->addScavengingFrameIndex(ScavengeFI);
+    MFI.addEmergencySpillSlot(ScavengeFI);
   }
 }
 
-void SIFrameLowering::determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                                           RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+void SIFrameLowering::determineCalleeSaves(MachineFunction &MF,
+                                           BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
   const SIMachineFunctionInfo *MFI = MF.getInfo<SIMachineFunctionInfo>();
 
   // The SP is specifically managed and we don't want extra spills of it.

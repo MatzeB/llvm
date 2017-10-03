@@ -644,7 +644,8 @@ bool SIRegisterInfo::spillSGPR(MachineBasicBlock::iterator MI,
   unsigned M0CopyReg = AMDGPU::NoRegister;
 
   if (SpillToSMEM) {
-    if (RS->isRegUsed(AMDGPU::M0)) {
+    if (RS != nullptr ? RS->isRegUsed(AMDGPU::M0)
+                      : MRI.isReserved(AMDGPU::M0)) {
       M0CopyReg = MRI.createVirtualRegister(&AMDGPU::SReg_32_XM0RegClass);
       BuildMI(*MBB, MI, DL, TII->get(AMDGPU::COPY), M0CopyReg)
         .addReg(AMDGPU::M0);
@@ -804,7 +805,8 @@ bool SIRegisterInfo::restoreSGPR(MachineBasicBlock::iterator MI,
   unsigned M0CopyReg = AMDGPU::NoRegister;
 
   if (SpillToSMEM) {
-    if (RS->isRegUsed(AMDGPU::M0)) {
+    if (RS != nullptr ? RS->isRegUsed(AMDGPU::M0)
+                      : MRI.isReserved(AMDGPU::M0)) {
       M0CopyReg = MRI.createVirtualRegister(&AMDGPU::SReg_32_XM0RegClass);
       BuildMI(*MBB, MI, DL, TII->get(AMDGPU::COPY), M0CopyReg)
         .addReg(AMDGPU::M0);

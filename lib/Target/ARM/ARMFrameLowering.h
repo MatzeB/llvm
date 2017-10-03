@@ -52,8 +52,8 @@ public:
   int ResolveFrameIndexReference(const MachineFunction &MF, int FI,
                                  unsigned &FrameReg, int SPAdj) const;
 
-  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                            RegScavenger *RS) const override;
+  void determineCalleeSaves(MachineFunction &MF,
+                            BitVector &SavedRegs) const override;
 
   void adjustForSegmentedStacks(MachineFunction &MF,
                                 MachineBasicBlock &MBB) const override;

@@ -1304,7 +1304,7 @@ MachineBasicBlock::iterator HexagonFrameLowering::eliminateCallFramePseudoInstr(
 }
 
 void HexagonFrameLowering::processFunctionBeforeFrameFinalized(
-    MachineFunction &MF, RegScavenger *RS) const {
+    MachineFunction &MF) const {
   // If this function has uses aligned stack and also has variable sized stack
   // objects, then we need to map all spill slots to fixed positions, so that
   // they can be accessed through FP. Otherwise they would have to be accessed
@@ -1880,8 +1880,7 @@ bool HexagonFrameLowering::expandSpillMacros(MachineFunction &MF,
 }
 
 void HexagonFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                                BitVector &SavedRegs,
-                                                RegScavenger *RS) const {
+                                                BitVector &SavedRegs) const {
   auto &HRI = *MF.getSubtarget<HexagonSubtarget>().getRegisterInfo();
 
   SavedRegs.resize(HRI.getNumRegs());
@@ -1915,15 +1914,20 @@ void HexagonFrameLowering::determineCalleeSaves(MachineFunction &MF,
       if (!needToReserveScavengingSpillSlots(MF, HRI, RC))
         continue;
       unsigned Num = RC == &Hexagon::IntRegsRegClass ? NumberScavengerSlots : 1;
+      // Already create the emergency spill slots earlier?
+      if (!MFI.getEmergencySpillSlots().empty()) {
+        assert(MFI.getEmergencySpillSlots().size() == Num);
+        continue;
+      }
       unsigned S = HRI.getSpillSize(*RC), A = HRI.getSpillAlignment(*RC);
       for (unsigned i = 0; i < Num; i++) {
         int NewFI = MFI.CreateSpillStackObject(S, A);
-        RS->addScavengingFrameIndex(NewFI);
+        MFI.addEmergencySpillSlot(NewFI);
       }
     }
   }
 
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
 }
 
 unsigned HexagonFrameLowering::findPhysReg(MachineFunction &MF,

@@ -14,6 +14,7 @@
 #ifndef LLVM_CODEGEN_MACHINEFRAMEINFO_H
 #define LLVM_CODEGEN_MACHINEFRAMEINFO_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
@@ -294,6 +295,9 @@ class MachineFrameInfo {
   MachineBasicBlock *Save = nullptr;
   /// Not null, if shrink-wrapping found a better place for the epilogue.
   MachineBasicBlock *Restore = nullptr;
+
+  /// Emergency spill slots intended to be used by the register scavenger.
+  SmallVector<int, 1> EmergencySpillSlots;
 
 public:
   explicit MachineFrameInfo(unsigned StackAlignment, bool StackRealignable,
@@ -689,6 +693,11 @@ public:
   /// information.
   void setCalleeSavedInfo(const std::vector<CalleeSavedInfo> &CSI) {
     CSInfo = CSI;
+  }
+
+  void addEmergencySpillSlot(int FI);
+  ArrayRef<int> getEmergencySpillSlots() const {
+    return EmergencySpillSlots;
   }
 
   /// Has the callee saved info been calculated yet?

@@ -262,16 +262,14 @@ public:
   /// this function to save additional registers.
   /// This method also sets up the register scavenger ensuring there is a free
   /// register or a frameindex available.
-  virtual void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-                                    RegScavenger *RS = nullptr) const;
+  virtual void
+  determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs) const;
 
   /// processFunctionBeforeFrameFinalized - This method is called immediately
   /// before the specified function's frame layout (MF.getFrameInfo()) is
   /// finalized.  Once the frame is finalized, MO_FrameIndex operands are
   /// replaced with direct constants.  This method is optional.
-  ///
-  virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-                                             RegScavenger *RS = nullptr) const {
+  virtual void processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
   }
 
   virtual unsigned getWinEHParentFrameOffset(const MachineFunction &MF) const {

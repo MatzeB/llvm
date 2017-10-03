@@ -196,9 +196,8 @@ void LanaiFrameLowering::emitEpilogue(MachineFunction & /*MF*/,
 }
 
 void LanaiFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                              BitVector &SavedRegs,
-                                              RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                              BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
 
   MachineFrameInfo &MFI = MF.getFrameInfo();
   const LanaiRegisterInfo *LRI =

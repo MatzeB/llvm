@@ -67,10 +67,9 @@ public:
   MachineBasicBlock::iterator
   eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
                                 MachineBasicBlock::iterator I) const override;
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
-      RegScavenger *RS = nullptr) const override;
-  void determineCalleeSaves(MachineFunction &MF, BitVector &SavedRegs,
-      RegScavenger *RS) const override;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const override;
+  void determineCalleeSaves(MachineFunction &MF,
+                            BitVector &SavedRegs) const override;
 
   bool targetHandlesStackFrameRounding() const override {
     return true;

@@ -2048,9 +2048,8 @@ bool X86FrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 }
 
 void X86FrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                            BitVector &SavedRegs,
-                                            RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                            BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
 
   MachineFrameInfo &MFI = MF.getFrameInfo();
 
@@ -2982,7 +2981,7 @@ unsigned X86FrameLowering::getWinEHParentFrameOffset(const MachineFunction &MF) 
 }
 
 void X86FrameLowering::processFunctionBeforeFrameFinalized(
-    MachineFunction &MF, RegScavenger *RS) const {
+    MachineFunction &MF) const {
   // Mark the function as not having WinCFI. We will set it back to true in
   // emitPrologue if it gets called and emits CFI.
   MF.setHasWinCFI(false);

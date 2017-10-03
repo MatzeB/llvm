@@ -856,9 +856,8 @@ static void setAliasRegs(MachineFunction &MF, BitVector &SavedRegs,
 }
 
 void MipsSEFrameLowering::determineCalleeSaves(MachineFunction &MF,
-                                               BitVector &SavedRegs,
-                                               RegScavenger *RS) const {
-  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs, RS);
+                                               BitVector &SavedRegs) const {
+  TargetFrameLowering::determineCalleeSaves(MF, SavedRegs);
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   MipsFunctionInfo *MipsFI = MF.getInfo<MipsFunctionInfo>();
   MipsABIInfo ABI = STI.getABI();
@@ -882,15 +881,15 @@ void MipsSEFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   // Expand pseudo instructions which load, store or copy accumulators.
   // Add an emergency spill slot if a pseudo was expanded.
+  MachineFrameInfo &MFI = MF.getFrameInfo();
   if (ExpandPseudo(MF).expand()) {
     // The spill slot should be half the size of the accumulator. If target is
     // mips64, it should be 64-bit, otherwise it should be 32-bt.
     const TargetRegisterClass &RC = STI.hasMips64() ?
       Mips::GPR64RegClass : Mips::GPR32RegClass;
-    int FI = MF.getFrameInfo().CreateStackObject(TRI->getSpillSize(RC),
-                                                 TRI->getSpillAlignment(RC),
-                                                 false);
-    RS->addScavengingFrameIndex(FI);
+    int FI = MFI.CreateStackObject(TRI->getSpillSize(RC),
+                                   TRI->getSpillAlignment(RC), false);
+    MFI.addEmergencySpillSlot(FI);
   }
 
   // Set scavenging frame index if necessary.
@@ -902,10 +901,9 @@ void MipsSEFrameLowering::determineCalleeSaves(MachineFunction &MF,
 
   const TargetRegisterClass &RC =
       ABI.ArePtrs64bit() ? Mips::GPR64RegClass : Mips::GPR32RegClass;
-  int FI = MF.getFrameInfo().CreateStackObject(TRI->getSpillSize(RC),
-                                               TRI->getSpillAlignment(RC),
-                                               false);
-  RS->addScavengingFrameIndex(FI);
+  int FI = MFI.CreateStackObject(TRI->getSpillSize(RC),
+                                 TRI->getSpillAlignment(RC), false);
+  MFI.addEmergencySpillSlot(FI);
 }
 
 const MipsFrameLowering *
