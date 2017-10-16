@@ -157,33 +157,12 @@ void AggressiveAntiDepBreaker::StartBlock(MachineBasicBlock *BB) {
   std::vector<unsigned> &KillIndices = State->GetKillIndices();
   std::vector<unsigned> &DefIndices = State->GetDefIndices();
 
-  // Examine the live-in regs of all successors.
-  for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
-         SE = BB->succ_end(); SI != SE; ++SI)
-    for (const auto &LI : (*SI)->liveins()) {
-      for (MCRegAliasIterator AI(LI.PhysReg, TRI, true); AI.isValid(); ++AI) {
-        unsigned Reg = *AI;
-        State->UnionGroups(Reg, 0);
-        KillIndices[Reg] = BB->size();
-        DefIndices[Reg] = ~0u;
-      }
-    }
-
-  // Mark live-out callee-saved registers. In a return block this is
-  // all callee-saved registers. In non-return this is any
-  // callee-saved register that is not saved in the prolog.
-  const MachineFrameInfo &MFI = MF.getFrameInfo();
-  BitVector Pristine = MFI.getPristineRegs(MF);
-  for (const MCPhysReg *I = MF.getRegInfo().getCalleeSavedRegs(); *I;
-       ++I) {
-    unsigned Reg = *I;
-    if (!IsReturnBlock && !Pristine.test(Reg))
-      continue;
-    for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI) {
-      unsigned AliasReg = *AI;
-      State->UnionGroups(AliasReg, 0);
-      KillIndices[AliasReg] = BB->size();
-      DefIndices[AliasReg] = ~0u;
+  for (const MachineBasicBlock::RegisterMaskPair &LO : BB->liveouts()) {
+    for (MCRegAliasIterator AI(LO.PhysReg, TRI, true); AI.isValid(); ++AI) {
+      unsigned Reg = *AI;
+      State->UnionGroups(Reg, 0);
+      KillIndices[Reg] = BB->size();
+      DefIndices[Reg] = ~0u;
     }
   }
 }

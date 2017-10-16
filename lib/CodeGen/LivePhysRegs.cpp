@@ -149,14 +149,17 @@ bool LivePhysRegs::available(const MachineRegisterInfo &MRI,
   return true;
 }
 
-/// Add live-in registers of basic block \p MBB to \p LiveRegs.
-void LivePhysRegs::addBlockLiveIns(const MachineBasicBlock &MBB) {
-  for (const auto &LI : MBB.liveins()) {
-    unsigned Reg = LI.PhysReg;
-    LaneBitmask Mask = LI.LaneMask;
-    MCSubRegIndexIterator S(Reg, TRI);
+void LivePhysRegs::addLiveOutsNoPristines(const MachineBasicBlock &MBB) {
+  for (const MachineBasicBlock::RegisterMaskPair &LO : MBB.liveouts()) {
+    MCPhysReg Reg = LO.PhysReg;
+    LaneBitmask Mask = LO.LaneMask;
     assert(Mask.any() && "Invalid livein mask");
-    if (Mask.all() || !S.isValid()) {
+    if (Mask.all()) {
+      addReg(Reg);
+      continue;
+    }
+    MCSubRegIndexIterator S(Reg, TRI);
+    if (!S.isValid()) {
       addReg(Reg);
       continue;
     }
@@ -164,6 +167,22 @@ void LivePhysRegs::addBlockLiveIns(const MachineBasicBlock &MBB) {
       unsigned SI = S.getSubRegIndex();
       if ((Mask & TRI->getSubRegIndexLaneMask(SI)).any())
         addReg(S.getSubReg());
+    }
+  }
+}
+
+void LivePhysRegs::addLiveIns(const MachineBasicBlock &MBB) {
+  if (MBB.pred_empty()) {
+    const MachineFunction &MF = *MBB.getParent();
+    if (&MBB == &MF.front()) {
+      const MachineRegisterInfo &MRI = MF.getRegInfo();
+      for (std::pair<unsigned,unsigned> LI :
+           make_range(MRI.livein_begin(), MRI.livein_end()))
+        addReg(LI.first);
+    }
+  } else {
+    for (const MachineBasicBlock *Pred : MBB.predecessors()) {
+      addLiveOutsNoPristines(*Pred);
     }
   }
 }
@@ -204,42 +223,10 @@ void LivePhysRegs::addPristines(const MachineFunction &MF) {
     addReg(R);
 }
 
-void LivePhysRegs::addLiveOutsNoPristines(const MachineBasicBlock &MBB) {
-  if (!MBB.succ_empty()) {
-    // To get the live-outs we simply merge the live-ins of all successors.
-    for (const MachineBasicBlock *Succ : MBB.successors())
-      addBlockLiveIns(*Succ);
-  } else if (MBB.isReturnBlock()) {
-    // For the return block: Add all callee saved registers that are saved and
-    // restored (somewhere); This does not include callee saved registers that
-    // are unused and hence not saved and restored; they are called pristine.
-    const MachineFunction &MF = *MBB.getParent();
-    const MachineFrameInfo &MFI = MF.getFrameInfo();
-    if (MFI.isCalleeSavedInfoValid()) {
-      for (const CalleeSavedInfo &Info : MFI.getCalleeSavedInfo())
-        if (Info.isRestored())
-          addReg(Info.getReg());
-    }
-  }
-}
-
 void LivePhysRegs::addLiveOuts(const MachineBasicBlock &MBB) {
   const MachineFunction &MF = *MBB.getParent();
-  if (!MBB.succ_empty()) {
-    addPristines(MF);
-    addLiveOutsNoPristines(MBB);
-  } else if (MBB.isReturnBlock()) {
-    // For the return block: Add all callee saved registers.
-    const MachineFrameInfo &MFI = MF.getFrameInfo();
-    if (MFI.isCalleeSavedInfoValid())
-      addCalleeSavedRegs(*this, MF);
-  }
-}
-
-void LivePhysRegs::addLiveIns(const MachineBasicBlock &MBB) {
-  const MachineFunction &MF = *MBB.getParent();
   addPristines(MF);
-  addBlockLiveIns(MBB);
+  addLiveOutsNoPristines(MBB);
 }
 
 void llvm::computeLiveIns(LivePhysRegs &LiveRegs,
@@ -253,8 +240,9 @@ void llvm::computeLiveIns(LivePhysRegs &LiveRegs,
     LiveRegs.stepBackward(MI);
 }
 
-void llvm::addLiveIns(MachineBasicBlock &MBB, const LivePhysRegs &LiveRegs) {
-  assert(MBB.livein_empty() && "Expected empty live-in list");
+#if 0
+void llvm::addLiveOuts(MachineBasicBlock &MBB, const LivePhysRegs &LiveRegs) {
+  assert(MBB.liveout_empty() && "Expected empty live out list");
   const MachineFunction &MF = *MBB.getParent();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   const TargetRegisterInfo &TRI = *MRI.getTargetRegisterInfo();
@@ -274,6 +262,7 @@ void llvm::addLiveIns(MachineBasicBlock &MBB, const LivePhysRegs &LiveRegs) {
     MBB.addLiveIn(Reg);
   }
 }
+#endif
 
 void llvm::recomputeLivenessFlags(MachineBasicBlock &MBB) {
   const MachineFunction &MF = *MBB.getParent();
@@ -324,6 +313,9 @@ void llvm::recomputeLivenessFlags(MachineBasicBlock &MBB) {
 
 void llvm::computeAndAddLiveIns(LivePhysRegs &LiveRegs,
                                 MachineBasicBlock &MBB) {
+#if 0
   computeLiveIns(LiveRegs, MBB);
   addLiveIns(MBB, LiveRegs);
+#endif
+  abort(); // TODO FIXME
 }

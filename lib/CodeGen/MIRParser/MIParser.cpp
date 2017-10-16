@@ -539,7 +539,9 @@ bool MIParser::parseBasicBlockLiveins(MachineBasicBlock &MBB) {
       Mask = LaneBitmask(V);
       lex();
     }
+#if 0  // TODO FIXME
     MBB.addLiveIn(Reg, Mask);
+#endif
   } while (consumeIfPresent(MIToken::comma));
   return false;
 }

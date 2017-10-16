@@ -581,10 +581,8 @@ static bool checkEFLAGSLive(MachineInstr *MI) {
   }
 
   // We hit the end of the block, check whether EFLAGS is live into a successor.
-  for (auto I = BB->succ_begin(), E = BB->succ_end(); I != E; ++I) {
-    if ((*I)->isLiveIn(X86::EFLAGS))
-      return true;
-  }
+  if (BB->isLiveOut(X86::EFLAGS))
+    return true;
 
   return false;
 }

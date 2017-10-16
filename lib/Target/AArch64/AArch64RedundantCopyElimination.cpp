@@ -465,8 +465,8 @@ bool AArch64RedundantCopyElimination::optimizeBlock(MachineBasicBlock *MBB) {
   // Add newly used regs to the block's live-in list if they aren't there
   // already.
   for (MCPhysReg KnownReg : UsedKnownRegs)
-    if (!MBB->isLiveIn(KnownReg))
-      MBB->addLiveIn(KnownReg);
+    if (!PredMBB->isLiveOut(KnownReg))
+      PredMBB->addLiveOut(KnownReg);
 
   // Clear kills in the range where changes were made.  This is conservative,
   // but should be okay since kill markers are being phased out.

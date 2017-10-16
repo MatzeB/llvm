@@ -68,17 +68,15 @@ void CriticalAntiDepBreaker::StartBlock(MachineBasicBlock *BB) {
 
   bool IsReturnBlock = BB->isReturnBlock();
 
-  // Examine the live-in regs of all successors.
-  for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
-         SE = BB->succ_end(); SI != SE; ++SI)
-    for (const auto &LI : (*SI)->liveins()) {
-      for (MCRegAliasIterator AI(LI.PhysReg, TRI, true); AI.isValid(); ++AI) {
-        unsigned Reg = *AI;
-        Classes[Reg] = reinterpret_cast<TargetRegisterClass *>(-1);
-        KillIndices[Reg] = BBSize;
-        DefIndices[Reg] = ~0u;
-      }
+  // Examine the live out regs.
+  for (const MachineBasicBlock::RegisterMaskPair &LO : BB->liveouts()) {
+    for (MCRegAliasIterator AI(LO.PhysReg, TRI, true); AI.isValid(); ++AI) {
+      unsigned Reg = *AI;
+      Classes[Reg] = reinterpret_cast<TargetRegisterClass *>(-1);
+      KillIndices[Reg] = BBSize;
+      DefIndices[Reg] = ~0u;
     }
+  }
 
   // Mark live-out callee-saved registers. In a return block this is
   // all callee-saved registers. In non-return this is any

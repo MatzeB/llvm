@@ -312,6 +312,7 @@ void LiveIntervals::computeLiveInRegUnits() {
   RegUnitRanges.resize(TRI->getNumRegUnits());
   DEBUG(dbgs() << "Computing live-in reg-units in ABI blocks.\n");
 
+#if 0 // TODO FIXME
   // Keep track of the live range sets allocated.
   SmallVector<unsigned, 8> NewRanges;
 
@@ -345,6 +346,7 @@ void LiveIntervals::computeLiveInRegUnits() {
   // Compute the 'normal' part of the ranges.
   for (unsigned Unit : NewRanges)
     computeRegUnitRange(*RegUnitRanges[Unit], Unit);
+#endif
 }
 
 static void createSegmentsForValues(LiveRange &LR,

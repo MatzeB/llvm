@@ -183,9 +183,9 @@ class VirtRegRewriter : public MachineFunctionPass {
   VirtRegMap *VRM;
 
   void rewrite();
-  void addMBBLiveIns();
+  void addMBBLiveOuts();
   bool readsUndefSubreg(const MachineOperand &MO) const;
-  void addLiveInsForSubRanges(const LiveInterval &LI, unsigned PhysReg) const;
+  void addLiveOutsForSubRanges(const LiveInterval &LI, unsigned PhysReg) const;
   void handleIdentityCopy(MachineInstr &MI) const;
   void expandCopyBundle(MachineInstr &MI) const;
   bool subRegLiveThrough(const MachineInstr &MI, unsigned SuperPhysReg) const;
@@ -250,7 +250,7 @@ bool VirtRegRewriter::runOnMachineFunction(MachineFunction &fn) {
   LIS->addKillFlags(VRM);
 
   // Live-in lists on basic blocks are required for physregs.
-  addMBBLiveIns();
+  addMBBLiveOuts();
 
   // Rewrite virtual registers.
   rewrite();
@@ -265,8 +265,8 @@ bool VirtRegRewriter::runOnMachineFunction(MachineFunction &fn) {
   return true;
 }
 
-void VirtRegRewriter::addLiveInsForSubRanges(const LiveInterval &LI,
-                                             unsigned PhysReg) const {
+void VirtRegRewriter::addLiveOutsForSubRanges(const LiveInterval &LI,
+                                              unsigned PhysReg) const {
   assert(!LI.empty());
   assert(LI.hasSubRanges());
 
@@ -309,9 +309,9 @@ void VirtRegRewriter::addLiveInsForSubRanges(const LiveInterval &LI,
   }
 }
 
-// Compute MBB live-in lists from virtual register live ranges and their
-// assignments.
-void VirtRegRewriter::addMBBLiveIns() {
+/// Compute MBB live out lists from virtual register live ranges and their
+/// assignments.
+void VirtRegRewriter::addMBBLiveOuts() {
   for (unsigned Idx = 0, IdxE = MRI->getNumVirtRegs(); Idx != IdxE; ++Idx) {
     unsigned VirtReg = TargetRegisterInfo::index2VirtReg(Idx);
     if (MRI->reg_nodbg_empty(VirtReg))
@@ -320,18 +320,18 @@ void VirtRegRewriter::addMBBLiveIns() {
     if (LI.empty() || LIS->intervalIsInOneMBB(LI))
       continue;
     // This is a virtual register that is live across basic blocks. Its
-    // assigned PhysReg must be marked as live-in to those blocks.
+    // assigned PhysReg must be marked as live out to those blocks.
     unsigned PhysReg = VRM->getPhys(VirtReg);
     assert(PhysReg != VirtRegMap::NO_PHYS_REG && "Unmapped virtual register.");
 
     if (LI.hasSubRanges()) {
-      addLiveInsForSubRanges(LI, PhysReg);
+      addLiveOutsForSubRanges(LI, PhysReg);
     } else {
-      // Go over MBB begin positions and see if we have segments covering them.
+      // Go over MBB end positions and see if we have segments covering them.
       // The following works because segments and the MBBIndex list are both
       // sorted by slot indexes.
       SlotIndexes::MBBIndexIterator I = Indexes->MBBIndexBegin();
-      for (const auto &Seg : LI) {
+      for (const LiveRange::Segment &Seg : LI) {
         I = Indexes->advanceMBBIndex(I, Seg.start);
         for (; I != Indexes->MBBIndexEnd() && I->first < Seg.end; ++I) {
           MachineBasicBlock *MBB = I->second;
@@ -341,10 +341,10 @@ void VirtRegRewriter::addMBBLiveIns() {
     }
   }
 
-  // Sort and unique MBB LiveIns as we've not checked if SubReg/PhysReg were in
-  // each MBB's LiveIns set before calling addLiveIn on them.
+  // Sort and unique MBB LiveOuts as we've not checked if SubReg/PhysReg were in
+  // each MBB's LiveOuts set before calling addLiveIn on them.
   for (MachineBasicBlock &MBB : *MF)
-    MBB.sortUniqueLiveIns();
+    MBB.sortUniqueLiveOuts();
 }
 
 /// Returns true if the given machine operand \p MO only reads undefined lanes.

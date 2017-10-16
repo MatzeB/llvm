@@ -203,7 +203,7 @@ class ImplicitNullChecks : public MachineFunctionPass {
   /// non-null value if we also need to (and legally can) hoist a depedency.
   bool canHoistInst(MachineInstr *FaultingMI, unsigned PointerReg,
                     ArrayRef<MachineInstr *> InstsSeenSoFar,
-                    MachineBasicBlock *NullSucc, MachineInstr *&Dependence);
+                    MachineBasicBlock &ToMBB, MachineInstr *&Dependence);
 
 public:
   static char ID;
@@ -309,11 +309,11 @@ bool ImplicitNullChecks::runOnMachineFunction(MachineFunction &MF) {
 }
 
 // Return true if any register aliasing \p Reg is live-in into \p MBB.
-static bool AnyAliasLiveIn(const TargetRegisterInfo *TRI,
-                           MachineBasicBlock *MBB, unsigned Reg) {
-  for (MCRegAliasIterator AR(Reg, TRI, /*IncludeSelf*/ true); AR.isValid();
+static bool AnyAliasLiveOut(const TargetRegisterInfo &TRI,
+                            const MachineBasicBlock &MBB, MCPhysReg Reg) {
+  for (MCRegAliasIterator AR(Reg, &TRI, /*IncludeSelf*/ true); AR.isValid();
        ++AR)
-    if (MBB->isLiveIn(*AR))
+    if (MBB.isLiveOut(*AR))
       return true;
   return false;
 }
@@ -386,7 +386,7 @@ ImplicitNullChecks::isSuitableMemoryOp(MachineInstr &MI, unsigned PointerReg,
 bool ImplicitNullChecks::canHoistInst(MachineInstr *FaultingMI,
                                       unsigned PointerReg,
                                       ArrayRef<MachineInstr *> InstsSeenSoFar,
-                                      MachineBasicBlock *NullSucc,
+                                      MachineBasicBlock &ToMBB,
                                       MachineInstr *&Dependence) {
   auto DepResult = computeDependence(FaultingMI, InstsSeenSoFar);
   if (!DepResult.CanReorder)
@@ -430,7 +430,7 @@ bool ImplicitNullChecks::canHoistInst(MachineInstr *FaultingMI,
     // was loading into %rax and it faults, the value of %rax should stay the
     // same as it would have been had the load not have executed and we'd have
     // branched to NullSucc directly.
-    if (AnyAliasLiveIn(TRI, NullSucc, DependenceMO.getReg()))
+    if (AnyAliasLiveOut(*TRI, ToMBB, DependenceMO.getReg()))
       return false;
 
     // The Dependency can't be re-defining the base register -- then we won't
@@ -563,7 +563,7 @@ bool ImplicitNullChecks::analyzeBlockForNullChecks(
     if (SR == SR_Impossible)
       return false;
     if (SR == SR_Suitable &&
-        canHoistInst(&MI, PointerReg, InstsSeenSoFar, NullSucc, Dependence)) {
+        canHoistInst(&MI, PointerReg, InstsSeenSoFar, MBB, Dependence)) {
       NullCheckList.emplace_back(&MI, MBP.ConditionDef, &MBB, NotNullSucc,
                                  NullSucc, Dependence);
       return true;
@@ -660,6 +660,7 @@ void ImplicitNullChecks::rewriteNullChecks(
     // The original operation may define implicit-defs alongside
     // the value.
     MachineBasicBlock *MBB = NC.getMemOperation()->getParent();
+#if 0 // TODO FIXME
     for (const MachineOperand &MO : FaultingInstr->operands()) {
       if (!MO.isReg() || !MO.isDef())
         continue;
@@ -677,6 +678,7 @@ void ImplicitNullChecks::rewriteNullChecks(
           NC.getNotNullSucc()->addLiveIn(MO.getReg());
       }
     }
+#endif
 
     NC.getMemOperation()->eraseFromParent();
     NC.getCheckOperation()->eraseFromParent();

@@ -952,7 +952,7 @@ bool IRTranslator::translateLandingPad(const User &U,
   if (!ExceptionReg)
     return false;
 
-  MBB.addLiveIn(ExceptionReg);
+  //MBB.addLiveIn(ExceptionReg);
   unsigned VReg = MRI->createGenericVirtualRegister(Tys[0]),
            Tmp = MRI->createGenericVirtualRegister(Ty);
   MIRBuilder.buildCopy(VReg, ExceptionReg);

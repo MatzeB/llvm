@@ -564,13 +564,15 @@ void LiveVariables::runOnInstr(MachineInstr &MI,
 }
 
 void LiveVariables::runOnBlock(MachineBasicBlock *MBB, const unsigned NumRegs) {
-  // Mark live-in registers as live-in.
   SmallVector<unsigned, 4> Defs;
+#if 0  // TODO FIXME
+  // Mark live-in registers as live-in.
   for (const auto &LI : MBB->liveins()) {
     assert(TargetRegisterInfo::isPhysicalRegister(LI.PhysReg) &&
            "Cannot have a live-in virtual register!");
     HandlePhysRegDef(LI.PhysReg, nullptr, Defs);
   }
+#endif
 
   // Loop over all of the instructions, processing them.
   DistanceMap.clear();
@@ -605,11 +607,13 @@ void LiveVariables::runOnBlock(MachineBasicBlock *MBB, const unsigned NumRegs) {
     MachineBasicBlock *SuccMBB = *SI;
     if (SuccMBB->isEHPad())
       continue;
+#if 0 // TODO FIXME
     for (const auto &LI : SuccMBB->liveins()) {
       if (!TRI->isInAllocatableClass(LI.PhysReg))
         // Ignore other live-ins, e.g. those that are live into landing pads.
         LiveOuts.insert(LI.PhysReg);
     }
+#endif
   }
 
   // Loop over PhysRegDef / PhysRegUse, killing any registers that are

@@ -408,12 +408,9 @@ bool BranchRelaxation::fixupUnconditionalBranch(MachineInstr &MI) {
     BranchBB = createNewBlockAfter(*MBB);
 
     // Add live outs.
-    for (const MachineBasicBlock *Succ : MBB->successors()) {
-      for (const MachineBasicBlock::RegisterMaskPair &LiveIn : Succ->liveins())
-        BranchBB->addLiveIn(LiveIn);
-    }
+    for (const MachineBasicBlock::RegisterMaskPair &LO : MBB->liveouts())
+      BranchBB->addLiveOut(LO);
 
-    BranchBB->sortUniqueLiveIns();
     BranchBB->addSuccessor(DestBB);
     MBB->replaceSuccessor(DestBB, BranchBB);
   }

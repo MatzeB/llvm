@@ -372,19 +372,24 @@ bool LiveRangeCalc::findReachingDefs(LiveRange &LR, MachineBasicBlock &UseMBB,
       report_fatal_error("Use not jointly dominated by defs.");
     }
 
-    if (TargetRegisterInfo::isPhysicalRegister(PhysReg) &&
-        !MBB->isLiveIn(PhysReg)) {
-      MBB->getParent()->verify();
-      const TargetRegisterInfo *TRI = MRI->getTargetRegisterInfo();
-      errs() << "The register " << PrintReg(PhysReg, TRI)
-             << " needs to be live in to BB#" << MBB->getNumber()
-             << ", but is missing from the live-in list.\n";
-      report_fatal_error("Invalid global physical register");
-    }
+    // TODO, FIXME: Check for function live-in and EH live-in
+
 #endif
     FoundUndef |= MBB->pred_empty();
 
     for (MachineBasicBlock *Pred : MBB->predecessors()) {
+#ifndef NDEBUG
+      if (TargetRegisterInfo::isPhysicalRegister(PhysReg) &&
+          !Pred->isLiveOut(PhysReg)) {
+        MBB->getParent()->verify();
+        const TargetRegisterInfo *TRI = MRI->getTargetRegisterInfo();
+        errs() << "The register " << PrintReg(PhysReg, TRI)
+               << " needs to be live in to BB#" << MBB->getNumber()
+               << ", but is missing from the live-in list.\n";
+        report_fatal_error("Invalid global physical register");
+      }
+#endif
+
        // Is this a known live-out block?
        if (Seen.test(Pred->getNumber())) {
          if (VNInfo *VNI = Map[Pred].first) {

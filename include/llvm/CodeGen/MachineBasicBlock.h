@@ -98,8 +98,8 @@ private:
       std::vector<BranchProbability>::const_iterator;
 
   /// Keep track of the physical registers that are livein of the basicblock.
-  using LiveInVector = std::vector<RegisterMaskPair>;
-  LiveInVector LiveIns;
+  using LivenessVector = std::vector<RegisterMaskPair>;
+  LivenessVector LiveOuts;
 
   /// Alignment of the basic block. Zero if the basic block does not need to be
   /// aligned. The alignment is specified as log2(bytes).
@@ -281,62 +281,66 @@ public:
     return make_range(succ_begin(), succ_end());
   }
 
-  // LiveIn management methods.
-
-  /// Adds the specified register as a live in. Note that it is an error to add
+  /// Adds the specified register as a live out. Note that it is an error to add
   /// the same register to the same set more than once unless the intention is
-  /// to call sortUniqueLiveIns after all registers are added.
-  void addLiveIn(MCPhysReg PhysReg,
-                 LaneBitmask LaneMask = LaneBitmask::getAll()) {
-    LiveIns.push_back(RegisterMaskPair(PhysReg, LaneMask));
+  /// to call sortUniqueLiveOuts after all registers are added.
+  void addLiveOut(MCPhysReg PhysReg,
+                  LaneBitmask LaneMask = LaneBitmask::getAll()) {
+    LiveOuts.push_back(RegisterMaskPair(PhysReg, LaneMask));
   }
-  void addLiveIn(const RegisterMaskPair &RegMaskPair) {
-    LiveIns.push_back(RegMaskPair);
+  void addLiveOut(const RegisterMaskPair &RegMaskPair) {
+    LiveOuts.push_back(RegMaskPair);
   }
 
-  /// Sorts and uniques the LiveIns vector. It can be significantly faster to do
-  /// this than repeatedly calling isLiveIn before calling addLiveIn for every
-  /// LiveIn insertion.
-  void sortUniqueLiveIns();
+  /// Sorts and uniques the LiveOuts vector. It can be significantly faster to
+  /// do this than repeatedly calling isLiveOut before calling addLiveOut for
+  /// every LiveOut insertion.
+  void sortUniqueLiveOuts();
 
-  /// Clear live in list.
-  void clearLiveIns();
+  /// Clear live out list.
+  void clearLiveOuts();
+
+  /// Remove the specified register from the live in set.
+  void removeLiveOut(MCPhysReg Reg,
+                     LaneBitmask LaneMask = LaneBitmask::getAll());
+
+  /// Return true if the specified register is in the live out set.
+  bool isLiveOut(MCPhysReg Reg,
+                 LaneBitmask LaneMask = LaneBitmask::getAll()) const;
+
+  // Iteration support for live in sets.  These sets are kept in sorted
+  // order by their register number.
+  using liveness_iterator = LivenessVector::const_iterator;
+#ifndef NDEBUG
+  /// Unlike liveout_begin, this method does not check that the liveness
+  /// information is accurate. Still for debug purposes it may be useful
+  /// to have iterators that won't assert if the liveness information
+  /// is not current.
+  liveness_iterator liveout_begin_dbg() const { return LiveOuts.begin(); }
+  iterator_range<liveness_iterator> liveouts_dbg() const {
+    return make_range(liveout_begin_dbg(), liveout_end());
+  }
+#endif
+  liveness_iterator liveout_begin() const;
+  liveness_iterator liveout_end() const { return LiveOuts.end(); }
+  bool liveout_empty() const { return LiveOuts.empty(); }
+  iterator_range<liveness_iterator> liveouts() const {
+    return make_range(liveout_begin(), liveout_end());
+  }
+
+  /// Remove entry from the live out set and return iterator to the next.
+  liveness_iterator removeLiveOut(liveness_iterator I);
+
+  /// Returns true if \p PhysReg may be live at the beginning of the basic
+  /// block.
+  /// This is a convenience function that checks the predecessors live out
+  /// lists or the function live ins for the start block.
+  bool checkLiveIn(MCPhysReg PhysReg) const;
 
   /// Add PhysReg as live in to this block, and ensure that there is a copy of
   /// PhysReg to a virtual register of class RC. Return the virtual register
   /// that is a copy of the live in PhysReg.
   unsigned addLiveIn(MCPhysReg PhysReg, const TargetRegisterClass *RC);
-
-  /// Remove the specified register from the live in set.
-  void removeLiveIn(MCPhysReg Reg,
-                    LaneBitmask LaneMask = LaneBitmask::getAll());
-
-  /// Return true if the specified register is in the live in set.
-  bool isLiveIn(MCPhysReg Reg,
-                LaneBitmask LaneMask = LaneBitmask::getAll()) const;
-
-  // Iteration support for live in sets.  These sets are kept in sorted
-  // order by their register number.
-  using livein_iterator = LiveInVector::const_iterator;
-#ifndef NDEBUG
-  /// Unlike livein_begin, this method does not check that the liveness
-  /// information is accurate. Still for debug purposes it may be useful
-  /// to have iterators that won't assert if the liveness information
-  /// is not current.
-  livein_iterator livein_begin_dbg() const { return LiveIns.begin(); }
-  iterator_range<livein_iterator> liveins_dbg() const {
-    return make_range(livein_begin_dbg(), livein_end());
-  }
-#endif
-  livein_iterator livein_begin() const;
-  livein_iterator livein_end()   const { return LiveIns.end(); }
-  bool            livein_empty() const { return LiveIns.empty(); }
-  iterator_range<livein_iterator> liveins() const {
-    return make_range(livein_begin(), livein_end());
-  }
-
-  /// Remove entry from the livein set and return iterator to the next.
-  livein_iterator removeLiveIn(livein_iterator I);
 
   /// Get the clobber mask for the start of this basic block. Funclets use this
   /// to prevent register allocation across funclet transitions.

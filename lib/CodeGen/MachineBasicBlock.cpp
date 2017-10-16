@@ -296,16 +296,6 @@ void MachineBasicBlock::print(raw_ostream &OS, ModuleSlotTracker &MST,
   OS << '\n';
 
   const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
-  if (!livein_empty()) {
-    if (Indexes) OS << '\t';
-    OS << "    Live Ins:";
-    for (const auto &LI : LiveIns) {
-      OS << ' ' << PrintReg(LI.PhysReg, TRI);
-      if (!LI.LaneMask.all())
-        OS << ':' << PrintLaneMask(LI.LaneMask);
-    }
-    OS << '\n';
-  }
   // Print the preds of this block according to the CFG.
   if (!pred_empty()) {
     if (Indexes) OS << '\t';
@@ -327,6 +317,17 @@ void MachineBasicBlock::print(raw_ostream &OS, ModuleSlotTracker &MST,
     I.print(OS, MST);
   }
 
+  if (!liveout_empty()) {
+    if (Indexes) OS << '\t';
+    OS << "    Live Ins:";
+    for (const RegisterMaskPair &LO : liveouts()) {
+      OS << ' ' << PrintReg(LO.PhysReg, TRI);
+      if (!LO.LaneMask.all())
+        OS << ':' << PrintLaneMask(LO.LaneMask);
+    }
+    OS << '\n';
+  }
+
   // Print the successors of this block according to the CFG.
   if (!succ_empty()) {
     if (Indexes) OS << '\t';
@@ -345,48 +346,69 @@ void MachineBasicBlock::printAsOperand(raw_ostream &OS,
   OS << "BB#" << getNumber();
 }
 
-void MachineBasicBlock::removeLiveIn(MCPhysReg Reg, LaneBitmask LaneMask) {
-  LiveInVector::iterator I = find_if(
-      LiveIns, [Reg](const RegisterMaskPair &LI) { return LI.PhysReg == Reg; });
-  if (I == LiveIns.end())
+void MachineBasicBlock::removeLiveOut(MCPhysReg Reg, LaneBitmask LaneMask) {
+  LivenessVector::iterator I = find_if(LiveOuts,
+      [Reg](const RegisterMaskPair &LO) { return LO.PhysReg == Reg; });
+  if (I == LiveOuts.end())
     return;
 
   I->LaneMask &= ~LaneMask;
   if (I->LaneMask.none())
-    LiveIns.erase(I);
+    LiveOuts.erase(I);
 }
 
-MachineBasicBlock::livein_iterator
-MachineBasicBlock::removeLiveIn(MachineBasicBlock::livein_iterator I) {
+MachineBasicBlock::liveness_iterator
+MachineBasicBlock::removeLiveOut(MachineBasicBlock::liveness_iterator I) {
   // Get non-const version of iterator.
-  LiveInVector::iterator LI = LiveIns.begin() + (I - LiveIns.begin());
-  return LiveIns.erase(LI);
+  LivenessVector::iterator LO = LiveIns.begin() + (I - LiveIns.begin());
+  return LiveIns.erase(LO);
 }
 
-bool MachineBasicBlock::isLiveIn(MCPhysReg Reg, LaneBitmask LaneMask) const {
-  livein_iterator I = find_if(
-      LiveIns, [Reg](const RegisterMaskPair &LI) { return LI.PhysReg == Reg; });
+bool MachineBasicBlock::isLiveOut(MCPhysReg Reg, LaneBitmask LaneMask) const {
+  livein_iterator I = find_if(LiveOuts, [Reg](const RegisterMaskPair &LO) {
+    return LO.PhysReg == Reg;
+  });
   return I != livein_end() && (I->LaneMask & LaneMask).any();
 }
 
-void MachineBasicBlock::sortUniqueLiveIns() {
-  std::sort(LiveIns.begin(), LiveIns.end(),
-            [](const RegisterMaskPair &LI0, const RegisterMaskPair &LI1) {
-              return LI0.PhysReg < LI1.PhysReg;
+void MachineBasicBlock::sortUniqueLiveOuts() {
+  std::sort(LiveOuts.begin(), LiveOuts.end(),
+            [](const RegisterMaskPair &LO0, const RegisterMaskPair &LO1) {
+              return LO0.PhysReg < LO1.PhysReg;
             });
   // Liveins are sorted by physreg now we can merge their lanemasks.
-  LiveInVector::const_iterator I = LiveIns.begin();
-  LiveInVector::const_iterator J;
-  LiveInVector::iterator Out = LiveIns.begin();
-  for (; I != LiveIns.end(); ++Out, I = J) {
+  LivenessVector::const_iterator I = LiveOuts.begin();
+  LivenessVector::const_iterator J;
+  LivenessVector::iterator Out = LiveOuts.begin();
+  for (; I != LiveOuts.end(); ++Out, I = J) {
     unsigned PhysReg = I->PhysReg;
     LaneBitmask LaneMask = I->LaneMask;
-    for (J = std::next(I); J != LiveIns.end() && J->PhysReg == PhysReg; ++J)
+    for (J = std::next(I); J != LiveOuts.end() && J->PhysReg == PhysReg; ++J)
       LaneMask |= J->LaneMask;
     Out->PhysReg = PhysReg;
     Out->LaneMask = LaneMask;
   }
-  LiveIns.erase(Out, LiveIns.end());
+  LiveOuts.erase(Out, LiveOuts.end());
+}
+
+bool MachineBasicBlock::checkLiveIn(MCPhysReg PhysReg) const {
+  if (pred_empty()) {
+    const MachineFunction &MF = *getParent();
+    if (this == &MF.front()) {
+      const MachineRegisterInfo &MRI = MF.getRegInfo();
+      for (const std::pair<unsigned, unsigned> P :
+           make_range(MRI.livein_begin(), MRI.livein_end())) {
+        if (P.first == PhysReg)
+          return true;
+      }
+    }
+  } else {
+    for (const MachineBasicBlock *Pred : predecessors()) {
+      if (Pred->isLiveOut(PhysReg))
+        return true;
+    }
+  }
+  return false;
 }
 
 unsigned
@@ -397,6 +419,8 @@ MachineBasicBlock::addLiveIn(MCPhysReg PhysReg, const TargetRegisterClass *RC) {
   assert((isEHPad() || this == &getParent()->front()) &&
          "Only the entry block and landing pads can have physreg live ins");
 
+  // TODO
+#if 0
   bool LiveIn = isLiveIn(PhysReg);
   iterator I = SkipPHIsAndLabels(begin()), E = end();
   MachineRegisterInfo &MRI = getParent()->getRegInfo();
@@ -419,6 +443,8 @@ MachineBasicBlock::addLiveIn(MCPhysReg PhysReg, const TargetRegisterClass *RC) {
   if (!LiveIn)
     addLiveIn(PhysReg);
   return VirtReg;
+#endif
+  return 0;
 }
 
 void MachineBasicBlock::moveBefore(MachineBasicBlock *NewAfter) {
@@ -867,9 +893,9 @@ MachineBasicBlock *MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ,
       if (i->getOperand(ni+1).getMBB() == this)
         i->getOperand(ni+1).setMBB(NMBB);
 
-  // Inherit live-ins from the successor
-  for (const auto &LI : Succ->liveins())
-    NMBB->addLiveIn(LI);
+  // Inherit live-outs.
+  for (const RegisterMaskPair &LO : liveouts())
+    NMBB->addLiveOut(LO);
 
   // Update LiveVariables.
   const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
@@ -1285,6 +1311,7 @@ MachineBasicBlock::computeRegisterLiveness(const TargetRegisterInfo *TRI,
     } while (I != begin() && --N > 0);
   }
 
+#if 0 // TODO
   // Did we get to the start of the block?
   if (I == begin()) {
     // If so, the register's state is definitely defined by the live-in state.
@@ -1295,6 +1322,7 @@ MachineBasicBlock::computeRegisterLiveness(const TargetRegisterInfo *TRI,
 
     return LQR_Dead;
   }
+#endif
 
   N = Neighborhood;
 

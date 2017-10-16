@@ -153,9 +153,8 @@ MachineInstr *AArch64ConditionOptimizer::findSuitableCompare(
     return nullptr;
 
   // Since we may modify cmp of this MBB, make sure NZCV does not live out.
-  for (auto SuccBB : MBB->successors())
-    if (SuccBB->isLiveIn(AArch64::NZCV))
-      return nullptr;
+  if (MBB->isLiveOut(AArch64::NZCV))
+    return nullptr;
 
   // Now find the instruction controlling the terminator.
   for (MachineBasicBlock::iterator B = MBB->begin(); I != B;) {

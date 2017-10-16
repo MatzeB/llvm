@@ -421,34 +421,30 @@ unsigned MachineRegisterInfo::getLiveInVirtReg(unsigned PReg) const {
 
 /// EmitLiveInCopies - Emit copies to initialize livein virtual registers
 /// into the given entry block.
-void
-MachineRegisterInfo::EmitLiveInCopies(MachineBasicBlock *EntryMBB,
-                                      const TargetRegisterInfo &TRI,
-                                      const TargetInstrInfo &TII) {
+void MachineRegisterInfo::EmitLiveInCopies(MachineBasicBlock *EntryMBB,
+                                           const TargetRegisterInfo &TRI,
+                                           const TargetInstrInfo &TII) {
   // Emit the copies into the top of the block.
-  for (unsigned i = 0, e = LiveIns.size(); i != e; ++i)
-    if (LiveIns[i].second) {
-      if (use_empty(LiveIns[i].second)) {
-        // The livein has no uses. Drop it.
-        //
-        // It would be preferable to have isel avoid creating live-in
-        // records for unused arguments in the first place, but it's
-        // complicated by the debug info code for arguments.
-        LiveIns.erase(LiveIns.begin() + i);
-        --i; --e;
-      } else {
-        // Emit a copy.
-        BuildMI(*EntryMBB, EntryMBB->begin(), DebugLoc(),
-                TII.get(TargetOpcode::COPY), LiveIns[i].second)
-          .addReg(LiveIns[i].first);
+  for (unsigned i = 0, e = LiveIns.size(); i != e; ++i) {
+    if (!LiveIns[i].second)
+      continue;
 
-        // Add the register to the entry block live-in set.
-        EntryMBB->addLiveIn(LiveIns[i].first);
-      }
-    } else {
-      // Add the register to the entry block live-in set.
-      EntryMBB->addLiveIn(LiveIns[i].first);
+    if (use_empty(LiveIns[i].second)) {
+      // The livein has no uses. Drop it.
+      //
+      // It would be preferable to have isel avoid creating live-in
+      // records for unused arguments in the first place, but it's
+      // complicated by the debug info code for arguments.
+      LiveIns.erase(LiveIns.begin() + i);
+      --i; --e;
+      continue;
     }
+
+    // Emit a copy.
+    BuildMI(*EntryMBB, EntryMBB->begin(), DebugLoc(),
+            TII.get(TargetOpcode::COPY), LiveIns[i].second)
+      .addReg(LiveIns[i].first);
+  }
 }
 
 LaneBitmask MachineRegisterInfo::getMaxLaneMaskForVReg(unsigned Reg) const {

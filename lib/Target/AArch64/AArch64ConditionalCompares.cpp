@@ -380,12 +380,14 @@ MachineInstr *SSACCmpConv::findConvertibleCompare(MachineBasicBlock *MBB) {
 ///
 bool SSACCmpConv::canSpeculateInstrs(MachineBasicBlock *MBB,
                                      const MachineInstr *CmpMI) {
+#if 0 // FIXME TODO
   // Reject any live-in physregs. It's probably NZCV/EFLAGS, and very hard to
   // get right.
   if (!MBB->livein_empty()) {
     DEBUG(dbgs() << "BB#" << MBB->getNumber() << " has live-ins.\n");
     return false;
   }
+#endif
 
   unsigned InstrCount = 0;
 

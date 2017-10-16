@@ -157,7 +157,7 @@ public:
 private:
   /// \brief Adds live-in registers from basic block \p MBB, taking associated
   /// lane masks into consideration.
-  void addBlockLiveIns(const MachineBasicBlock &MBB);
+  void addBlockLiveOuts(const MachineBasicBlock &MBB);
 
   /// Adds pristine registers. Pristine registers are callee saved registers
   /// that are unused in the function.

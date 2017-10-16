@@ -424,14 +424,12 @@ static void updateLiveness(MachineFunction &MF) {
     WorkList.push_back(Entry);
     Visited.insert(Entry);
   }
-  Visited.insert(Save);
 
   MachineBasicBlock *Restore = MFI.getRestorePoint();
-  if (Restore)
-    // By construction Restore cannot be visited, otherwise it
-    // means there exists a path to Restore that does not go
-    // through Save.
+  if (Restore) {
     WorkList.push_back(Restore);
+    Visited.insert(Restore);
+  }
 
   while (!WorkList.empty()) {
     const MachineBasicBlock *CurBB = WorkList.pop_back_val();
@@ -450,12 +448,13 @@ static void updateLiveness(MachineFunction &MF) {
 
   MachineRegisterInfo &MRI = MF.getRegInfo();
   for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
+    MCPhysReg Reg = CSI[i].getReg();
+    if (MRI.isReserved(Reg))
+      continue;
     for (MachineBasicBlock *MBB : Visited) {
-      MCPhysReg Reg = CSI[i].getReg();
-      // Add the callee-saved register as live-in.
-      // It's killed at the spill.
-      if (!MRI.isReserved(Reg) && !MBB->isLiveIn(Reg))
-        MBB->addLiveIn(Reg);
+      // Add the callee-saved register as live out.
+      if (!MBB->isLiveOut(Reg))
+        MBB->addLiveOut(Reg);
     }
   }
 }

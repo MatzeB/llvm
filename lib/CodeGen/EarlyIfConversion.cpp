@@ -182,9 +182,11 @@ public:
 /// Any clobbered regunits are added to ClobberedRegUnits.
 ///
 bool SSAIfConv::canSpeculateInstrs(MachineBasicBlock *MBB) {
+  // TODO/FIXME
+
   // Reject any live-in physregs. It's probably CPSR/EFLAGS, and very hard to
   // get right.
-  if (!MBB->livein_empty()) {
+  if (!MBB->liveout_empty()) {
     DEBUG(dbgs() << "BB#" << MBB->getNumber() << " has live-ins.\n");
     return false;
   }
@@ -366,11 +368,13 @@ bool SSAIfConv::canConvertIf(MachineBasicBlock *MBB) {
                  << "/BB#" << Succ1->getNumber()
                  << " -> BB#" << Tail->getNumber() << '\n');
 
+#if 0 // TODO FIXME
     // Live-in physregs are tricky to get right when speculating code.
     if (!Tail->livein_empty()) {
       DEBUG(dbgs() << "Tail has live-ins.\n");
       return false;
     }
+#endif
   } else {
     DEBUG(dbgs() << "\nTriangle: BB#" << Head->getNumber()
                  << " -> BB#" << Succ0->getNumber()

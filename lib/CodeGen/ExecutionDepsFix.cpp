@@ -191,9 +191,11 @@ void ExecutionDepsFix::enterBasicBlock(MachineBasicBlock *MBB) {
   }
 
   // This is the entry block.
-  if (MBB->pred_empty()) {
-    for (const auto &LI : MBB->liveins()) {
-      for (int rx : regIndices(LI.PhysReg)) {
+  if (MBB == &MF->front()) {
+    const MachineRegisterInfo &MRI = MF->getRegInfo();
+    for (std::pair<unsigned,unsigned> LI :
+         make_range(MRI.livein_begin(), MRI.livein_end())) {
+      for (int rx : regIndices(LI.first)) {
         // Treat function live-ins as if they were defined just before the first
         // instruction.  Usually, function arguments are set up immediately
         // before the call.

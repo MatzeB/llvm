@@ -82,11 +82,11 @@ void LiveRegUnits::accumulate(const MachineInstr &MI) {
   }
 }
 
-/// Add live-in registers of basic block \p MBB to \p LiveUnits.
-static void addBlockLiveIns(LiveRegUnits &LiveUnits,
-                            const MachineBasicBlock &MBB) {
-  for (const auto &LI : MBB.liveins())
-    LiveUnits.addRegMasked(LI.PhysReg, LI.LaneMask);
+/// Add live out registers of basic block \p MBB to \p LiveUnits.
+static void addLiveOutsNoPristines(LiveRegUnits &LiveUnits,
+                                   const MachineBasicBlock &MBB) {
+  for (const MachineBasicBlock::RegisterMaskPair &LO : MBB.liveouts())
+    LiveUnits.addRegMasked(LO.PhysReg, LO.LaneMask);
 }
 
 /// Adds all callee saved registers to \p LiveUnits.
@@ -126,21 +126,24 @@ void LiveRegUnits::addPristines(const MachineFunction &MF) {
 
 void LiveRegUnits::addLiveOuts(const MachineBasicBlock &MBB) {
   const MachineFunction &MF = *MBB.getParent();
-  if (!MBB.succ_empty()) {
-    addPristines(MF);
-    // To get the live-outs we simply merge the live-ins of all successors.
-    for (const MachineBasicBlock *Succ : MBB.successors())
-      addBlockLiveIns(*this, *Succ);
-  } else if (MBB.isReturnBlock()) {
-    // For the return block: Add all callee saved registers.
-    const MachineFrameInfo &MFI = MF.getFrameInfo();
-    if (MFI.isCalleeSavedInfoValid())
-      addCalleeSavedRegs(*this, MF);
-  }
+  addPristines(MF);
+  addLiveOutsNoPristines(*this, MBB);
 }
 
 void LiveRegUnits::addLiveIns(const MachineBasicBlock &MBB) {
   const MachineFunction &MF = *MBB.getParent();
   addPristines(MF);
-  addBlockLiveIns(*this, MBB);
+
+  if (MBB.pred_empty()) {
+    if (&MBB == &MF.front()) {
+      const MachineRegisterInfo &MRI = MF.getRegInfo();
+      for (std::pair<unsigned,unsigned> LI :
+           make_range(MRI.livein_begin(), MRI.livein_end())) {
+        addReg(LI.first);
+      }
+    }
+  } else {
+    for (MachineBasicBlock *Pred : MBB.predecessors())
+      addLiveOutsNoPristines(*this, *Pred);
+  }
 }

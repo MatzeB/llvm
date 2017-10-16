@@ -2841,10 +2841,8 @@ bool ARMBaseInstrInfo::optimizeCompareInstr(
   // live-out. If it is live-out, do not optimize.
   if (!isSafe) {
     MachineBasicBlock *MBB = CmpInstr.getParent();
-    for (MachineBasicBlock::succ_iterator SI = MBB->succ_begin(),
-             SE = MBB->succ_end(); SI != SE; ++SI)
-      if ((*SI)->isLiveIn(ARM::CPSR))
-        return false;
+    if (MBB->isLiveOut(ARM::CPSR))
+      return false;
   }
 
   // Toggle the optional operand to CPSR (if it exists - in Thumb1 we always

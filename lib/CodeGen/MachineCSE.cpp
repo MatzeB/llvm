@@ -646,10 +646,13 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       if (CrossMBBPhysDef) {
         // Add physical register defs now coming in from a predecessor to MBB
         // livein list.
-        while (!PhysDefs.empty()) {
-          unsigned LiveIn = PhysDefs.pop_back_val();
-          if (!MBB->isLiveIn(LiveIn))
-            MBB->addLiveIn(LiveIn);
+        if (!PhysDefs.empty()) {
+          MachineBasicBlock *DefBB = CSMI->getParent();
+          do {
+            MCPhysReg PhysReg = PhysDefs.pop_back_val();
+            if (!DefBB->isLiveOut(PhysReg))
+              DefBB->addLiveOut(PhysReg);
+          } while(!PhysDefs.empty());
         }
         ++NumCrossBBCSEs;
       }
