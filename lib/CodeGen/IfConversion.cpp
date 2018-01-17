@@ -196,7 +196,6 @@ namespace {
 
     LivePhysRegs Redefs;
 
-    bool PreRegAlloc;
     bool MadeChange;
     int FnNum = -1;
     std::function<bool(const MachineFunction &)> PredicateFtor;
@@ -349,17 +348,11 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   SchedModel.init(ST.getSchedModel(), &ST, TII);
 
-  if (!TII) return false;
-
-  PreRegAlloc = MRI->isSSA();
-
   bool BFChange = false;
-  if (!PreRegAlloc) {
-    // Tail merge tend to expose more if-conversion opportunities.
-    BranchFolder BF(true, false, MBFI, *MBPI);
-    BFChange = BF.OptimizeFunction(MF, TII, ST.getRegisterInfo(),
-                                   getAnalysisIfAvailable<MachineModuleInfo>());
-  }
+  // Tail merge tend to expose more if-conversion opportunities.
+  BranchFolder BF(true, false, MBFI, *MBPI);
+  BFChange = BF.OptimizeFunction(MF, TII, ST.getRegisterInfo(),
+                                 getAnalysisIfAvailable<MachineModuleInfo>());
 
   DEBUG(dbgs() << "\nIfcvt: function (" << ++FnNum <<  ") \'"
                << MF.getName() << "\'");
