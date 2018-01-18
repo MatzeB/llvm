@@ -33,16 +33,16 @@ body:             |
 
 # CHECK: body:             |
 # CHECK:   bb.0:
-# CHECK:     successors: %bb.2(0x20000000), %bb.1(0x60000000)
+# CHECK:     successors: %bb.2(0x60000000), %bb.1(0x20000000)
 
 # CHECK:     %sp = tADDspi %sp, 2, 1, %cpsr
 # CHECK:     %sp = tADDspi %sp, 1, 0, %cpsr, implicit %sp
-# CHECK:     Bcc %bb.2, 1, %cpsr
+# CHECK:     Bcc %bb.2, 0, %cpsr
 
 # CHECK:   bb.1:
-# CHECK:     %sp = tADDspi %sp, 4, 14, %noreg
+# CHECK:     %sp = tADDspi %sp, 3, 14, %noreg
 # CHECK:     BX_RET 14, %noreg
 
 # CHECK:   bb.2:
-# CHECK:     %sp = tADDspi %sp, 3, 14, %noreg
+# CHECK:     %sp = tADDspi %sp, 4, 14, %noreg
 # CHECK:     BX_RET 14, %noreg
