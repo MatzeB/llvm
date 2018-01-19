@@ -109,8 +109,8 @@ int MachineFrameInfo::CreateFixedSpillStackObject(uint64_t Size,
 }
 
 BitVector MachineFrameInfo::getPristineRegs(const MachineFunction &MF) const {
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-  BitVector BV(TRI->getNumRegs());
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
+  BitVector BV(TRI.getNumRegs());
 
   // Before CSI is calculated, no registers are considered pristine. They can be
   // freely used and PEI will make sure they are saved.
@@ -124,7 +124,7 @@ BitVector MachineFrameInfo::getPristineRegs(const MachineFunction &MF) const {
 
   // Saved CSRs are not pristine.
   for (auto &I : getCalleeSavedInfo())
-    for (MCSubRegIterator S(I.getReg(), TRI, true); S.isValid(); ++S)
+    for (MCSubRegIterator S(I.getReg(), &TRI, true); S.isValid(); ++S)
       BV.reset(*S);
 
   return BV;
@@ -132,7 +132,7 @@ BitVector MachineFrameInfo::getPristineRegs(const MachineFunction &MF) const {
 
 unsigned MachineFrameInfo::estimateStackSize(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
-  const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &RegInfo = MF.getSubtarget().getRegisterInfo();
   unsigned MaxAlign = getMaxAlignment();
   int Offset = 0;
 
@@ -165,7 +165,7 @@ unsigned MachineFrameInfo::estimateStackSize(const MachineFunction &MF) const {
   // value.
   unsigned StackAlign;
   if (adjustsStack() || hasVarSizedObjects() ||
-      (RegInfo->needsStackRealignment(MF) && getObjectIndexEnd() != 0))
+      (RegInfo.needsStackRealignment(MF) && getObjectIndexEnd() != 0))
     StackAlign = TFI->getStackAlignment();
   else
     StackAlign = TFI->getTransientStackAlignment();
@@ -180,7 +180,7 @@ unsigned MachineFrameInfo::estimateStackSize(const MachineFunction &MF) const {
 }
 
 void MachineFrameInfo::computeMaxCallFrameSize(const MachineFunction &MF) {
-  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF.getSubtarget().getInstrInfo();
   unsigned FrameSetupOpcode = TII.getCallFrameSetupOpcode();
   unsigned FrameDestroyOpcode = TII.getCallFrameDestroyOpcode();
   assert(FrameSetupOpcode != ~0u && FrameDestroyOpcode != ~0u &&

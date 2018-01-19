@@ -281,8 +281,8 @@ bool X86ExpandPseudo::ExpandMBB(MachineBasicBlock &MBB) {
 
 bool X86ExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
   STI = &static_cast<const X86Subtarget &>(MF.getSubtarget());
-  TII = STI->getInstrInfo();
-  TRI = STI->getRegisterInfo();
+  TII = &STI->getInstrInfo();
+  TRI = &STI->getRegisterInfo();
   X86FI = MF.getInfo<X86MachineFunctionInfo>();
   X86FL = STI->getFrameLowering();
 

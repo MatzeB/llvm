@@ -151,7 +151,7 @@ InsertPointAnalysis::getLastInsertPointIter(const LiveInterval &CurLI,
 SplitAnalysis::SplitAnalysis(const VirtRegMap &vrm, const LiveIntervals &lis,
                              const MachineLoopInfo &mli)
     : MF(vrm.getMachineFunction()), VRM(vrm), LIS(lis), Loops(mli),
-      TII(*MF.getSubtarget().getInstrInfo()), IPA(lis, MF.getNumBlockIDs()) {}
+      TII(MF.getSubtarget().getInstrInfo()), IPA(lis, MF.getNumBlockIDs()) {}
 
 void SplitAnalysis::clear() {
   UseSlots.clear();
@@ -369,8 +369,8 @@ SplitEditor::SplitEditor(SplitAnalysis &sa, AliasAnalysis &aa,
                          MachineBlockFrequencyInfo &mbfi)
     : SA(sa), AA(aa), LIS(lis), VRM(vrm),
       MRI(vrm.getMachineFunction().getRegInfo()), MDT(mdt),
-      TII(*vrm.getMachineFunction().getSubtarget().getInstrInfo()),
-      TRI(*vrm.getMachineFunction().getSubtarget().getRegisterInfo()),
+      TII(vrm.getMachineFunction().getSubtarget().getInstrInfo()),
+      TRI(vrm.getMachineFunction().getSubtarget().getRegisterInfo()),
       MBFI(mbfi), RegAssign(Allocator) {}
 
 void SplitEditor::reset(LiveRangeEdit &LRE, ComplementSpillMode SM) {

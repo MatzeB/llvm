@@ -80,7 +80,7 @@ void RegUsageInfoCollector::getAnalysisUsage(AnalysisUsage &AU) const {
 
 bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   MachineRegisterInfo *MRI = &MF.getRegInfo();
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
   const TargetMachine &TM = MF.getTarget();
 
   DEBUG(dbgs() << " -------------------- " << getPassName()
@@ -92,7 +92,7 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   // Compute the size of the bit vector to represent all the registers.
   // The bit vector is broken into 32-bit chunks, thus takes the ceil of
   // the number of registers divided by 32 for the size.
-  unsigned RegMaskSize = (TRI->getNumRegs() + 31) / 32;
+  unsigned RegMaskSize = (TRI.getNumRegs() + 31) / 32;
   RegMask.resize(RegMaskSize, 0xFFFFFFFF);
 
   const Function &F = MF.getFunction();
@@ -109,7 +109,7 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
   };
   // Scan all the physical registers. When a register is defined in the current
   // function set it and all the aliasing registers as defined in the regmask.
-  for (unsigned PReg = 1, PRegE = TRI->getNumRegs(); PReg < PRegE; ++PReg) {
+  for (unsigned PReg = 1, PRegE = TRI.getNumRegs(); PReg < PRegE; ++PReg) {
     // If a register is in the UsedPhysRegsMask set then mark it as defined.
     // All it's aliases will also be in the set, so we can skip setting
     // as defined all the aliases here.
@@ -120,14 +120,14 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
     // If a register is defined by an instruction mark it as defined together
     // with all it's aliases.
     if (!MRI->def_empty(PReg)) {
-      for (MCRegAliasIterator AI(PReg, TRI, true); AI.isValid(); ++AI)
+      for (MCRegAliasIterator AI(PReg, &TRI, true); AI.isValid(); ++AI)
         SetRegAsDefined(*AI);
     }
   }
 
   if (!TargetFrameLowering::isSafeForNoCSROpt(F)) {
     const uint32_t *CallPreservedMask =
-        TRI->getCallPreservedMask(MF, F.getCallingConv());
+        TRI.getCallPreservedMask(MF, F.getCallingConv());
     if (CallPreservedMask) {
       // Set callee saved register as preserved.
       for (unsigned i = 0; i < RegMaskSize; ++i)
@@ -139,9 +139,9 @@ bool RegUsageInfoCollector::runOnMachineFunction(MachineFunction &MF) {
                  << " function optimized for not having CSR.\n");
   }
 
-  for (unsigned PReg = 1, PRegE = TRI->getNumRegs(); PReg < PRegE; ++PReg)
+  for (unsigned PReg = 1, PRegE = TRI.getNumRegs(); PReg < PRegE; ++PReg)
     if (MachineOperand::clobbersPhysReg(&(RegMask[0]), PReg))
-      DEBUG(dbgs() << printReg(PReg, TRI) << " ");
+      DEBUG(dbgs() << printReg(PReg, &TRI) << " ");
 
   DEBUG(dbgs() << " \n----------------------------------------\n");
 

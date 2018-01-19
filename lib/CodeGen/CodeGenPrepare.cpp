@@ -358,7 +358,7 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
     TM = &TPC->getTM<TargetMachine>();
     SubtargetInfo = TM->getSubtargetImpl(F);
     TLI = SubtargetInfo->getTargetLowering();
-    TRI = SubtargetInfo->getRegisterInfo();
+    TRI = &SubtargetInfo->getRegisterInfo();
   }
   TLInfo = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);

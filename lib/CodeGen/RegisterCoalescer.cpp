@@ -3335,8 +3335,8 @@ bool RegisterCoalescer::runOnMachineFunction(MachineFunction &fn) {
   MF = &fn;
   MRI = &fn.getRegInfo();
   const TargetSubtargetInfo &STI = fn.getSubtarget();
-  TRI = STI.getRegisterInfo();
-  TII = STI.getInstrInfo();
+  TRI = &STI.getRegisterInfo();
+  TII = &STI.getInstrInfo();
   LIS = &getAnalysis<LiveIntervals>();
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   Loops = &getAnalysis<MachineLoopInfo>();

@@ -42,15 +42,15 @@ mayOptimizeThumb2Instruction(const MachineInstr *MI) {
 
 void computeBlockSize(MachineFunction *MF, MachineBasicBlock *MBB,
                       BasicBlockInfo &BBI) {
-  const ARMBaseInstrInfo *TII =
-    static_cast<const ARMBaseInstrInfo *>(MF->getSubtarget().getInstrInfo());
+  const ARMBaseInstrInfo &TII =
+    static_cast<const ARMBaseInstrInfo &>(MF->getSubtarget().getInstrInfo());
   bool isThumb = MF->getInfo<ARMFunctionInfo>()->isThumbFunction();
   BBI.Size = 0;
   BBI.Unalign = 0;
   BBI.PostAlign = 0;
 
   for (MachineInstr &I : *MBB) {
-    BBI.Size += TII->getInstSizeInBytes(I);
+    BBI.Size += TII.getInstSizeInBytes(I);
     // For inline asm, getInstSizeInBytes returns a conservative estimate.
     // The actual size may be smaller, but still a multiple of the instr size.
     if (I.isInlineAsm())

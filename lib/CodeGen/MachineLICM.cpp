@@ -303,9 +303,9 @@ bool MachineLICMBase::runOnMachineFunction(MachineFunction &MF) {
 
   Changed = FirstInLoop = false;
   const TargetSubtargetInfo &ST = MF.getSubtarget();
-  TII = ST.getInstrInfo();
+  TII = &ST.getInstrInfo();
   TLI = ST.getTargetLowering();
-  TRI = ST.getRegisterInfo();
+  TRI = &ST.getRegisterInfo();
   MFI = &MF.getFrameInfo();
   MRI = &MF.getRegInfo();
   SchedModel.init(ST.getSchedModel(), &ST, TII);

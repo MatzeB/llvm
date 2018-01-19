@@ -333,12 +333,12 @@ bool GCMachineCodeAnalysis::runOnMachineFunction(MachineFunction &MF) {
 
   FI = &getAnalysis<GCModuleInfo>().getFunctionInfo(MF.getFunction());
   MMI = &getAnalysis<MachineModuleInfo>();
-  TII = MF.getSubtarget().getInstrInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
 
   // Find the size of the stack frame.  There may be no correct static frame
   // size, we use UINT64_MAX to represent this.
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const TargetRegisterInfo *RegInfo = MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo *RegInfo = &MF.getSubtarget().getRegisterInfo();
   const bool DynamicFrameSize = MFI.hasVarSizedObjects() ||
     RegInfo->needsStackRealignment(MF);
   FI->setFrameSize(DynamicFrameSize ? UINT64_MAX : MFI.getStackSize());

@@ -380,7 +380,7 @@ bool RenameIndependentSubregs::runOnMachineFunction(MachineFunction &MF) {
         << MF.getName() << '\n');
 
   LIS = &getAnalysis<LiveIntervals>();
-  TII = MF.getSubtarget().getInstrInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
 
   // Iterate over all vregs. Note that we query getNumVirtRegs() the newly
   // created vregs end up with higher numbers but do not need to be visited as

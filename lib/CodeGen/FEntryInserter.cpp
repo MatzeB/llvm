@@ -41,9 +41,9 @@ bool FEntryInserter::runOnMachineFunction(MachineFunction &MF) {
     return false;
 
   auto &FirstMBB = *MF.begin();
-  auto *TII = MF.getSubtarget().getInstrInfo();
+  auto &TII = MF.getSubtarget().getInstrInfo();
   BuildMI(FirstMBB, FirstMBB.begin(), DebugLoc(),
-          TII->get(TargetOpcode::FENTRY_CALL));
+          TII.get(TargetOpcode::FENTRY_CALL));
   return true;
 }
 

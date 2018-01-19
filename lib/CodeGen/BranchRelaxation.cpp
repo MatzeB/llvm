@@ -543,9 +543,9 @@ bool BranchRelaxation::runOnMachineFunction(MachineFunction &mf) {
   DEBUG(dbgs() << "***** BranchRelaxation *****\n");
 
   const TargetSubtargetInfo &ST = MF->getSubtarget();
-  TII = ST.getInstrInfo();
+  TII = &ST.getInstrInfo();
 
-  TRI = ST.getRegisterInfo();
+  TRI = &ST.getRegisterInfo();
   if (TRI->trackLivenessAfterRegAlloc(*MF))
     RS.reset(new RegScavenger());
 

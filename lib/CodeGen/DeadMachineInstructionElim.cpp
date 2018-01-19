@@ -99,8 +99,8 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
 
   bool AnyChanges = false;
   MRI = &MF.getRegInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
-  TII = MF.getSubtarget().getInstrInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
 
   // Loop over all instructions in all blocks, from bottom to top, so that it's
   // more likely that chains of dependent but ultimately dead instructions will

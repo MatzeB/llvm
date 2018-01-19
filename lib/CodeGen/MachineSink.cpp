@@ -297,8 +297,8 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
 
   DEBUG(dbgs() << "******** Machine Sinking ********\n");
 
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   DT = &getAnalysis<MachineDominatorTree>();
   PDT = &getAnalysis<MachinePostDominatorTree>();

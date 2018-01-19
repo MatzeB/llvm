@@ -1601,8 +1601,8 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
   if (DisablePeephole)
     return false;
 
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   DT  = Aggressive ? &getAnalysis<MachineDominatorTree>() : nullptr;
   MLI = &getAnalysis<MachineLoopInfo>();

@@ -56,8 +56,8 @@ void RegScavenger::setRegUsed(unsigned Reg, LaneBitmask LaneMask) {
 
 void RegScavenger::init(MachineBasicBlock &MBB) {
   MachineFunction &MF = *MBB.getParent();
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   LiveUnits.init(*TRI);
 

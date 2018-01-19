@@ -79,8 +79,8 @@ void TailDuplicator::initMF(MachineFunction &MFin, bool PreRegAlloc,
                             const MachineBranchProbabilityInfo *MBPIin,
                             bool LayoutModeIn, unsigned TailDupSizeIn) {
   MF = &MFin;
-  TII = MF->getSubtarget().getInstrInfo();
-  TRI = MF->getSubtarget().getRegisterInfo();
+  TII = &MF->getSubtarget().getInstrInfo();
+  TRI = &MF->getSubtarget().getRegisterInfo();
   MRI = &MF->getRegInfo();
   MMI = &MF->getMMI();
   MBPI = MBPIin;

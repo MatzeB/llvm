@@ -119,11 +119,11 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
   MIBundleBuilder Bundle(MBB, FirstMI, LastMI);
 
   MachineFunction &MF = *MBB.getParent();
-  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  const TargetInstrInfo &TII = MF.getSubtarget().getInstrInfo();
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
 
   MachineInstrBuilder MIB =
-      BuildMI(MF, FirstMI->getDebugLoc(), TII->get(TargetOpcode::BUNDLE));
+      BuildMI(MF, FirstMI->getDebugLoc(), TII.get(TargetOpcode::BUNDLE));
   Bundle.prepend(MIB);
 
   SmallVector<unsigned, 32> LocalDefs;
@@ -186,7 +186,8 @@ void llvm::finalizeBundle(MachineBasicBlock &MBB,
       }
 
       if (!MO.isDead()) {
-        for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs) {
+        for (MCSubRegIterator SubRegs(Reg, &TRI); SubRegs.isValid();
+             ++SubRegs) {
           unsigned SubReg = *SubRegs;
           if (LocalDefSet.insert(SubReg).second)
             LocalDefs.push_back(SubReg);

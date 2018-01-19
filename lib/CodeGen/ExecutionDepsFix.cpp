@@ -620,8 +620,8 @@ bool ExecutionDepsFix::runOnMachineFunction(MachineFunction &mf) {
   if (skipFunction(mf.getFunction()))
     return false;
   MF = &mf;
-  TII = MF->getSubtarget().getInstrInfo();
-  TRI = MF->getSubtarget().getRegisterInfo();
+  TII = &MF->getSubtarget().getInstrInfo();
+  TRI = &MF->getSubtarget().getRegisterInfo();
   RegClassInfo.runOnMachineFunction(mf);
   LiveRegs = nullptr;
   assert(NumRegs == RC->getNumRegs() && "Bad regclass");

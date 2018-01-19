@@ -92,7 +92,7 @@ public:
   //
   // N.B. These objects may change during compilation. It's not safe to cache
   // them between functions.
-  virtual const TargetInstrInfo *getInstrInfo() const { return nullptr; }
+  virtual const TargetInstrInfo &getInstrInfo() const = 0;
   virtual const TargetFrameLowering *getFrameLowering() const {
     return nullptr;
   }
@@ -120,9 +120,8 @@ public:
 
   virtual const LegalizerInfo *getLegalizerInfo() const { return nullptr; }
 
-  /// getRegisterInfo - If register information is available, return it.  If
-  /// not, return null.
-  virtual const TargetRegisterInfo *getRegisterInfo() const { return nullptr; }
+  /// Return register information object.
+  virtual const TargetRegisterInfo &getRegisterInfo() const = 0;
 
   /// If the information for the register banks is available, return it.
   /// Otherwise return nullptr.

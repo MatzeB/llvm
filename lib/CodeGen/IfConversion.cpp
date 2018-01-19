@@ -342,14 +342,12 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
 
   const TargetSubtargetInfo &ST = MF.getSubtarget();
   TLI = ST.getTargetLowering();
-  TII = ST.getInstrInfo();
-  TRI = ST.getRegisterInfo();
+  TII = &ST.getInstrInfo();
+  TRI = &ST.getRegisterInfo();
   BranchFolder::MBFIWrapper MBFI(getAnalysis<MachineBlockFrequencyInfo>());
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   MRI = &MF.getRegInfo();
   SchedModel.init(ST.getSchedModel(), &ST, TII);
-
-  if (!TII) return false;
 
   PreRegAlloc = MRI->isSSA();
 
@@ -357,7 +355,7 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   if (!PreRegAlloc) {
     // Tail merge tend to expose more if-conversion opportunities.
     BranchFolder BF(true, false, MBFI, *MBPI);
-    BFChange = BF.OptimizeFunction(MF, TII, ST.getRegisterInfo(),
+    BFChange = BF.OptimizeFunction(MF, TII, &ST.getRegisterInfo(),
                                    getAnalysisIfAvailable<MachineModuleInfo>());
   }
 
@@ -496,7 +494,7 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
 
   if (MadeChange && IfCvtBranchFold) {
     BranchFolder BF(false, false, MBFI, *MBPI);
-    BF.OptimizeFunction(MF, TII, MF.getSubtarget().getRegisterInfo(),
+    BF.OptimizeFunction(MF, TII, &MF.getSubtarget().getRegisterInfo(),
                         getAnalysisIfAvailable<MachineModuleInfo>());
   }
 
@@ -1360,13 +1358,13 @@ static void InsertUncondBranch(MachineBasicBlock &MBB, MachineBasicBlock &ToMBB,
 /// Behaves like LiveRegUnits::StepForward() but also adds implicit uses to all
 /// values defined in MI which are also live/used by MI.
 static void UpdatePredRedefs(MachineInstr &MI, LivePhysRegs &Redefs) {
-  const TargetRegisterInfo *TRI = MI.getMF()->getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = MI.getMF()->getSubtarget().getRegisterInfo();
 
   // Before stepping forward past MI, remember which regs were live
   // before MI. This is needed to set the Undef flag only when reg is
   // dead.
   SparseSet<unsigned> LiveBeforeMI;
-  LiveBeforeMI.setUniverse(TRI->getNumRegs());
+  LiveBeforeMI.setUniverse(TRI.getNumRegs());
   for (unsigned Reg : Redefs)
     LiveBeforeMI.insert(Reg);
 
@@ -1399,7 +1397,7 @@ static void UpdatePredRedefs(MachineInstr &MI, LivePhysRegs &Redefs) {
       MIB.addReg(Reg, RegState::Implicit);
     else {
       bool HasLiveSubReg = false;
-      for (MCSubRegIterator S(Reg, TRI); S.isValid(); ++S) {
+      for (MCSubRegIterator S(Reg, &TRI); S.isValid(); ++S) {
         if (!LiveBeforeMI.count(*S))
           continue;
         HasLiveSubReg = true;

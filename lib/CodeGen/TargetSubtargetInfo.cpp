@@ -86,7 +86,7 @@ std::string TargetSubtargetInfo::getSchedInfoStr(const MachineInstr &MI) const {
   // We don't cache TSchedModel because it depends on TargetInstrInfo
   // that could be changed during the compilation
   TargetSchedModel TSchedModel;
-  TSchedModel.init(getSchedModel(), this, getInstrInfo());
+  TSchedModel.init(getSchedModel(), this, &getInstrInfo());
   unsigned Latency = TSchedModel.computeInstrLatency(&MI);
   Optional<double> RThroughput = TSchedModel.computeInstrRThroughput(&MI);
   return createSchedInfoStr(Latency, RThroughput);
@@ -97,14 +97,14 @@ std::string TargetSubtargetInfo::getSchedInfoStr(MCInst const &MCI) const {
   // We don't cache TSchedModel because it depends on TargetInstrInfo
   // that could be changed during the compilation
   TargetSchedModel TSchedModel;
-  TSchedModel.init(getSchedModel(), this, getInstrInfo());
+  TSchedModel.init(getSchedModel(), this, &getInstrInfo());
   unsigned Latency;
   if (TSchedModel.hasInstrSchedModel())
     Latency = TSchedModel.computeInstrLatency(MCI.getOpcode());
   else if (TSchedModel.hasInstrItineraries()) {
     auto *ItinData = TSchedModel.getInstrItineraries();
     Latency = ItinData->getStageLatency(
-        getInstrInfo()->get(MCI.getOpcode()).getSchedClass());
+        getInstrInfo().get(MCI.getOpcode()).getSchedClass());
   } else
     return std::string();
   Optional<double> RThroughput =

@@ -255,12 +255,12 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
   // Insert a register to register copy at the top of the current block (but
   // after any remaining phi nodes) which copies the new incoming register
   // into the phi node destination.
-  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF.getSubtarget().getInstrInfo();
   if (isSourceDefinedByImplicitDef(MPhi, MRI))
     // If all sources of a PHI node are implicit_def, just emit an
     // implicit_def instead of a copy.
     BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
-            TII->get(TargetOpcode::IMPLICIT_DEF), DestReg);
+            TII.get(TargetOpcode::IMPLICIT_DEF), DestReg);
   else {
     // Can we reuse an earlier PHI node? This only happens for critical edges,
     // typically those created by tail duplication.
@@ -276,7 +276,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
       entry = IncomingReg = MF.getRegInfo().createVirtualRegister(RC);
     }
     BuildMI(MBB, AfterPHIsIt, MPhi->getDebugLoc(),
-            TII->get(TargetOpcode::COPY), DestReg)
+            TII.get(TargetOpcode::COPY), DestReg)
       .addReg(IncomingReg);
   }
 
@@ -400,7 +400,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
         // COPY, but we still need to ensure joint dominance by defs.
         // Insert an IMPLICIT_DEF instruction.
         NewSrcInstr = BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
-                              TII->get(TargetOpcode::IMPLICIT_DEF),
+                              TII.get(TargetOpcode::IMPLICIT_DEF),
                               IncomingReg);
 
         // Clean up the old implicit-def, if there even was one.
@@ -409,7 +409,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
             ImpDefs.insert(DefMI);
       } else {
         NewSrcInstr = BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
-                            TII->get(TargetOpcode::COPY), IncomingReg)
+                            TII.get(TargetOpcode::COPY), IncomingReg)
                         .addReg(SrcReg, 0, SrcSubReg);
       }
     }

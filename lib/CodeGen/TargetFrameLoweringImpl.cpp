@@ -43,12 +43,12 @@ bool TargetFrameLowering::noFramePointerElim(const MachineFunction &MF) const {
 int TargetFrameLowering::getFrameIndexReference(const MachineFunction &MF,
                                              int FI, unsigned &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const TargetRegisterInfo *RI = MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
 
   // By default, assume all frame indices are referenced via whatever
   // getFrameRegister() says. The target can override this if it's doing
   // something different.
-  FrameReg = RI->getFrameRegister(MF);
+  FrameReg = TRI.getFrameRegister(MF);
 
   return MFI.getObjectOffset(FI) + MFI.getStackSize() -
          getOffsetOfLocalArea() + MFI.getOffsetAdjustment();
@@ -62,7 +62,7 @@ bool TargetFrameLowering::needsFrameIndexResolution(
 void TargetFrameLowering::determineCalleeSaves(MachineFunction &MF,
                                                BitVector &SavedRegs,
                                                RegScavenger *RS) const {
-  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
 
   // Resize before the early returns. Some backends expect that
   // SavedRegs.size() == TRI.getNumRegs() after this call even if there are no

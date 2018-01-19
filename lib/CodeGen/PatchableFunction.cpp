@@ -68,9 +68,9 @@ bool PatchableFunction::runOnMachineFunction(MachineFunction &MF) {
   for (; doesNotGeneratecode(*FirstActualI); ++FirstActualI)
     assert(FirstActualI != FirstMBB.end());
 
-  auto *TII = MF.getSubtarget().getInstrInfo();
+  auto &TII = MF.getSubtarget().getInstrInfo();
   auto MIB = BuildMI(FirstMBB, FirstActualI, FirstActualI->getDebugLoc(),
-                     TII->get(TargetOpcode::PATCHABLE_OP))
+                     TII.get(TargetOpcode::PATCHABLE_OP))
                  .addImm(2)
                  .addImm(FirstActualI->getOpcode());
 

@@ -160,7 +160,7 @@ float VirtRegAuxInfo::futureWeight(LiveInterval &li, SlotIndex start,
 float VirtRegAuxInfo::weightCalcHelper(LiveInterval &li, SlotIndex *start,
                                        SlotIndex *end) {
   MachineRegisterInfo &mri = MF.getRegInfo();
-  const TargetRegisterInfo &tri = *MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &tri = MF.getSubtarget().getRegisterInfo();
   MachineBasicBlock *mbb = nullptr;
   MachineLoop *loop = nullptr;
   bool isExiting = false;
@@ -317,7 +317,7 @@ float VirtRegAuxInfo::weightCalcHelper(LiveInterval &li, SlotIndex *start,
   // it is a preferred candidate for spilling.
   // FIXME: this gets much more complicated once we support non-trivial
   // re-materialization.
-  if (isRematerializable(li, LIS, VRM, *MF.getSubtarget().getInstrInfo()))
+  if (isRematerializable(li, LIS, VRM, MF.getSubtarget().getInstrInfo()))
     totalWeight *= 0.5F;
 
   if (localSplitArtifact)

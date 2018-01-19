@@ -670,7 +670,7 @@ llvm::getFuncletMembership(const MachineFunction &MF) {
   bool IsSEH = isAsynchronousEHPersonality(
       classifyEHPersonality(MF.getFunction().getPersonalityFn()));
 
-  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF.getSubtarget().getInstrInfo();
   SmallVector<const MachineBasicBlock *, 16> FuncletBlocks;
   SmallVector<const MachineBasicBlock *, 16> UnreachableBlocks;
   SmallVector<const MachineBasicBlock *, 16> SEHCatchPads;
@@ -688,7 +688,7 @@ llvm::getFuncletMembership(const MachineFunction &MF) {
 
     // CatchPads are not funclets for SEH so do not consider CatchRet to
     // transfer control to another funclet.
-    if (MBBI == MBB.end() || MBBI->getOpcode() != TII->getCatchReturnOpcode())
+    if (MBBI == MBB.end() || MBBI->getOpcode() != TII.getCatchReturnOpcode())
       continue;
 
     // FIXME: SEH CatchPads are not necessarily in the parent function:

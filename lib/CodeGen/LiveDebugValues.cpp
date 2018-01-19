@@ -735,8 +735,8 @@ bool LiveDebugValues::runOnMachineFunction(MachineFunction &MF) {
       DICompileUnit::NoDebug)
     return false;
 
-  TRI = MF.getSubtarget().getRegisterInfo();
-  TII = MF.getSubtarget().getInstrInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
   TFI = MF.getSubtarget().getFrameLowering();
   LS.initialize(MF);
 

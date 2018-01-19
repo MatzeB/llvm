@@ -185,7 +185,7 @@ class ShrinkWrap : public MachineFunctionPass {
     MBFI = &getAnalysis<MachineBlockFrequencyInfo>();
     MLI = &getAnalysis<MachineLoopInfo>();
     EntryFreq = MBFI->getEntryFreq();
-    const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+    const TargetInstrInfo &TII = MF.getSubtarget().getInstrInfo();
     FrameSetupOpcode = TII.getCallFrameSetupOpcode();
     FrameDestroyOpcode = TII.getCallFrameDestroyOpcode();
     Entry = &MF.front();
@@ -467,9 +467,9 @@ bool ShrinkWrap::runOnMachineFunction(MachineFunction &MF) {
     return false;
   }
 
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
   std::unique_ptr<RegScavenger> RS(
-      TRI->requiresRegisterScavenging(MF) ? new RegScavenger() : nullptr);
+      TRI.requiresRegisterScavenging(MF) ? new RegScavenger() : nullptr);
 
   for (MachineBasicBlock &MBB : MF) {
     DEBUG(dbgs() << "Look into: " << MBB.getNumber() << ' ' << MBB.getName()

@@ -137,8 +137,8 @@ bool ProcessImplicitDefs::runOnMachineFunction(MachineFunction &MF) {
 
   bool Changed = false;
 
-  TII = MF.getSubtarget().getInstrInfo();
-  TRI = MF.getSubtarget().getRegisterInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   assert(MRI->isSSA() && "ProcessImplicitDefs only works on SSA form.");
   assert(WorkList.empty() && "Inconsistent worklist state");

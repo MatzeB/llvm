@@ -202,7 +202,7 @@ bool FixupLEAPass::runOnMachineFunction(MachineFunction &Func) {
   if (!OptLEA && !OptIncDec)
     return false;
 
-  TII = ST.getInstrInfo();
+  TII = &ST.getInstrInfo();
 
   DEBUG(dbgs() << "Start X86FixupLEAs\n";);
   // Process all basic blocks.

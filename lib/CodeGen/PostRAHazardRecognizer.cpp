@@ -67,9 +67,9 @@ INITIALIZE_PASS(PostRAHazardRecognizer, DEBUG_TYPE,
                 "Post RA hazard recognizer", false, false)
 
 bool PostRAHazardRecognizer::runOnMachineFunction(MachineFunction &Fn) {
-  const TargetInstrInfo *TII = Fn.getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = Fn.getSubtarget().getInstrInfo();
   std::unique_ptr<ScheduleHazardRecognizer> HazardRec(
-      TII->CreateTargetPostRAHazardRecognizer(Fn));
+      TII.CreateTargetPostRAHazardRecognizer(Fn));
 
   // Return if the target has not implemented a hazard recognizer.
   if (!HazardRec.get())
@@ -84,7 +84,7 @@ bool PostRAHazardRecognizer::runOnMachineFunction(MachineFunction &Fn) {
       unsigned NumPreNoops = HazardRec->PreEmitNoops(&MI);
       for (unsigned i = 0; i != NumPreNoops; ++i) {
         HazardRec->EmitNoop();
-        TII->insertNoop(MBB, MachineBasicBlock::iterator(MI));
+        TII.insertNoop(MBB, MachineBasicBlock::iterator(MI));
         ++NumNoops;
       }
 

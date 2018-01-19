@@ -176,8 +176,8 @@ bool X86CmovConverterPass::runOnMachineFunction(MachineFunction &MF) {
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
   const TargetSubtargetInfo &STI = MF.getSubtarget();
   MRI = &MF.getRegInfo();
-  TII = STI.getInstrInfo();
-  TRI = STI.getRegisterInfo();
+  TII = &STI.getInstrInfo();
+  TRI = &STI.getRegisterInfo();
   TSchedModel.init(STI.getSchedModel(), &STI, TII);
 
   // Before we handle the more subtle cases of register-register CMOVs inside

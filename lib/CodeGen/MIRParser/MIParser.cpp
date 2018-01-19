@@ -767,7 +767,7 @@ bool MIParser::parse(MachineInstr *&MI) {
     }
   }
 
-  const auto &MCID = MF.getSubtarget().getInstrInfo()->get(OpCode);
+  const auto &MCID = MF.getSubtarget().getInstrInfo().get(OpCode);
   if (!MCID.isVariadic()) {
     // FIXME: Move the implicit operand verification to the machine verifier.
     if (verifyImplicitOperands(Operands, MCID))

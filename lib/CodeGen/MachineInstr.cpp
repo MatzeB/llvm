@@ -90,10 +90,10 @@ static void tryToGetTargetInfo(const MachineInstr &MI,
                                const TargetInstrInfo *&TII) {
 
   if (const MachineFunction *MF = getMFIfAvailable(MI)) {
-    TRI = MF->getSubtarget().getRegisterInfo();
+    TRI = &MF->getSubtarget().getRegisterInfo();
     MRI = &MF->getRegInfo();
     IntrinsicInfo = MF->getTarget().getIntrinsicInfo();
-    TII = MF->getSubtarget().getInstrInfo();
+    TII = &MF->getSubtarget().getInstrInfo();
   }
 }
 
@@ -984,7 +984,7 @@ bool MachineInstr::isSafeToMove(AliasAnalysis *AA, bool &SawStore) const {
 bool MachineInstr::mayAlias(AliasAnalysis *AA, MachineInstr &Other,
                             bool UseTBAA) {
   const MachineFunction *MF = getMF();
-  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF->getSubtarget().getInstrInfo();
   const MachineFrameInfo &MFI = MF->getFrameInfo();
 
   // If neither instruction stores to memory, they can't alias in any
@@ -993,7 +993,7 @@ bool MachineInstr::mayAlias(AliasAnalysis *AA, MachineInstr &Other,
     return false;
 
   // Let the target decide if memory accesses cannot possibly overlap.
-  if (TII->areMemAccessesTriviallyDisjoint(*this, Other, AA))
+  if (TII.areMemAccessesTriviallyDisjoint(*this, Other, AA))
     return false;
 
   // FIXME: Need to handle multiple memory operands to support all targets.

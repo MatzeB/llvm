@@ -1225,7 +1225,7 @@ MachineOutliner::createOutlinedFunction(Module &M, const OutlinedFunction &OF,
   MachineFunction &MF = MMI.getOrCreateMachineFunction(*F);
   MachineBasicBlock &MBB = *MF.CreateMachineBasicBlock();
   const TargetSubtargetInfo &STI = MF.getSubtarget();
-  const TargetInstrInfo &TII = *STI.getInstrInfo();
+  const TargetInstrInfo &TII = STI.getInstrInfo();
 
   // Insert the new function into the module.
   MF.insert(MF.begin(), &MBB);
@@ -1320,7 +1320,7 @@ bool MachineOutliner::outline(
 
     MachineFunction *MF = OF.MF;
     const TargetSubtargetInfo &STI = MF->getSubtarget();
-    const TargetInstrInfo &TII = *STI.getInstrInfo();
+    const TargetInstrInfo &TII = STI.getInstrInfo();
 
     // Insert a call to the new function and erase the old sequence.
     TII.insertOutlinedCall(M, *MBB, StartIt, *MF, C.MInfo);
@@ -1347,8 +1347,8 @@ bool MachineOutliner::runOnModule(Module &M) {
   MachineModuleInfo &MMI = getAnalysis<MachineModuleInfo>();
   const TargetSubtargetInfo &STI =
       MMI.getOrCreateMachineFunction(*M.begin()).getSubtarget();
-  const TargetRegisterInfo *TRI = STI.getRegisterInfo();
-  const TargetInstrInfo *TII = STI.getInstrInfo();
+  const TargetRegisterInfo &TRI = STI.getRegisterInfo();
+  const TargetInstrInfo &TII = STI.getInstrInfo();
   
   InstructionMapper Mapper;
 
@@ -1358,7 +1358,7 @@ bool MachineOutliner::runOnModule(Module &M) {
 
     // Is the function empty? Safe to outline from?
     if (F.empty() ||
-        !TII->isFunctionSafeToOutlineFrom(MF, OutlineFromLinkOnceODRs))
+        !TII.isFunctionSafeToOutlineFrom(MF, OutlineFromLinkOnceODRs))
       continue;
 
     // If it is, look at each MachineBasicBlock in the function.
@@ -1369,7 +1369,7 @@ bool MachineOutliner::runOnModule(Module &M) {
         continue;
 
       // If yes, map it.
-      Mapper.convertToUnsignedVec(MBB, *TRI, *TII);
+      Mapper.convertToUnsignedVec(MBB, TRI, TII);
     }
   }
 
@@ -1380,10 +1380,10 @@ bool MachineOutliner::runOnModule(Module &M) {
 
   // Find all of the outlining candidates.
   unsigned MaxCandidateLen =
-      buildCandidateList(CandidateList, FunctionList, ST, Mapper, *TII);
+      buildCandidateList(CandidateList, FunctionList, ST, Mapper, TII);
 
   // Remove candidates that overlap with other candidates.
-  pruneOverlaps(CandidateList, FunctionList, Mapper, MaxCandidateLen, *TII);
+  pruneOverlaps(CandidateList, FunctionList, Mapper, MaxCandidateLen, TII);
 
   // Outline each of the candidates and return true if something was outlined.
   bool OutlinedSomething = outline(M, CandidateList, FunctionList, Mapper);

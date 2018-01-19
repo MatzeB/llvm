@@ -46,8 +46,8 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   MF = &mf;
 
   // Allocate new array the first time we see a new target.
-  if (MF->getSubtarget().getRegisterInfo() != TRI) {
-    TRI = MF->getSubtarget().getRegisterInfo();
+  if (&MF->getSubtarget().getRegisterInfo() != TRI) {
+    TRI = &MF->getSubtarget().getRegisterInfo();
     RegClass.reset(new RCInfo[TRI->getNumRegClasses()]);
     unsigned NumPSets = TRI->getNumRegPressureSets();
     PSetLimits.reset(new unsigned[NumPSets]);

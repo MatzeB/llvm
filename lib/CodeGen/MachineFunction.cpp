@@ -137,10 +137,7 @@ void MachineFunction::init() {
   // Assume the function starts in SSA form with correct liveness.
   Properties.set(MachineFunctionProperties::Property::IsSSA);
   Properties.set(MachineFunctionProperties::Property::TracksLiveness);
-  if (STI->getRegisterInfo())
-    RegInfo = new (Allocator) MachineRegisterInfo(this);
-  else
-    RegInfo = nullptr;
+  RegInfo = new (Allocator) MachineRegisterInfo(this);
 
   MFInfo = nullptr;
   // We can realign the stack if the target supports it and the user hasn't
@@ -179,8 +176,7 @@ void MachineFunction::init() {
          "Target-incompatible DataLayout attached\n");
 
   PSVManager =
-    llvm::make_unique<PseudoSourceValueManager>(*(getSubtarget().
-                                                  getInstrInfo()));
+    llvm::make_unique<PseudoSourceValueManager>(getSubtarget().getInstrInfo());
 }
 
 MachineFunction::~MachineFunction() {
@@ -503,15 +499,15 @@ void MachineFunction::print(raw_ostream &OS, const SlotIndexes *Indexes) const {
   // Print Constant Pool
   ConstantPool->print(OS);
 
-  const TargetRegisterInfo *TRI = getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = getSubtarget().getRegisterInfo();
 
   if (RegInfo && !RegInfo->livein_empty()) {
     OS << "Function Live Ins: ";
     for (MachineRegisterInfo::livein_iterator
          I = RegInfo->livein_begin(), E = RegInfo->livein_end(); I != E; ++I) {
-      OS << printReg(I->first, TRI);
+      OS << printReg(I->first, &TRI);
       if (I->second)
-        OS << " in " << printReg(I->second, TRI);
+        OS << " in " << printReg(I->second, &TRI);
       if (std::next(I) != E)
         OS << ", ";
     }

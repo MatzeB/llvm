@@ -292,7 +292,7 @@ bool ImplicitNullChecks::canReorder(const MachineInstr *A,
 }
 
 bool ImplicitNullChecks::runOnMachineFunction(MachineFunction &MF) {
-  TII = MF.getSubtarget().getInstrInfo();
+  TII = &MF.getSubtarget().getInstrInfo();
   TRI = MF.getRegInfo().getTargetRegisterInfo();
   MFI = &MF.getFrameInfo();
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();

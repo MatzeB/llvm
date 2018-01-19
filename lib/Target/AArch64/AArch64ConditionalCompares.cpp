@@ -192,8 +192,8 @@ public:
                             const MachineBranchProbabilityInfo *MBPI) {
     this->MF = &MF;
     this->MBPI = MBPI;
-    TII = MF.getSubtarget().getInstrInfo();
-    TRI = MF.getSubtarget().getRegisterInfo();
+    TII = &MF.getSubtarget().getInstrInfo();
+    TRI = &MF.getSubtarget().getRegisterInfo();
     MRI = &MF.getRegInfo();
   }
 

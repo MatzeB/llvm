@@ -153,8 +153,8 @@ private:
 public:
   /// runOnMachineFunction - Initialize per-function data structures.
   void runOnMachineFunction(MachineFunction &MF) {
-    TII = MF.getSubtarget().getInstrInfo();
-    TRI = MF.getSubtarget().getRegisterInfo();
+    TII = &MF.getSubtarget().getInstrInfo();
+    TRI = &MF.getSubtarget().getRegisterInfo();
     MRI = &MF.getRegInfo();
     LiveRegUnits.clear();
     LiveRegUnits.setUniverse(TRI->getNumRegUnits());
@@ -793,8 +793,8 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   if (!STI.enableEarlyIfConversion())
     return false;
 
-  TII = STI.getInstrInfo();
-  TRI = STI.getRegisterInfo();
+  TII = &STI.getInstrInfo();
+  TRI = &STI.getRegisterInfo();
   SchedModel = STI.getSchedModel();
   MRI = &MF.getRegInfo();
   DomTree = &getAnalysis<MachineDominatorTree>();

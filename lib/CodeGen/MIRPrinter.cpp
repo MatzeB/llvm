@@ -120,7 +120,7 @@ public:
   void print(const MachineFunction &MF);
 
   void convert(yaml::MachineFunction &MF, const MachineRegisterInfo &RegInfo,
-               const TargetRegisterInfo *TRI);
+               const TargetRegisterInfo &TRI);
   void convert(ModuleSlotTracker &MST, yaml::MachineFrameInfo &YamlMFI,
                const MachineFrameInfo &MFI);
   void convert(yaml::MachineFunction &MF,
@@ -160,7 +160,7 @@ public:
   void printIRValueReference(const Value &V);
   void printStackObjectReference(int FrameIndex);
   void print(const MachineInstr &MI, unsigned OpIdx,
-             const TargetRegisterInfo *TRI, bool ShouldPrintRegisterTies,
+             const TargetRegisterInfo &TRI, bool ShouldPrintRegisterTies,
              LLT TypeToPrint, bool PrintDef = true);
   void print(const LLVMContext &Context, const TargetInstrInfo &TII,
              const MachineMemOperand &Op);
@@ -188,9 +188,9 @@ template <> struct BlockScalarTraits<Module> {
 } // end namespace llvm
 
 static void printRegMIR(unsigned Reg, yaml::StringValue &Dest,
-                        const TargetRegisterInfo *TRI) {
+                        const TargetRegisterInfo &TRI) {
   raw_string_ostream OS(Dest.Value);
-  OS << printReg(Reg, TRI);
+  OS << printReg(Reg, &TRI);
 }
 
 void MIRPrinter::print(const MachineFunction &MF) {
@@ -234,17 +234,17 @@ void MIRPrinter::print(const MachineFunction &MF) {
 }
 
 static void printCustomRegMask(const uint32_t *RegMask, raw_ostream &OS,
-                               const TargetRegisterInfo *TRI) {
+                               const TargetRegisterInfo &TRI) {
   assert(RegMask && "Can't print an empty register mask");
   OS << StringRef("CustomRegMask(");
 
   bool IsRegInRegMaskFound = false;
-  for (int I = 0, E = TRI->getNumRegs(); I < E; I++) {
+  for (int I = 0, E = TRI.getNumRegs(); I < E; I++) {
     // Check whether the register is asserted in regmask.
     if (RegMask[I / 32] & (1u << (I % 32))) {
       if (IsRegInRegMaskFound)
         OS << ',';
-      OS << printReg(I, TRI);
+      OS << printReg(I, &TRI);
       IsRegInRegMaskFound = true;
     }
   }
@@ -254,15 +254,15 @@ static void printCustomRegMask(const uint32_t *RegMask, raw_ostream &OS,
 
 static void printRegClassOrBank(unsigned Reg, yaml::StringValue &Dest,
                                 const MachineRegisterInfo &RegInfo,
-                                const TargetRegisterInfo *TRI) {
+                                const TargetRegisterInfo &TRI) {
   raw_string_ostream OS(Dest.Value);
-  OS << printRegClassOrBank(Reg, RegInfo, TRI);
+  OS << printRegClassOrBank(Reg, RegInfo, &TRI);
 }
 
 
 void MIRPrinter::convert(yaml::MachineFunction &MF,
                          const MachineRegisterInfo &RegInfo,
-                         const TargetRegisterInfo *TRI) {
+                         const TargetRegisterInfo &TRI) {
   MF.TracksRegLiveness = RegInfo.tracksLiveness();
 
   // Print the virtual register definitions.
@@ -330,7 +330,7 @@ void MIRPrinter::convertStackObjects(yaml::MachineFunction &YMF,
                                      const MachineFunction &MF,
                                      ModuleSlotTracker &MST) {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
   // Process fixed stack objects.
   unsigned ID = 0;
   for (int I = MFI.getObjectIndexBegin(); I < 0; ++I) {
@@ -480,9 +480,9 @@ void MIRPrinter::convert(ModuleSlotTracker &MST,
 }
 
 void MIRPrinter::initRegisterMaskIds(const MachineFunction &MF) {
-  const auto *TRI = MF.getSubtarget().getRegisterInfo();
+  const auto &TRI = MF.getSubtarget().getRegisterInfo();
   unsigned I = 0;
-  for (const uint32_t *Mask : TRI->getRegMasks())
+  for (const uint32_t *Mask : TRI.getRegMasks())
     RegisterMaskIds.insert(std::make_pair(Mask, I++));
 }
 
@@ -646,10 +646,8 @@ void MIPrinter::print(const MachineInstr &MI) {
   const auto *MF = MI.getMF();
   const auto &MRI = MF->getRegInfo();
   const auto &SubTarget = MF->getSubtarget();
-  const auto *TRI = SubTarget.getRegisterInfo();
-  assert(TRI && "Expected target register info");
-  const auto *TII = SubTarget.getInstrInfo();
-  assert(TII && "Expected target instruction info");
+  const auto &TRI = SubTarget.getRegisterInfo();
+  const auto &TII = SubTarget.getInstrInfo();
   if (MI.isCFIInstruction())
     assert(MI.getNumOperands() == 1 && "Expected 1 operand in CFI instruction");
 
@@ -673,7 +671,7 @@ void MIPrinter::print(const MachineInstr &MI) {
   else if (MI.getFlag(MachineInstr::FrameDestroy))
     OS << "frame-destroy ";
 
-  OS << TII->getName(MI.getOpcode());
+  OS << TII.getName(MI.getOpcode());
   if (I < E)
     OS << ' ';
 
@@ -700,7 +698,7 @@ void MIPrinter::print(const MachineInstr &MI) {
     for (const auto *Op : MI.memoperands()) {
       if (NeedComma)
         OS << ", ";
-      print(Context, *TII, *Op);
+      print(Context, TII, *Op);
       NeedComma = true;
     }
   }
@@ -736,7 +734,7 @@ void MIPrinter::printStackObjectReference(int FrameIndex) {
 }
 
 void MIPrinter::print(const MachineInstr &MI, unsigned OpIdx,
-                      const TargetRegisterInfo *TRI,
+                      const TargetRegisterInfo &TRI,
                       bool ShouldPrintRegisterTies, LLT TypeToPrint,
                       bool PrintDef) {
   const MachineOperand &Op = MI.getOperand(OpIdx);
@@ -744,7 +742,7 @@ void MIPrinter::print(const MachineInstr &MI, unsigned OpIdx,
   case MachineOperand::MO_Immediate:
     if (MI.isOperandSubregIdx(OpIdx)) {
       MachineOperand::printTargetFlags(OS, Op);
-      MachineOperand::printSubRegIdx(OS, Op.getImm(), TRI);
+      MachineOperand::printSubRegIdx(OS, Op.getImm(), &TRI);
       break;
     }
     LLVM_FALLTHROUGH;
@@ -769,7 +767,7 @@ void MIPrinter::print(const MachineInstr &MI, unsigned OpIdx,
       TiedOperandIdx = Op.getParent()->findTiedOperandIdx(OpIdx);
     const TargetIntrinsicInfo *TII = MI.getMF()->getTarget().getIntrinsicInfo();
     Op.print(OS, MST, TypeToPrint, PrintDef, /*IsStandalone=*/false,
-             ShouldPrintRegisterTies, TiedOperandIdx, TRI, TII);
+             ShouldPrintRegisterTies, TiedOperandIdx, &TRI, TII);
     break;
   }
   case MachineOperand::MO_FrameIndex:
@@ -778,7 +776,7 @@ void MIPrinter::print(const MachineInstr &MI, unsigned OpIdx,
   case MachineOperand::MO_RegisterMask: {
     auto RegMaskInfo = RegisterMaskIds.find(Op.getRegMask());
     if (RegMaskInfo != RegisterMaskIds.end())
-      OS << StringRef(TRI->getRegMaskNames()[RegMaskInfo->second]).lower();
+      OS << StringRef(TRI.getRegMaskNames()[RegMaskInfo->second]).lower();
     else
       printCustomRegMask(Op.getRegMask(), OS, TRI);
     break;

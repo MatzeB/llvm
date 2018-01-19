@@ -1085,8 +1085,8 @@ bool RegAllocFast::runOnMachineFunction(MachineFunction &MF) {
                << "********** Function: " << MF.getName() << '\n');
   MRI = &MF.getRegInfo();
   const TargetSubtargetInfo &STI = MF.getSubtarget();
-  TRI = STI.getRegisterInfo();
-  TII = STI.getInstrInfo();
+  TRI = &STI.getRegisterInfo();
+  TII = &STI.getInstrInfo();
   MFI = &MF.getFrameInfo();
   MRI->freezeReservedRegs(MF);
   RegClassInfo.runOnMachineFunction(MF);

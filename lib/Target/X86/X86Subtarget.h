@@ -406,7 +406,7 @@ public:
     return &TLInfo;
   }
 
-  const X86InstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const X86InstrInfo &getInstrInfo() const override { return InstrInfo; }
 
   const X86FrameLowering *getFrameLowering() const override {
     return &FrameLowering;
@@ -416,8 +416,8 @@ public:
     return &TSInfo;
   }
 
-  const X86RegisterInfo *getRegisterInfo() const override {
-    return &getInstrInfo()->getRegisterInfo();
+  const X86RegisterInfo &getRegisterInfo() const override {
+    return getInstrInfo().getRegisterInfo();
   }
 
   /// Returns the minimum alignment known to hold of the

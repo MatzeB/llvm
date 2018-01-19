@@ -456,8 +456,8 @@ public:
     return &TSInfo;
   }
 
-  const ARMBaseInstrInfo *getInstrInfo() const override {
-    return InstrInfo.get();
+  const ARMBaseInstrInfo &getInstrInfo() const override {
+    return *InstrInfo;
   }
 
   const ARMTargetLowering *getTargetLowering() const override {
@@ -468,8 +468,8 @@ public:
     return FrameLowering.get();
   }
 
-  const ARMBaseRegisterInfo *getRegisterInfo() const override {
-    return &InstrInfo->getRegisterInfo();
+  const ARMBaseRegisterInfo &getRegisterInfo() const override {
+    return InstrInfo->getRegisterInfo();
   }
 
   const CallLowering *getCallLowering() const override;

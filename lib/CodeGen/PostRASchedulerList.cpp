@@ -212,7 +212,7 @@ SchedulePostRATDList::SchedulePostRATDList(
   const InstrItineraryData *InstrItins =
       MF.getSubtarget().getInstrItineraryData();
   HazardRec =
-      MF.getSubtarget().getInstrInfo()->CreateTargetPostRAHazardRecognizer(
+      MF.getSubtarget().getInstrInfo().CreateTargetPostRAHazardRecognizer(
           InstrItins, this);
   MF.getSubtarget().getPostRAMutations(Mutations);
 
@@ -282,7 +282,7 @@ bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
   if (skipFunction(Fn.getFunction()))
     return false;
 
-  TII = Fn.getSubtarget().getInstrInfo();
+  TII = &Fn.getSubtarget().getInstrInfo();
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
   AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   TargetPassConfig *PassConfig = &getAnalysis<TargetPassConfig>();

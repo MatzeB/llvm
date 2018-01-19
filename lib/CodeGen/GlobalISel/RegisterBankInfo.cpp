@@ -165,10 +165,10 @@ RegisterBankInfo::getInstrMappingImpl(const MachineInstr &MI) const {
 
   const MachineFunction &MF = *MI.getMF();
   const TargetSubtargetInfo &STI = MF.getSubtarget();
-  const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
+  const TargetRegisterInfo &TRI = STI.getRegisterInfo();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   // We may need to query the instruction encoding to guess the mapping.
-  const TargetInstrInfo &TII = *STI.getInstrInfo();
+  const TargetInstrInfo &TII = STI.getInstrInfo();
 
   // Before doing anything complicated check if the mapping is not
   // directly available.

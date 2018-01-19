@@ -168,9 +168,9 @@ public:
   const AArch64TargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
-  const AArch64InstrInfo *getInstrInfo() const override { return &InstrInfo; }
-  const AArch64RegisterInfo *getRegisterInfo() const override {
-    return &getInstrInfo()->getRegisterInfo();
+  const AArch64InstrInfo &getInstrInfo() const override { return &InstrInfo; }
+  const AArch64RegisterInfo &getRegisterInfo() const override {
+    return getInstrInfo().getRegisterInfo();
   }
   const CallLowering *getCallLowering() const override;
   const InstructionSelector *getInstructionSelector() const override;

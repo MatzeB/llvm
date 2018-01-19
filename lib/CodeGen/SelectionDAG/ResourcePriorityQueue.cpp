@@ -44,9 +44,9 @@ static cl::opt<int> RegPressureThreshold(
 ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS)
     : Picker(this), InstrItins(IS->MF->getSubtarget().getInstrItineraryData()) {
   const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
-  TRI = STI.getRegisterInfo();
+  TRI = &STI.getRegisterInfo();
   TLI = IS->TLI;
-  TII = STI.getInstrInfo();
+  TII = &STI.getInstrInfo();
   ResourcesModel.reset(TII->CreateTargetScheduleState(STI));
   // This hard requirement could be relaxed, but for now
   // do not let it proceed.

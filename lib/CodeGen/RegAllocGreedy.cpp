@@ -3027,7 +3027,7 @@ void RAGreedy::reportNumberOfSplillsReloads(MachineLoop *L, unsigned &Reloads,
   }
 
   const MachineFrameInfo &MFI = MF->getFrameInfo();
-  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF->getSubtarget().getInstrInfo();
   int FI;
 
   for (MachineBasicBlock *MBB : L->getBlocks())
@@ -3036,15 +3036,15 @@ void RAGreedy::reportNumberOfSplillsReloads(MachineLoop *L, unsigned &Reloads,
       for (MachineInstr &MI : *MBB) {
         const MachineMemOperand *MMO;
 
-        if (TII->isLoadFromStackSlot(MI, FI) && MFI.isSpillSlotObjectIndex(FI))
+        if (TII.isLoadFromStackSlot(MI, FI) && MFI.isSpillSlotObjectIndex(FI))
           ++Reloads;
-        else if (TII->hasLoadFromStackSlot(MI, MMO, FI) &&
+        else if (TII.hasLoadFromStackSlot(MI, MMO, FI) &&
                  MFI.isSpillSlotObjectIndex(FI))
           ++FoldedReloads;
-        else if (TII->isStoreToStackSlot(MI, FI) &&
+        else if (TII.isStoreToStackSlot(MI, FI) &&
                  MFI.isSpillSlotObjectIndex(FI))
           ++Spills;
-        else if (TII->hasStoreToStackSlot(MI, MMO, FI) &&
+        else if (TII.hasStoreToStackSlot(MI, MMO, FI) &&
                  MFI.isSpillSlotObjectIndex(FI))
           ++FoldedSpills;
       }
@@ -3074,8 +3074,8 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
                << "********** Function: " << mf.getName() << '\n');
 
   MF = &mf;
-  TRI = MF->getSubtarget().getRegisterInfo();
-  TII = MF->getSubtarget().getInstrInfo();
+  TRI = &MF->getSubtarget().getRegisterInfo();
+  TII = &MF->getSubtarget().getInstrInfo();
   RCI.runOnMachineFunction(mf);
 
   EnableLocalReassign = EnableLocalReassignment ||

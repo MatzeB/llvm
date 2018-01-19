@@ -108,7 +108,7 @@ bool StackMapLiveness::runOnMachineFunction(MachineFunction &MF) {
 
   DEBUG(dbgs() << "********** COMPUTING STACKMAP LIVENESS: " << MF.getName()
                << " **********\n");
-  TRI = MF.getSubtarget().getRegisterInfo();
+  TRI = &MF.getSubtarget().getRegisterInfo();
   ++NumStackMapFuncVisited;
 
   // Skip this function if there are no patchpoints to process.

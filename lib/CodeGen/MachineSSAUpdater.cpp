@@ -43,7 +43,7 @@ static AvailableValsTy &getAvailableVals(void *AV) {
 
 MachineSSAUpdater::MachineSSAUpdater(MachineFunction &MF,
                                      SmallVectorImpl<MachineInstr*> *NewPHI)
-  : InsertedPHIs(NewPHI), TII(MF.getSubtarget().getInstrInfo()),
+  : InsertedPHIs(NewPHI), TII(&MF.getSubtarget().getInstrInfo()),
     MRI(&MF.getRegInfo()) {}
 
 MachineSSAUpdater::~MachineSSAUpdater() {

@@ -144,7 +144,7 @@ public:
   MachineRegisterInfo &operator=(const MachineRegisterInfo &) = delete;
 
   const TargetRegisterInfo *getTargetRegisterInfo() const {
-    return MF->getSubtarget().getRegisterInfo();
+    return &MF->getSubtarget().getRegisterInfo();
   }
 
   void resetDelegate(Delegate *delegate) {

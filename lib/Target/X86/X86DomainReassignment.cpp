@@ -709,7 +709,7 @@ bool X86DomainReassignment::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   assert(MRI->isSSA() && "Expected MIR to be in SSA form");
 
-  TII = STI->getInstrInfo();
+  TII = &STI->getInstrInfo();
   initConverters();
   bool Changed = false;
 

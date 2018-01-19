@@ -621,7 +621,7 @@ void LiveVariables::runOnBlock(MachineBasicBlock *MBB, const unsigned NumRegs) {
 bool LiveVariables::runOnMachineFunction(MachineFunction &mf) {
   MF = &mf;
   MRI = &mf.getRegInfo();
-  TRI = MF->getSubtarget().getRegisterInfo();
+  TRI = &MF->getSubtarget().getRegisterInfo();
 
   const unsigned NumRegs = TRI->getNumRegs();
   PhysRegDef.assign(NumRegs, nullptr);

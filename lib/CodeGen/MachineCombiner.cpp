@@ -540,8 +540,8 @@ bool MachineCombiner::combineInstructions(MachineBasicBlock *MBB) {
 
 bool MachineCombiner::runOnMachineFunction(MachineFunction &MF) {
   const TargetSubtargetInfo &STI = MF.getSubtarget();
-  TII = STI.getInstrInfo();
-  TRI = STI.getRegisterInfo();
+  TII = &STI.getInstrInfo();
+  TRI = &STI.getRegisterInfo();
   SchedModel = STI.getSchedModel();
   TSchedModel.init(SchedModel, &STI, TII);
   MRI = &MF.getRegInfo();

@@ -297,8 +297,8 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
 
     if (const MachineFunction *MF = getMFIfAvailable(*this)) {
       // Calculate the size of the RegMask
-      const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
-      unsigned RegMaskSize = (TRI->getNumRegs() + 31) / 32;
+      const TargetRegisterInfo &TRI = MF->getSubtarget().getRegisterInfo();
+      unsigned RegMaskSize = (TRI.getNumRegs() + 31) / 32;
 
       // Deep compare of the two RegMasks
       return std::equal(RegMask, RegMask + RegMaskSize, OtherRegMask);
@@ -375,15 +375,14 @@ static void tryToGetTargetInfo(const MachineOperand &MO,
                                const TargetRegisterInfo *&TRI,
                                const TargetIntrinsicInfo *&IntrinsicInfo) {
   if (const MachineFunction *MF = getMFIfAvailable(MO)) {
-    TRI = MF->getSubtarget().getRegisterInfo();
+    TRI = &MF->getSubtarget().getRegisterInfo();
     IntrinsicInfo = MF->getTarget().getIntrinsicInfo();
   }
 }
 
 static const char *getTargetIndexName(const MachineFunction &MF, int Index) {
-  const auto *TII = MF.getSubtarget().getInstrInfo();
-  assert(TII && "expected instruction info");
-  auto Indices = TII->getSerializableTargetIndices();
+  const auto &TII = MF.getSubtarget().getInstrInfo();
+  auto Indices = TII.getSerializableTargetIndices();
   auto Found = find_if(Indices, [&](const std::pair<int, const char *> &I) {
     return I.first == Index;
   });
@@ -392,8 +391,8 @@ static const char *getTargetIndexName(const MachineFunction &MF, int Index) {
   return nullptr;
 }
 
-static const char *getTargetFlagName(const TargetInstrInfo *TII, unsigned TF) {
-  auto Flags = TII->getSerializableDirectMachineOperandTargetFlags();
+static const char *getTargetFlagName(const TargetInstrInfo &TII, unsigned TF) {
+  auto Flags = TII.getSerializableDirectMachineOperandTargetFlags();
   for (const auto &I : Flags) {
     if (I.first == TF) {
       return I.second;
@@ -457,9 +456,8 @@ void MachineOperand::printTargetFlags(raw_ostream &OS,
   if (!MF)
     return;
 
-  const auto *TII = MF->getSubtarget().getInstrInfo();
-  assert(TII && "expected instruction info");
-  auto Flags = TII->decomposeMachineOperandsTargetFlags(Op.getTargetFlags());
+  const auto &TII = MF->getSubtarget().getInstrInfo();
+  auto Flags = TII.decomposeMachineOperandsTargetFlags(Op.getTargetFlags());
   OS << "target-flags(";
   const bool HasDirectFlags = Flags.first;
   const bool HasBitmaskFlags = Flags.second;
@@ -479,7 +477,7 @@ void MachineOperand::printTargetFlags(raw_ostream &OS,
   }
   bool IsCommaNeeded = HasDirectFlags;
   unsigned BitMask = Flags.second;
-  auto BitMasks = TII->getSerializableBitmaskMachineOperandTargetFlags();
+  auto BitMasks = TII.getSerializableBitmaskMachineOperandTargetFlags();
   for (const auto &Mask : BitMasks) {
     // Check if the flag's bitmask has the bits of the current mask set.
     if ((BitMask & Mask.first) == Mask.first) {

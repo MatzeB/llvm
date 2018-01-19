@@ -810,7 +810,7 @@ bool LDVImpl::runOnMachineFunction(MachineFunction &mf) {
   clear();
   MF = &mf;
   LIS = &pass.getAnalysis<LiveIntervals>();
-  TRI = mf.getSubtarget().getRegisterInfo();
+  TRI = &mf.getSubtarget().getRegisterInfo();
   DEBUG(dbgs() << "********** COMPUTING LIVE DEBUG VARIABLES: "
                << mf.getName() << " **********\n");
 
@@ -1202,12 +1202,12 @@ void LDVImpl::emitDebugValues(VirtRegMap *VRM) {
   DEBUG(dbgs() << "********** EMITTING LIVE DEBUG VARIABLES **********\n");
   if (!MF)
     return;
-  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF->getSubtarget().getInstrInfo();
   BitVector SpilledLocations;
   for (unsigned i = 0, e = userValues.size(); i != e; ++i) {
     DEBUG(userValues[i]->print(dbgs(), TRI));
     userValues[i]->rewriteLocations(*VRM, *TRI, SpilledLocations);
-    userValues[i]->emitDebugValues(VRM, *LIS, *TII, *TRI, SpilledLocations);
+    userValues[i]->emitDebugValues(VRM, *LIS, TII, *TRI, SpilledLocations);
   }
   EmitDone = true;
 }

@@ -90,10 +90,10 @@ StackMaps::StackMaps(AsmPrinter &AP) : AP(AP) {
 }
 
 /// Go up the super-register chain until we hit a valid dwarf register number.
-static unsigned getDwarfRegNum(unsigned Reg, const TargetRegisterInfo *TRI) {
-  int RegNum = TRI->getDwarfRegNum(Reg, false);
-  for (MCSuperRegIterator SR(Reg, TRI); SR.isValid() && RegNum < 0; ++SR)
-    RegNum = TRI->getDwarfRegNum(*SR, false);
+static unsigned getDwarfRegNum(unsigned Reg, const TargetRegisterInfo &TRI) {
+  int RegNum = TRI.getDwarfRegNum(Reg, false);
+  for (MCSuperRegIterator SR(Reg, &TRI); SR.isValid() && RegNum < 0; ++SR)
+    RegNum = TRI.getDwarfRegNum(*SR, false);
 
   assert(RegNum >= 0 && "Invalid Dwarf register number.");
   return (unsigned)RegNum;
@@ -103,7 +103,7 @@ MachineInstr::const_mop_iterator
 StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
                         MachineInstr::const_mop_iterator MOE, LocationVec &Locs,
                         LiveOutVec &LiveOuts) const {
-  const TargetRegisterInfo *TRI = AP.MF->getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = AP.MF->getSubtarget().getRegisterInfo();
   if (MOI->isImm()) {
     switch (MOI->getImm()) {
     default:
@@ -151,17 +151,17 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
 
     assert(TargetRegisterInfo::isPhysicalRegister(MOI->getReg()) &&
            "Virtreg operands should have been rewritten before now.");
-    const TargetRegisterClass *RC = TRI->getMinimalPhysRegClass(MOI->getReg());
+    const TargetRegisterClass *RC = TRI.getMinimalPhysRegClass(MOI->getReg());
     assert(!MOI->getSubReg() && "Physical subreg still around.");
 
     unsigned Offset = 0;
     unsigned DwarfRegNum = getDwarfRegNum(MOI->getReg(), TRI);
-    unsigned LLVMRegNum = TRI->getLLVMRegNum(DwarfRegNum, false);
-    unsigned SubRegIdx = TRI->getSubRegIndex(LLVMRegNum, MOI->getReg());
+    unsigned LLVMRegNum = TRI.getLLVMRegNum(DwarfRegNum, false);
+    unsigned SubRegIdx = TRI.getSubRegIndex(LLVMRegNum, MOI->getReg());
     if (SubRegIdx)
-      Offset = TRI->getSubRegIdxOffset(SubRegIdx);
+      Offset = TRI.getSubRegIdxOffset(SubRegIdx);
 
-    Locs.emplace_back(Location::Register, TRI->getSpillSize(*RC),
+    Locs.emplace_back(Location::Register, TRI.getSpillSize(*RC),
                       DwarfRegNum, Offset);
     return ++MOI;
   }
@@ -174,7 +174,7 @@ StackMaps::parseOperand(MachineInstr::const_mop_iterator MOI,
 
 void StackMaps::print(raw_ostream &OS) {
   const TargetRegisterInfo *TRI =
-      AP.MF ? AP.MF->getSubtarget().getRegisterInfo() : nullptr;
+      AP.MF ? &AP.MF->getSubtarget().getRegisterInfo() : nullptr;
   OS << WSMP << "callsites:\n";
   for (const auto &CSI : CSInfos) {
     const LocationVec &CSLocs = CSI.Locations;
@@ -245,9 +245,9 @@ void StackMaps::print(raw_ostream &OS) {
 
 /// Create a live-out register record for the given register Reg.
 StackMaps::LiveOutReg
-StackMaps::createLiveOutReg(unsigned Reg, const TargetRegisterInfo *TRI) const {
+StackMaps::createLiveOutReg(unsigned Reg, const TargetRegisterInfo &TRI) const {
   unsigned DwarfRegNum = getDwarfRegNum(Reg, TRI);
-  unsigned Size = TRI->getSpillSize(*TRI->getMinimalPhysRegClass(Reg));
+  unsigned Size = TRI.getSpillSize(*TRI.getMinimalPhysRegClass(Reg));
   return LiveOutReg(Reg, DwarfRegNum, Size);
 }
 
@@ -256,11 +256,11 @@ StackMaps::createLiveOutReg(unsigned Reg, const TargetRegisterInfo *TRI) const {
 StackMaps::LiveOutVec
 StackMaps::parseRegisterLiveOutMask(const uint32_t *Mask) const {
   assert(Mask && "No register mask specified");
-  const TargetRegisterInfo *TRI = AP.MF->getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = AP.MF->getSubtarget().getRegisterInfo();
   LiveOutVec LiveOuts;
 
   // Create a LiveOutReg for each bit that is set in the register mask.
-  for (unsigned Reg = 0, NumRegs = TRI->getNumRegs(); Reg != NumRegs; ++Reg)
+  for (unsigned Reg = 0, NumRegs = TRI.getNumRegs(); Reg != NumRegs; ++Reg)
     if ((Mask[Reg / 32] >> Reg % 32) & 1)
       LiveOuts.push_back(createLiveOutReg(Reg, TRI));
 
@@ -282,7 +282,7 @@ StackMaps::parseRegisterLiveOutMask(const uint32_t *Mask) const {
         break;
       }
       I->Size = std::max(I->Size, II->Size);
-      if (TRI->isSuperRegister(I->Reg, II->Reg))
+      if (TRI.isSuperRegister(I->Reg, II->Reg))
         I->Reg = II->Reg;
       II->Reg = 0; // mark for deletion.
     }
@@ -350,9 +350,9 @@ void StackMaps::recordStackMapOpers(const MachineInstr &MI, uint64_t ID,
 
   // Record the stack size of the current function and update callsite count.
   const MachineFrameInfo &MFI = AP.MF->getFrameInfo();
-  const TargetRegisterInfo *RegInfo = AP.MF->getSubtarget().getRegisterInfo();
+  const TargetRegisterInfo &RegInfo = AP.MF->getSubtarget().getRegisterInfo();
   bool HasDynamicFrameSize =
-      MFI.hasVarSizedObjects() || RegInfo->needsStackRealignment(*(AP.MF));
+      MFI.hasVarSizedObjects() || RegInfo.needsStackRealignment(*(AP.MF));
   uint64_t FrameSize = HasDynamicFrameSize ? UINT64_MAX : MFI.getStackSize();
 
   auto CurrentIt = FnInfos.find(AP.CurrentFnSym);

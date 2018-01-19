@@ -317,8 +317,8 @@ computeOutputLatency(const MachineInstr *DefMI, unsigned DefOperIdx,
   // for predicated defs.
   unsigned Reg = DefMI->getOperand(DefOperIdx).getReg();
   const MachineFunction &MF = *DefMI->getMF();
-  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-  if (!DepMI->readsRegister(Reg, TRI) && TII->isPredicated(*DepMI))
+  const TargetRegisterInfo &TRI = MF.getSubtarget().getRegisterInfo();
+  if (!DepMI->readsRegister(Reg, &TRI) && TII->isPredicated(*DepMI))
     return computeInstrLatency(DefMI);
 
   // If we have a per operand scheduling model, check if this def is writing

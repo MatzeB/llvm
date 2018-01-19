@@ -175,7 +175,7 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
   if (MBI == MF.end())
     return false; // The function is empty.
 
-  auto *TII = MF.getSubtarget().getInstrInfo();
+  auto &TII = MF.getSubtarget().getInstrInfo();
   auto &FirstMBB = *MBI;
   auto &FirstMI = *FirstMBB.begin();
 
@@ -188,7 +188,7 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
   // First, insert an PATCHABLE_FUNCTION_ENTER as the first instruction of the
   // MachineFunction.
   BuildMI(FirstMBB, FirstMI, FirstMI.getDebugLoc(),
-          TII->get(TargetOpcode::PATCHABLE_FUNCTION_ENTER));
+          TII.get(TargetOpcode::PATCHABLE_FUNCTION_ENTER));
 
   switch (MF.getTarget().getTargetTriple().getArch()) {
   case Triple::ArchType::arm:
@@ -202,7 +202,7 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
     InstrumentationOptions op;
     op.HandleTailcall = false;
     op.HandleAllReturns = true;
-    prependRetWithPatchableExit(MF, TII, op);
+    prependRetWithPatchableExit(MF, &TII, op);
     break;
   }
   case Triple::ArchType::ppc64le: {
@@ -210,7 +210,7 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
     InstrumentationOptions op;
     op.HandleTailcall = false;
     op.HandleAllReturns = true;
-    replaceRetWithPatchableRet(MF, TII, op);
+    replaceRetWithPatchableRet(MF, &TII, op);
     break;
   }
   default: {
@@ -219,7 +219,7 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
     InstrumentationOptions op;
     op.HandleTailcall = true;
     op.HandleAllReturns = false;
-    replaceRetWithPatchableRet(MF, TII, op);
+    replaceRetWithPatchableRet(MF, &TII, op);
     break;
   }
   }

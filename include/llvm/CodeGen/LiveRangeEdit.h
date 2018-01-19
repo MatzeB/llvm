@@ -141,7 +141,7 @@ public:
                 Delegate *delegate = nullptr,
                 SmallPtrSet<MachineInstr *, 32> *deadRemats = nullptr)
       : Parent(parent), NewRegs(newRegs), MRI(MF.getRegInfo()), LIS(lis),
-        VRM(vrm), TII(*MF.getSubtarget().getInstrInfo()), TheDelegate(delegate),
+        VRM(vrm), TII(MF.getSubtarget().getInstrInfo()), TheDelegate(delegate),
         FirstNew(newRegs.size()), DeadRemats(deadRemats) {
     MRI.setDelegate(this);
   }

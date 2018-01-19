@@ -66,8 +66,8 @@ void MachineTraceMetrics::getAnalysisUsage(AnalysisUsage &AU) const {
 bool MachineTraceMetrics::runOnMachineFunction(MachineFunction &Func) {
   MF = &Func;
   const TargetSubtargetInfo &ST = MF->getSubtarget();
-  TII = ST.getInstrInfo();
-  TRI = ST.getRegisterInfo();
+  TII = &ST.getInstrInfo();
+  TRI = &ST.getRegisterInfo();
   MRI = &MF->getRegInfo();
   Loops = &getAnalysis<MachineLoopInfo>();
   SchedModel.init(ST.getSchedModel(), &ST, TII);

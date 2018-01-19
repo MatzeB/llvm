@@ -397,7 +397,7 @@ bool AArch64AdvSIMDScalar::runOnMachineFunction(MachineFunction &mf) {
     return false;
 
   MRI = &mf.getRegInfo();
-  TII = mf.getSubtarget().getInstrInfo();
+  TII = &mf.getSubtarget().getInstrInfo();
 
   // Just check things on a one-block-at-a-time basis.
   for (MachineFunction::iterator I = mf.begin(), E = mf.end(); I != E; ++I)

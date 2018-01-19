@@ -209,7 +209,7 @@ void DefaultVLIWScheduler::schedule() {
 
 VLIWPacketizerList::VLIWPacketizerList(MachineFunction &mf,
                                        MachineLoopInfo &mli, AliasAnalysis *aa)
-    : MF(mf), TII(mf.getSubtarget().getInstrInfo()), AA(aa) {
+    : MF(mf), TII(&mf.getSubtarget().getInstrInfo()), AA(aa) {
   ResourceTracker = TII->CreateTargetScheduleState(MF.getSubtarget());
   VLIWScheduler = new DefaultVLIWScheduler(MF, mli, AA);
 }

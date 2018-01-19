@@ -120,7 +120,7 @@ bool X86FixupSetCCPass::impUsesFlags(MachineInstr *MI) {
 bool X86FixupSetCCPass::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
   MRI = &MF.getRegInfo();
-  TII = MF.getSubtarget<X86Subtarget>().getInstrInfo();
+  TII = &MF.getSubtarget<X86Subtarget>().getInstrInfo();
 
   SmallVector<MachineInstr*, 4> ToErase;
 

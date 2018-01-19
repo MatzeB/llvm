@@ -120,7 +120,7 @@ bool X86IndirectBranchTrackingPass::runOnMachineFunction(MachineFunction &MF) {
   // True if the current MF was changed and false otherwise.
   bool Changed = false;
 
-  TII = SubTarget.getInstrInfo();
+  TII = &SubTarget.getInstrInfo();
   EndbrOpcode = SubTarget.is64Bit() ? X86::ENDBR64 : X86::ENDBR32;
 
   // Non-internal function or function whose address was taken, can be

@@ -127,7 +127,7 @@ MachineRegisterInfo::constrainRegAttrs(unsigned Reg,
 
 bool
 MachineRegisterInfo::recomputeRegClass(unsigned Reg) {
-  const TargetInstrInfo *TII = MF->getSubtarget().getInstrInfo();
+  const TargetInstrInfo &TII = MF->getSubtarget().getInstrInfo();
   const TargetRegisterClass *OldRC = getRegClass(Reg);
   const TargetRegisterClass *NewRC =
       getTargetRegisterInfo()->getLargestLegalSuperClass(OldRC, *MF);
@@ -141,7 +141,7 @@ MachineRegisterInfo::recomputeRegClass(unsigned Reg) {
     // Apply the effect of the given operand to NewRC.
     MachineInstr *MI = MO.getParent();
     unsigned OpNo = &MO - &MI->getOperand(0);
-    NewRC = MI->getRegClassConstraintEffect(OpNo, NewRC, TII,
+    NewRC = MI->getRegClassConstraintEffect(OpNo, NewRC, &TII,
                                             getTargetRegisterInfo());
     if (!NewRC || NewRC == OldRC)
       return false;
