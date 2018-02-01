@@ -527,6 +527,15 @@ int AArch64TTIImpl::getArithmeticInstrCost(
     // These nodes are marked as 'custom' for combining purposes only.
     // We know that they are legal. See LowerAdd in ISelLowering.
     return (Cost + 1) * LT.first;
+  case ISD::SDIV:
+  case ISD::UDIV:
+  case ISD::FDIV:
+  case ISD::FREM:
+  case ISD::SDIVREM:
+  case ISD::UDIVREM:
+  case ISD::SREM:
+  case ISD::UREM:
+    return 10;
   }
 }
 
