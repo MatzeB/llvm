@@ -5185,6 +5185,36 @@ bool CodeGenPrepare::optimizeLoadExt(LoadInst *Load) {
   return true;
 }
 
+static bool isSelectConditionExpensive(const TargetTransformInfo &TTI,
+                                       const SelectInst &SI) {
+  const Value *Condition = SI.getCondition();
+  // TODO: Make sure all users of the Condition are optimizable selects that
+  // don't read each others results?
+#if 0
+  if (!Condition->hasOneUse())
+    return false;
+#endif
+  const Instruction *ConditionInsn = dyn_cast<const Instruction>(Condition);
+  if (!ConditionInsn)
+    return false;
+
+  int C = TTI.getInstructionCost(ConditionInsn,
+                                 TargetTransformInfo::TCK_RecipThroughput);
+  // In case of a compare add the two operands as well...
+  if (const CmpInst *Cmp = dyn_cast<const CmpInst>(ConditionInsn)) {
+    const Value *Op0 = Cmp->getOperand(0);
+    //if (Op0->hasOneUse())
+      if (const Instruction *Op0Insn = dyn_cast<const Instruction>(Op0))
+        C += TTI.getInstructionCost(Op0Insn, TargetTransformInfo::TCK_RecipThroughput);
+    const Value *Op1 = Cmp->getOperand(1);
+    //if (Op1->hasOneUse())
+      if (const Instruction *Op1Insn = dyn_cast<const Instruction>(Op1))
+        C += TTI.getInstructionCost(Op1Insn, TargetTransformInfo::TCK_RecipThroughput);
+  }
+
+  return C > TargetTransformInfo::TCC_Expensive * 2;
+}
+
 /// Check if V (an operand of a select instruction) is an expensive instruction
 /// that is only used once.
 static bool sinkSelectOperand(const TargetTransformInfo *TTI, Value *V) {
@@ -5199,6 +5229,9 @@ static bool sinkSelectOperand(const TargetTransformInfo *TTI, Value *V) {
 static bool isFormingBranchFromSelectProfitable(const TargetTransformInfo *TTI,
                                                 const TargetLowering *TLI,
                                                 SelectInst *SI) {
+  if (isSelectConditionExpensive(*TTI, *SI))
+    return true;
+
   // If even a predictable select is cheap, then a branch can't be cheaper.
   if (!TLI->isPredictableSelectExpensive())
     return false;
