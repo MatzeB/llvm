@@ -491,6 +491,9 @@ FunctionPass *createLibCallsShrinkWrapPass();
 // primarily to help other loop passes.
 //
 Pass *createLoopSimplifyCFGPass();
+
+FunctionPass *createMarkNonTemporalPass();
+
 } // End llvm namespace
 
 #endif
