@@ -9512,6 +9512,10 @@ SDValue DAGCombiner::visitTRUNCATE(SDNode *N) {
 
   // fold (truncate c1) -> c1
   if (DAG.isConstantIntBuildVectorOrConstantInt(N0)) {
+    // Don't fold if the constant has other users and we can truncate for free.
+    if (!N0.hasOneUse() && TLI.isTruncateFree(N0.getValueType(), VT))
+      return SDValue();
+
     SDValue C = DAG.getNode(ISD::TRUNCATE, SDLoc(N), VT, N0);
     if (C.getNode() != N)
       return C;
@@ -14943,11 +14947,14 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
   // If this is an FP_ROUND or TRUNC followed by a store, fold this into a
   // truncating store.  We can do this even if this is already a truncstore.
   if ((Value.getOpcode() == ISD::FP_ROUND || Value.getOpcode() == ISD::TRUNCATE)
-      && Value.getNode()->hasOneUse() && ST->isUnindexed() &&
-      TLI.isTruncStoreLegal(Value.getOperand(0).getValueType(),
-                            ST->getMemoryVT())) {
-    return DAG.getTruncStore(Chain, SDLoc(N), Value.getOperand(0),
-                             Ptr, ST->getMemoryVT(), ST->getMemOperand());
+      && Value.getNode()->hasOneUse() && ST->isUnindexed()) {
+    SDValue From = Value.getOperand(0);
+    EVT FromVT = From.getValueType();
+    EVT ToVT = ST->getMemoryVT();
+    if (!TLI.isTruncateFree(FromVT, ToVT) &&
+        TLI.isTruncStoreLegal(FromVT, ToVT))
+      return DAG.getTruncStore(Chain, SDLoc(N), From, Ptr, ToVT,
+                               ST->getMemOperand());
   }
 
   // Always perform this optimization before types are legal. If the target

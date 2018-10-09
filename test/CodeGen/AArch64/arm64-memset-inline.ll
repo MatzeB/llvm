@@ -18,8 +18,8 @@ define void @bzero_8_heap(i8* nocapture %c) {
 
 define void @bzero_12_heap(i8* nocapture %c) {
 ; CHECK-LABEL: bzero_12_heap:
-; CHECK:       str wzr, [x0, #8]
-; CHECK-NEXT:  str xzr, [x0]
+; CHECK:       str xzr, [x0]
+; CHECK-NEXT:  str wzr, [x0, #8]
 ; CHECK-NEXT:  ret
   call void @llvm.memset.p0i8.i64(i8* align 8 %c, i8 0, i64 12, i1 false)
   ret void
@@ -76,8 +76,8 @@ define void @bzero_8_stack() {
 
 define void @bzero_12_stack() {
 ; CHECK-LABEL: bzero_12_stack:
-; CHECK:       str wzr, [sp, #8]
-; CHECK-NEXT:  str xzr, [sp]
+; CHECK:       str xzr, [sp]
+; CHECK-NEXT:  str wzr, [sp, #8]
 ; CHECK-NEXT:  bl something
   %buf = alloca [12 x i8], align 1
   %cast = bitcast [12 x i8]* %buf to i8*
@@ -242,14 +242,12 @@ define void @memset_8_stack() {
   ret void
 }
 
-; FIXME This could be better: x9 is a superset of w8's bit-pattern.
 define void @memset_12_stack() {
 ; CHECK-LABEL: memset_12_stack:
-; CHECK:       mov w8, #-1431655766
-; CHECK-NEXT:  mov x9, #-6148914691236517206
+; CHECK:  mov x8, #-6148914691236517206
 ; CHECK-NEXT:  mov x0, sp
+; CHECK-NEXT:  str x8, [sp]
 ; CHECK-NEXT:  str w8, [sp, #8]
-; CHECK-NEXT:  str x9, [sp]
 ; CHECK-NEXT:  bl something
   %buf = alloca [12 x i8], align 1
   %cast = bitcast [12 x i8]* %buf to i8*
@@ -272,14 +270,12 @@ define void @memset_16_stack() {
   ret void
 }
 
-; FIXME This could be better: x9 is a superset of w8's bit-pattern.
 define void @memset_20_stack() {
 ; CHECK-LABEL: memset_20_stack:
-; CHECK:       mov w8, #-1431655766
-; CHECK-NEXT:  mov x9, #-6148914691236517206
+; CHECK:       mov x8, #-6148914691236517206
 ; CHECK-NEXT:  add x0, sp, #8
+; CHECK-NEXT:  stp x8, x8, [sp, #8]
 ; CHECK-NEXT:  str w8, [sp, #24]
-; CHECK-NEXT:  stp x9, x9, [sp, #8]
 ; CHECK-NEXT:  bl something
   %buf = alloca [20 x i8], align 1
   %cast = bitcast [20 x i8]* %buf to i8*
