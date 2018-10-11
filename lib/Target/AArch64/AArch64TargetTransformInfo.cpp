@@ -101,13 +101,17 @@ int AArch64TTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx,
   case Instruction::Store:
     ImmIdx = 0;
     break;
-  case Instruction::Add:
-  case Instruction::Sub:
-  case Instruction::Mul:
   case Instruction::UDiv:
   case Instruction::SDiv:
   case Instruction::URem:
   case Instruction::SRem:
+    // Division by constant is typically expanded later into a different
+    // instruction sequence. This completely changes the constants.
+    // Report them as "free" to stop ConstantHoist from marking them as opaque.
+    return TTI::TCC_Free;
+  case Instruction::Add:
+  case Instruction::Sub:
+  case Instruction::Mul:
   case Instruction::And:
   case Instruction::Or:
   case Instruction::Xor:
