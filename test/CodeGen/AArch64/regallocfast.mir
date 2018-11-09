@@ -1,0 +1,20 @@
+# RUN: llc -o - %s -mtriple=aarch64-- -run-pass=regallocfast | FileCheck %s
+---
+# CHECK-LABEL: name: func0
+name: func0
+tracksRegLiveness: true
+body: |
+  bb.0:
+    %0:gpr64 = MOVi64imm 42
+    %1:gpr64 = MOVi64imm 13
+    ; Make sure the undef operand vreg gets the same register assigned as the
+    ; corresponding non-undef one.
+    %2:gpr64 = EORXrr undef %1, %1
+    %3:gpr64 = EORXrr undef %3, %0
+    ; CHECK: renamable [[R0:\$x[0-9]+]] = MOVi64imm 42
+    ; CHECK: renamable [[R1:\$x[0-9]+]] = MOVi64imm 13
+    ; CHECK-NOT: LDR
+    ; CHECK: dead renamable [[R2:\$x[0-9]+]] = EORXrr undef renamable [[R1]], killed renamable [[R1]]
+    ; CHECK-NOT: LDR
+    ; CHECK: dead renamable [[R3:\$x[0-9]+]] = EORXrr undef renamable [[R3]], killed renamable [[R0]]
+...
